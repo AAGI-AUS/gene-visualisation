@@ -1,0 +1,100 @@
+.dropZone {
+  border: 1px dashed var(--border-hi);
+  border-radius: var(--radius);
+  padding: 18px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 11px;
+  color: var(--text-dim);
+  position: relative;
+}
+
+.dropZone:hover,
+.dragOver {
+  border-color: var(--green-dim);
+  background: rgba(57, 255, 135, 0.04);
+  color: var(--text);
+}
+
+.hiddenInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.icon {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.label {
+  font-weight: 500;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+/* ── Loaded state ── */
+.fileLoaded {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(57, 255, 135, 0.06);
+  border: 1px solid var(--green-dim);
+  border-radius: var(--radius);
+  font-size: 11px;
+}
+
+.dot {
+  color: var(--green);
+  font-size: 8px;
+}
+
+.fileName {
+  color: var(--green);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowCount {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.clearBtn {
+  cursor: pointer;
+  color: var(--muted);
+  border: none;
+  background: none;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.1s;
+}
+
+.clearBtn:hover {
+  color: var(--red);
+}
+
+/* ── Slot label ── */
+.slotLabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}

@@ -1,0 +1,265 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.controlLabel {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.controlInput {
+  width: 80px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  text-align: right;
+  transition: border-color 0.15s;
+}
+.controlInput:focus { outline: none; border-color: #3b82f6; }
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+}
+
+/* ── Others toggle button ── */
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #f8fafc;
+  color: #64748b;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.toggleBtn:hover {
+  border-color: #94a3b8;
+  color: #334155;
+}
+.toggleBtnOn {
+  background: #f0f9ff;
+  border-color: #38bdf8;
+  color: #0284c7;
+}
+.toggleDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.toggleBtnOn .toggleDot {
+  background: #38bdf8;
+}
+.toggleBadge {
+  background: #e0f2fe;
+  color: #0284c7;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* ── Stats strip ── */
+.statsStrip {
+  display: flex;
+  gap: 14px;
+  font-size: 10px;
+  color: #94a3b8;
+  align-items: center;
+}
+.statItem { display: flex; gap: 4px; align-items: center; }
+.statNum  { font-weight: 600; color: #334155; }
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.legendSwatch {
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+
+/* ── Canvas ── */
+.canvasWrap {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #fff;
+  position: relative;
+  min-height: 300px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.svgCanvas {
+  display: block;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+  position: fixed;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 0;
+  font-family: var(--mono);
+  color: #1e293b;
+  pointer-events: none;
+  z-index: 999;
+  width: 270px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.tooltipInner {
+  padding: 10px 13px 12px;
+}
+
+.tooltipHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.tooltipDominant {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tooltipCount {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.tooltipCoord {
+  display: flex;
+  gap: 8px;
+  font-size: 10.5px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.tooltipGenome {
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  width: 34px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.tooltipDivider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 9px -13px 9px;
+}
+
+/* ── Distribution mini-bars ── */
+.distRow {
+  display: grid;
+  grid-template-columns: 80px 1fr 28px 36px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 10px;
+}
+.distRow:last-child { margin-bottom: 0; }
+
+.distLabel {
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.distBarWrap {
+  height: 7px;
+  background: #f1f5f9;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.distBar {
+  height: 100%;
+  border-radius: 2px;
+  opacity: 0.8;
+  transition: width 0.2s ease;
+}
+
+.distN {
+  text-align: right;
+  color: #334155;
+  font-weight: 500;
+}
+
+.distPct {
+  text-align: right;
+  color: #94a3b8;
+}
+
+/* ── Empty state ── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+  color: #94a3b8;
+}
+.emptyIcon  { font-size: 36px; opacity: 0.25; }
+.emptyTitle { font-size: 13px; color: #64748b; }
+.emptySub   { font-size: 11px; opacity: 0.6; }

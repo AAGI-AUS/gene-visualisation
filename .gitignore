@@ -1,0 +1,8 @@
+build/
+dist/
+node_modules/
+
+# python helper
+env/
+
+data/

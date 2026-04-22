@@ -1,0 +1,129 @@
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.panel {
+  border-bottom: 1px solid var(--border);
+}
+
+.panelHeader {
+  padding: 10px 16px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.02);
+  user-select: none;
+}
+
+.panelBody {
+  padding: 12px 16px;
+}
+
+/* ── Threshold ── */
+.thresholdRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.thresholdLabel {
+  font-size: 11px;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.thresholdInput {
+  width: 80px;
+  background: var(--bg);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  text-align: right;
+  transition: border-color 0.15s;
+}
+
+.thresholdInput:focus {
+  outline: none;
+  border-color: var(--green-dim);
+}
+
+/* ── Run button ── */
+.runBtn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px;
+  background: var(--green-dim);
+  color: var(--green);
+  border: 1px solid var(--green-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.runBtn:hover:not(:disabled) {
+  background: rgba(57, 255, 135, 0.15);
+  border-color: var(--green);
+}
+
+.runBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Stat grid ── */
+.statGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.statCard {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.statVal {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.statVal.green {
+  color: var(--green);
+}
+
+.statVal.amber {
+  color: var(--amber);
+}
+
+.statVal.red {
+  color: var(--red);
+}
+
+.statVal.blue {
+  color: var(--blue);
+}
+
+.statLabel {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: 3px;
+}

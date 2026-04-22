@@ -1,0 +1,106 @@
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* ── Event bars ── */
+.eventBars {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  height: 100px;
+}
+
+.eventCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.eventCount {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.eventBarWrap {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  height: 60px;
+}
+
+.eventBar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+
+.eventLabel {
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.eventPct {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ── Chromosome chart ── */
+.chrChart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chrRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chrName {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 72px;
+  text-align: right;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chrBarBg {
+  flex: 1;
+  height: 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.chrBarFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  opacity: 0.75;
+}
+
+.chrPct {
+  font-size: 11px;
+  color: var(--text-dim);
+  width: 44px;
+  text-align: right;
+  flex-shrink: 0;
+}
