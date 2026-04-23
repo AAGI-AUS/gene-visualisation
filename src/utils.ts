@@ -97,19 +97,6 @@ export function queryGene(
     };
   });
 
-  // Step 2 – classify events
-  // const queried = queried.map((r) => {
-  //   const isInvert = r.sign === "-";
-  //   const isTranslocation =
-  //     r.chromosomeQuery !== null && r.chromosomeBase !== r.chromosomeQuery;
-  //   const mainEvent: MainEvent = isTranslocation
-  //     ? "translocation"
-  //     : isInvert
-  //       ? "inversion"
-  //       : "synteny";
-  //   return { ...r, isInvert, isTranslocation, mainEvent };
-  // });
-
   // Step 3 – chromosomeQuery percentage table
   const total = queried.length || 1;
   const counts = new Map<string, number>();
