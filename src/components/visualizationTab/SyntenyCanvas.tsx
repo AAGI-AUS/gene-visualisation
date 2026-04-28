@@ -1,12 +1,15 @@
 import { useCallback, type MouseEvent, type RefObject } from "react";
 import { Group } from "@visx/group";
+import { PAD, BAR_H } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
-import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { BaseRowLayer, QueryRowLayer } from "./GenomeRowLayer";
 import { RibbonLayer } from "./RibbonLayer";
 import { ChunkTooltip } from "./ChunkTooltip";
 import styles from "./VisualizationTab.module.css";
-import { PAD } from "@/src/constants";
+import { useVisualizationStore } from "@/src/store/useVisualizationStore";
+
+/** px gap between the bottom of the query bar label and the tooltip top */
+const TOOLTIP_OFFSET_Y = 22;
 
 interface SyntenyCanvasProps {
   svgRef: RefObject<SVGSVGElement>;
@@ -39,12 +42,17 @@ export function SyntenyCanvas({
   const clearHover = useVisualizationStore((s) => s.clearHover);
 
   const onMove = useCallback(
-    (e: MouseEvent<SVGPathElement>, ch: Chunk) => {
-      setTooltip({ cx: e.clientX, cy: e.clientY, chunk: ch });
+    (_e: MouseEvent<SVGPathElement>, ch: Chunk, rib: ChunkRibbon) => {
+      // Centre tooltip on the ribbon's midpoint (in canvas-space px)
+      const ribbonMidX = PAD.left + (rib.bxs + rib.bxe) / 2;
+      setTooltip({ ribbonMidX, chunk: ch });
       setHoverChunk(ch.id);
     },
     [setTooltip, setHoverChunk]
   );
+
+  // Fixed y: bottom of query bar + gap for the chromosome label
+  const tooltipTopY = queryRow.y + BAR_H + TOOLTIP_OFFSET_Y;
 
   return (
     <div className={styles.canvasWrap} ref={wrapRef}>
@@ -64,7 +72,9 @@ export function SyntenyCanvas({
         </Group>
       </svg>
 
-      {tooltip && <ChunkTooltip chunk={tooltip.chunk} cx={tooltip.cx} cy={tooltip.cy} />}
+      {tooltip && (
+        <ChunkTooltip chunk={tooltip.chunk} ribbonMidX={tooltip.ribbonMidX} topY={tooltipTopY} canvasW={svgW} />
+      )}
     </div>
   );
 }

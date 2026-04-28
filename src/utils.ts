@@ -66,6 +66,7 @@ const checkNoise = (base: BedRow, query: BedRow | null, offLocThreshold: number)
 export function queryGene(
   baseRows: BedRow[],
   queryRows: BedRow[],
+  chromosomeBase: string,
   groupThreshold = 0.01,
   offLocThreshold = 0.05
 ): ResultRow[] {
@@ -73,29 +74,31 @@ export function queryGene(
   const queryMap = new Map<number, BedRow>(queryRows.map((r) => [r.id, r]));
 
   // Step 1 – left join
-  const queried = baseRows.map((base) => {
-    const query = queryMap.get(base.id) ?? null;
+  const queried = baseRows
+    .filter((base) => base.chromosome === chromosomeBase)
+    .map((base) => {
+      const query = queryMap.get(base.id) ?? null;
 
-    const isInvert = query?.sign === "-";
-    const isTranslocation = query?.chromosome !== null && base.chromosome !== query?.chromosome;
-    const mainEvent: MainEvent = isTranslocation ? "translocation" : isInvert ? "inversion" : "synteny";
-    const isNoise = !isTranslocation && checkNoise(base, query, offLocThreshold);
+      const isInvert = query?.sign === "-";
+      const isTranslocation = query?.chromosome !== null && base.chromosome !== query?.chromosome;
+      const mainEvent: MainEvent = isTranslocation ? "translocation" : isInvert ? "inversion" : "synteny";
+      const isNoise = !isTranslocation && checkNoise(base, query, offLocThreshold);
 
-    return {
-      id: base.id,
-      chromosomeBase: base.chromosome,
-      p1Base: base.p1,
-      p2Base: base.p2,
-      chromosomeQuery: query?.chromosome ?? null,
-      p1Query: query?.p1 ?? 0,
-      p2Query: query?.p2 ?? 0,
-      sign: query?.sign ?? null,
-      isInvert,
-      isTranslocation,
-      mainEvent,
-      isNoise,
-    };
-  });
+      return {
+        id: base.id,
+        chromosomeBase: base.chromosome,
+        p1Base: base.p1,
+        p2Base: base.p2,
+        chromosomeQuery: query?.chromosome ?? null,
+        p1Query: query?.p1 ?? 0,
+        p2Query: query?.p2 ?? 0,
+        sign: query?.sign ?? null,
+        isInvert,
+        isTranslocation,
+        mainEvent,
+        isNoise,
+      };
+    });
 
   // Step 3 – chromosomeQuery percentage table
   const total = queried.length || 1;
@@ -126,4 +129,14 @@ export function readFileAsText(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsText(file);
   });
+}
+
+export function getChromosomes(rows: BedRow[]): string[] {
+  return Array.from(
+    rows.reduce<Set<string>>((set, r) => {
+      const chr = r.chromosome;
+      if (chr && chr.length <= 2) set.add(chr);
+      return set;
+    }, new Set())
+  );
 }

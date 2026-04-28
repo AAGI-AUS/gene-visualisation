@@ -89,11 +89,14 @@ export interface Chunk {
   chrBase: string;
   bp1Base: number;
   bp2Base: number;
+  bpGeneBase: number;
   chrQuery: string;
   bp1Query: number;
   bp2Query: number;
+  bpGeneQuery: number;
   dominant: ChunkEvent;
-  counts: EventCounts;
+  eventCounts: EventCounts;
+  queryChromCounts: { [key: string]: number };
   isInvert: boolean;
   isOthers: boolean;
 }
@@ -107,7 +110,7 @@ export interface ChunkRibbon {
 }
 
 export interface TooltipInfo {
-  cx: number;
-  cy: number;
+  /** SVG x-coordinate of the ribbon midpoint (used to horizontally centre the tooltip) */
+  ribbonMidX: number;
   chunk: Chunk;
 }

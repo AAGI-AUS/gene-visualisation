@@ -39,19 +39,27 @@ export function dominantEvent(c: EventCounts): ChunkEvent {
 
 export function buildChunk(rows: ResultRow[], idx: number): Chunk {
   const chrBase = rows[0].chromosomeBase;
-  const bp1Base = Math.min(...rows.map((r) => r.p1Base));
-  const bp2Base = Math.max(...rows.map((r) => r.p2Base));
+  const bp1Base = rows[0].p1Base;
+  const bp2Base = rows[rows.length - 1].p2Base;
 
-  const counts = zeroCounts();
+  const eventCounts = zeroCounts();
   for (const r of rows) {
-    counts[rowCategory(r)]++;
-    counts.total++;
+    eventCounts[rowCategory(r)]++;
+    eventCounts.total++;
   }
-  const dominant = dominantEvent(counts);
+  const dominant = dominantEvent(eventCounts);
 
-  const qCnt: Record<string, number> = {};
-  for (const r of rows) if (r.chromosomeQuery) qCnt[r.chromosomeQuery] = (qCnt[r.chromosomeQuery] ?? 0) + 1;
-  const chrQuery = Object.entries(qCnt).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  let bpGeneBase = 0;
+  let bpGeneQuery = 0;
+  const queryChromCounts: Record<string, number> = {};
+  for (const r of rows) {
+    bpGeneBase += r.p2Base - r.p1Base;
+    if (r.chromosomeQuery) {
+      bpGeneQuery += r.p2Query - r.p1Query;
+      queryChromCounts[r.chromosomeQuery] = (queryChromCounts[r.chromosomeQuery] ?? 0) + 1;
+    }
+  }
+  const chrQuery = Object.entries(queryChromCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
 
   const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery && r.p1Query != null);
   const bp1Query = qRows.length ? Math.min(...qRows.map((r) => r.p1Query!)) : 0;
@@ -64,11 +72,14 @@ export function buildChunk(rows: ResultRow[], idx: number): Chunk {
     chrBase,
     bp1Base,
     bp2Base,
+    bpGeneBase,
     chrQuery,
     bp1Query,
     bp2Query,
+    bpGeneQuery,
     dominant,
-    counts,
+    eventCounts,
+    queryChromCounts,
     isInvert,
     isOthers,
   };

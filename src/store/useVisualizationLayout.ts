@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import type { BaseRow, Chunk, ChunkRibbon, EventCounts, QueryRow, ResultRow } from "@/types";
+import type { ResultRow } from "@/types";
 import { BAR_H, CHR_PALETTE, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
+import type { BaseRow, Chunk, ChunkRibbon, EventCounts, QueryRow } from "@/types";
 import {
   buildBaseRow,
   buildQueryRow,
@@ -129,14 +130,16 @@ export function useVisualizationLayout(
   const globalCounts = useMemo<EventCounts>(() => {
     const c = zeroCounts();
     for (const ch of chunks) {
-      (Object.keys(ch.counts) as (keyof EventCounts)[]).forEach((k) => {
-        c[k] = (c[k] ?? 0) + ch.counts[k as string];
+      (Object.keys(ch.eventCounts) as Array<keyof EventCounts>).forEach((k) => {
+        c[k] = (c[k] ?? 0) + ch.eventCounts[k as keyof EventCounts];
       });
     }
     return c;
   }, [chunks]);
 
-  const svgH = PAD.top + BAR_H + ROW_GAP + BAR_H + PAD.bottom;
+  // Extra bottom padding so the tooltip (≈180px) has space below the query bar
+  const TOOLTIP_ROOM = 200;
+  const svgH = PAD.top + BAR_H + ROW_GAP + BAR_H + PAD.bottom + TOOLTIP_ROOM;
   const y1bot = baseRow.y + BAR_H + RIBBON_GAP;
   const y2top = queryRow.y - RIBBON_GAP;
 

@@ -2,7 +2,6 @@ import { useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
-// import { VisualizationTab } from "@/src/components/VisualizationTab";
 import { Sidebar } from "@/src/components/Sidebar";
 import { TableTab } from "@/src/components/TableTab";
 import { DistributionTab } from "@/src/components/DistributionTab";

@@ -9,19 +9,20 @@ interface RibbonLayerProps {
   y2top: number;
   hoverChunk: string | null;
   othersMode: boolean;
-  onMove: (e: MouseEvent<SVGPathElement>, chunk: Chunk) => void;
+  onMove: (e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => void;
 }
 
 export function RibbonLayer({ ribbons, y1bot, y2top, hoverChunk, othersMode, onMove }: RibbonLayerProps) {
   return (
     <g>
-      {ribbons.map(({ chunk: ch, bxs, bxe, qxs, qxe }) => {
+      {ribbons.map((rib) => {
+        const { chunk: ch, bxs, bxe, qxs, qxe } = rib;
         const hot = hoverChunk === ch.id;
         const dimmed = hoverChunk !== null && !hot;
         const isOth = othersMode && ch.isOthers;
         const color = CHUNK_COLOR[ch.dominant];
         const baseOp = isOth ? 0.28 : CHUNK_OPACITY[ch.dominant];
-        const op = hot ? 0.68 : dimmed ? baseOp * 0.15 : baseOp;
+        const op = dimmed ? baseOp * 0.15 : baseOp;
 
         return (
           <path
@@ -33,7 +34,7 @@ export function RibbonLayer({ ribbons, y1bot, y2top, hoverChunk, othersMode, onM
             strokeWidth={hot ? 1 : 0}
             strokeOpacity={op}
             style={{ cursor: "pointer" }}
-            onMouseMove={(e) => onMove(e, ch)}
+            onMouseMove={(e) => onMove(e, ch, rib)}
           />
         );
       })}
