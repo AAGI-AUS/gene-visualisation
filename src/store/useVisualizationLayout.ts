@@ -100,14 +100,14 @@ export function useVisualizationLayout(
 
     const chrSpecs: SlotSpec[] = [];
     const seen = new Set<string>();
-    for (const r of data) {
-      if (r.chromosomeQuery && realChrs.has(r.chromosomeQuery) && !seen.has(r.chromosomeQuery)) {
-        seen.add(r.chromosomeQuery);
+    for (const chromosome of [...realChrs].sort((a, b) => a.localeCompare(b))) {
+      if (realChrs.has(chromosome) && !seen.has(chromosome)) {
+        seen.add(chromosome);
         chrSpecs.push({
           kind: "chr",
-          chr: r.chromosomeQuery,
-          bpLen: Math.max(queryChrMax.get(r.chromosomeQuery) ?? 1, 1),
-          colorIdx: queryChrColorIdx.get(r.chromosomeQuery) ?? 0,
+          chr: chromosome,
+          bpLen: Math.max(queryChrMax.get(chromosome) ?? 1, 1),
+          colorIdx: queryChrColorIdx.get(chromosome) ?? 0,
         });
       }
     }
