@@ -21,8 +21,10 @@ const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
 
 export function Controls({ chunkCount, globalCounts, othersCount, svgRef }: ControlsProps) {
   const gapBp = useVisualizationStore((s) => s.gapBp);
+  const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
   const othersMode = useVisualizationStore((s) => s.othersMode);
   const setGapBp = useVisualizationStore((s) => s.setGapBp);
+  const setHiddenThreshold = useVisualizationStore((s) => s.setHiddenThreshold);
   const setOthers = useVisualizationStore((s) => s.setOthersMode);
 
   return (
@@ -37,7 +39,21 @@ export function Controls({ chunkCount, globalCounts, othersCount, svgRef }: Cont
           step={10000}
           value={gapBp}
           onChange={(e) => setGapBp(parseInt(e.target.value) || 10000)}
-          style={{ width: 90 }}
+          style={{ width: 71 }}
+        />
+      </div>
+
+      {/* hidden threshold */}
+      <div className={styles.controlGroup}>
+        <span className={styles.controlLabel}>Hidden threshold (genes)</span>
+        <input
+          className={styles.controlInput}
+          type="number"
+          min={0}
+          step={1}
+          value={hiddenThreshold}
+          onChange={(e) => setHiddenThreshold(parseInt(e.target.value) || 0)}
+          style={{ width: 55 }}
         />
       </div>
 

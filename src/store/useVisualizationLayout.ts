@@ -7,6 +7,7 @@ import {
   buildQueryRow,
   chunkRows,
   computeRibbons,
+  SlotSpec,
   zeroCounts,
 } from "@/src/components/visualizationTab/utils";
 
@@ -28,17 +29,14 @@ export function useVisualizationLayout(
   queryLabel: string,
   trackW: number,
   gapBp: number,
-  othersMode: boolean
+  othersMode: boolean,
+  hiddenThreshold: number
 ): VisualizationLayout {
   // 1. Chromosome extents (order of first appearance, max bp)
-  const { baseChrMax, baseChrOrder, queryChrMax, queryChrColorIdx } = useMemo(() => {
+  const { baseChrMax, baseChrOrder } = useMemo(() => {
     const baseChrMax = new Map<string, number>();
     const baseChrOrder: string[] = [];
-    const queryChrMax = new Map<string, number>();
-    const queryChrColorIdx = new Map<string, number>();
     const seenBase = new Set<string>();
-    const seenQuery = new Set<string>();
-    let qi = 0;
 
     for (const r of data) {
       if (r.chromosomeBase && !seenBase.has(r.chromosomeBase)) {
@@ -47,15 +45,8 @@ export function useVisualizationLayout(
       }
       if (r.chromosomeBase)
         baseChrMax.set(r.chromosomeBase, Math.max(baseChrMax.get(r.chromosomeBase) ?? 0, r.p2Base));
-
-      if (r.chromosomeQuery && !seenQuery.has(r.chromosomeQuery)) {
-        seenQuery.add(r.chromosomeQuery);
-        queryChrColorIdx.set(r.chromosomeQuery, qi++ % CHR_PALETTE.length);
-      }
-      if (r.chromosomeQuery)
-        queryChrMax.set(r.chromosomeQuery, Math.max(queryChrMax.get(r.chromosomeQuery) ?? 0, r.p2Query ?? 0));
     }
-    return { baseChrMax, baseChrOrder, queryChrMax, queryChrColorIdx };
+    return { baseChrMax, baseChrOrder };
   }, [data]);
 
   // 2. Base row — always shows all base chromosomes
@@ -79,11 +70,30 @@ export function useVisualizationLayout(
         ...chunkRows(
           [...rows].sort((a, b) => a.p1Base - b.p1Base),
           gapBp
-        )
+        ).filter((c) => c.eventCounts.total > hiddenThreshold)
       )
     );
     return all;
-  }, [data, gapBp]);
+  }, [data, gapBp, hiddenThreshold]);
+
+  const { queryChrMax, queryChrMin, queryChrColorIdx } = useMemo(() => {
+    const queryChrMax = new Map<string, number>();
+    const queryChrMin = new Map<string, number>();
+    const queryChrColorIdx = new Map<string, number>();
+    const seenQuery = new Set<string>();
+    let qi = 0;
+
+    for (const chunk of chunks) {
+      if (othersMode && chunk.isOthers) continue;
+      if (!seenQuery.has(chunk.chrQuery)) {
+        seenQuery.add(chunk.chrQuery);
+        queryChrColorIdx.set(chunk.chrQuery, qi++ % CHR_PALETTE.length);
+      }
+      queryChrMax.set(chunk.chrQuery, Math.max(queryChrMax.get(chunk.chrQuery) ?? 0, chunk.bp2Query));
+      queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e111, chunk.bp1Query));
+    }
+    return { queryChrMax, queryChrMin, queryChrColorIdx };
+  }, [chunks, othersMode]);
 
   // 4. Query row — only chrs that receive ribbons; others stubs when in othersMode
   const queryRow = useMemo<QueryRow>(() => {
@@ -94,19 +104,17 @@ export function useVisualizationLayout(
       else realChrs.add(ch.chrQuery);
     }
 
-    type SlotSpec =
-      | { kind: "chr"; chr: string; bpLen: number; colorIdx: number }
-      | { kind: "others"; baseChr: string; side: "left" | "right" };
-
     const chrSpecs: SlotSpec[] = [];
     const seen = new Set<string>();
     for (const chromosome of [...realChrs].sort((a, b) => a.localeCompare(b))) {
       if (realChrs.has(chromosome) && !seen.has(chromosome)) {
         seen.add(chromosome);
+        const p1 = queryChrMin.get(chromosome) ?? 0;
         chrSpecs.push({
           kind: "chr",
           chr: chromosome,
-          bpLen: Math.max(queryChrMax.get(chromosome) ?? 1, 1),
+          p1,
+          bpLen: Math.max(queryChrMax.get(chromosome) ?? 1, 1) - p1,
           colorIdx: queryChrColorIdx.get(chromosome) ?? 0,
         });
       }
