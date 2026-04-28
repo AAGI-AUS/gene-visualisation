@@ -3,6 +3,7 @@ import { create } from "zustand";
 
 interface VisualizationState {
   gapBp: number;
+  hiddenThreshold: number;
   othersMode: boolean;
   svgW: number;
   hoverChunk: string | null;
@@ -11,6 +12,7 @@ interface VisualizationState {
 
 interface VisualizationActions {
   setGapBp: (v: number) => void;
+  setHiddenThreshold: (v: number) => void;
   setOthersMode: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSvgW: (w: number) => void;
   setHoverChunk: (id: string | null) => void;
@@ -20,12 +22,14 @@ interface VisualizationActions {
 
 export const useVisualizationStore = create<VisualizationState & VisualizationActions>((set) => ({
   gapBp: 50000,
+  hiddenThreshold: 20,
   othersMode: false,
   svgW: 900,
   hoverChunk: null,
   tooltip: null,
 
   setGapBp: (v) => set({ gapBp: Math.max(1000, v) }),
+  setHiddenThreshold: (v) => set({ hiddenThreshold: Math.max(0, v) }),
   setOthersMode: (v) => set((s) => ({ othersMode: typeof v === "function" ? v(s.othersMode) : v })),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setHoverChunk: (id) => set({ hoverChunk: id }),

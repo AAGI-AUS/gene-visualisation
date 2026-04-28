@@ -42,6 +42,7 @@ export interface ChrBar {
   px: number;
   pw: number;
   bpLen: number;
+  p1: number;
   colorIdx: number;
 }
 

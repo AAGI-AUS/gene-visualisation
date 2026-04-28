@@ -96,6 +96,8 @@ export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
 
   const nonTrans = rows.filter((r) => !r.isTranslocation);
   const trans = rows.filter((r) => r.isTranslocation);
+  const transMinor = trans.filter((r) => r.groupedQuery === "others");
+  const transMajor = trans.filter((r) => r.groupedQuery !== "others");
 
   function sweep(group: ResultRow[], strict: boolean) {
     if (!group.length) return;
@@ -127,7 +129,8 @@ export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
   }
 
   sweep(nonTrans, true);
-  sweep(trans, false);
+  sweep(transMajor, true);
+  sweep(transMinor, false);
 
   return out;
 }
@@ -153,7 +156,7 @@ export function buildBaseRow(
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1);
     const pw = bpLen * pxPerBp;
-    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, colorIdx: i % CHR_PALETTE.length };
+    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1: 0, colorIdx: i % CHR_PALETTE.length };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
   });
@@ -161,8 +164,8 @@ export function buildBaseRow(
   return { label, bars, y: PAD.top };
 }
 
-type SlotSpec =
-  | { kind: "chr"; chr: string; bpLen: number; colorIdx: number }
+export type SlotSpec =
+  | { kind: "chr"; chr: string; bpLen: number; p1: number; colorIdx: number }
   | { kind: "others"; baseChr: string; side: "left" | "right" };
 
 export function buildQueryRow(slotSpecs: SlotSpec[], label: string, availW: number): QueryRow {
@@ -186,7 +189,7 @@ export function buildQueryRow(slotSpecs: SlotSpec[], label: string, availW: numb
     let slot: QuerySlot;
     if (spec.kind === "chr") {
       const pw = spec.bpLen * pxPerBp;
-      slot = { kind: "chr", chr: spec.chr, px: cursor, pw, bpLen: spec.bpLen, colorIdx: spec.colorIdx };
+      slot = { ...spec, px: cursor, pw };
       cursor += pw;
     } else {
       slot = {
@@ -211,7 +214,7 @@ export function buildQueryRow(slotSpecs: SlotSpec[], label: string, availW: numb
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function bpToPx(bar: ChrBar, bp: number): number {
-  const frac = Math.min(Math.max(bp / bar.bpLen, 0), 1);
+  const frac = Math.min(Math.max((bp - bar.p1) / bar.bpLen, 0), 1);
   return bar.px + frac * bar.pw;
 }
 
@@ -272,15 +275,23 @@ export function computeRibbons(
       continue;
     }
 
-    const qSlot = queryRow.slots.find((s) => s.kind === "chr" && (s as ChrBar).chr === chunk.chrQuery) as
+    const qSlot = queryRow.slots.find((s) => s.kind === "chr" && s.chr === chunk.chrQuery) as
       | ChrBar
       | undefined;
     if (!qSlot) continue;
 
     const rx0 = bpToPx(qSlot, chunk.bp1Query);
     const rx1 = bpToPx(qSlot, chunk.bp2Query);
-    const qxs = chunk.isInvert ? Math.max(rx0, rx1) : Math.min(rx0, rx1);
-    const qxe = chunk.isInvert ? Math.min(rx0, rx1) : Math.max(rx0, rx1);
+
+    let qxs: number;
+    let qxe: number;
+    if (chunk.isInvert) {
+      qxs = rx1;
+      qxe = rx0;
+    } else {
+      qxs = rx0;
+      qxe = rx1;
+    }
     out.push({ chunk, bxs, bxe, qxs, qxe });
   }
 

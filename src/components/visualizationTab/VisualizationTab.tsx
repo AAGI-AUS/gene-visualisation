@@ -25,6 +25,7 @@ export function VisualizationTab({
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const gapBp = useVisualizationStore((s) => s.gapBp);
   const othersMode = useVisualizationStore((s) => s.othersMode);
+  const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
 
   // Sync SVG width with container
   useEffect(() => {
@@ -44,7 +45,8 @@ export function VisualizationTab({
     queryLabel,
     svgW - PAD.left - PAD.right,
     gapBp,
-    othersMode
+    othersMode,
+    hiddenThreshold
   );
 
   if (!data.length) {
