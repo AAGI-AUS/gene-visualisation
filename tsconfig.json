@@ -20,6 +20,7 @@
     "jsx": "react-jsx",
     "noFallthroughCasesInSwitch": true,
     "removeComments": true,
+    "downlevelIteration": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]

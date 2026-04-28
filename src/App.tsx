@@ -2,10 +2,10 @@ import { useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
-import { VisualizationTab } from "@/src/components/VisualizationTab";
 import { Sidebar } from "@/src/components/Sidebar";
 import { TableTab } from "@/src/components/TableTab";
 import { DistributionTab } from "@/src/components/DistributionTab";
+import { VisualizationTab } from "@/src/components/visualizationTab/VisualizationTab";
 
 type Tab = "Visualization" | "Results" | "Distribution";
 const TABS: Tab[] = ["Visualization", "Results", "Distribution"];
@@ -56,12 +56,8 @@ const App = () => {
               ) : (
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>◈</span>
-                  <span className={styles.emptyTitle}>
-                    Load both BED files and run analysis
-                  </span>
-                  <span className={styles.emptySub}>
-                    Synteny ribbons will appear here
-                  </span>
+                  <span className={styles.emptyTitle}>Load both BED files and run analysis</span>
+                  <span className={styles.emptySub}>Synteny ribbons will appear here</span>
                 </div>
               ))}
 
@@ -72,9 +68,7 @@ const App = () => {
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>⬡</span>
                   <span className={styles.emptyTitle}>No results yet</span>
-                  <span className={styles.emptySub}>
-                    Load both BED files and click RUN ANALYSIS
-                  </span>
+                  <span className={styles.emptySub}>Load both BED files and click RUN ANALYSIS</span>
                 </div>
               ))}
 
@@ -84,9 +78,7 @@ const App = () => {
               ) : (
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>▦</span>
-                  <span className={styles.emptyTitle}>
-                    Run an analysis first
-                  </span>
+                  <span className={styles.emptyTitle}>Run an analysis first</span>
                 </div>
               ))}
           </div>

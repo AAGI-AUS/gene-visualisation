@@ -1,10 +1,12 @@
 import { create } from "zustand";
-import { BedFile, ResultRow } from "../../types";
-import { queryGene } from "../utils";
+import { BedFile, ResultRow } from "@/types";
+import { getChromosomes, queryGene } from "@/src/utils";
 
 interface AppState {
   baseFile: BedFile | null;
   queryFile: BedFile | null;
+  chromosomes: string[];
+  selectedChr: string | null;
   groupThreshold: number;
   offLocThreshold: number;
   result: ResultRow[] | null;
@@ -27,13 +29,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // ── state ──────────────────────────────────────────────────────────────
   baseFile: null,
   queryFile: null,
+  chromosomes: [],
+  selectedChr: null,
   groupThreshold: 0.01,
   offLocThreshold: 0.05,
   result: null,
   error: null,
 
   // ── actions ────────────────────────────────────────────────────────────
-  setBaseFile: (baseFile) => set({ baseFile, result: null, error: null }),
+  setBaseFile: (baseFile) =>
+    set({
+      baseFile,
+      result: null,
+      error: null,
+      chromosomes: getChromosomes(baseFile.rows),
+    }),
   setQueryFile: (queryFile) => set({ queryFile, result: null, error: null }),
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),
@@ -41,10 +51,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   clearQuery: () => set({ queryFile: null, result: null, error: null }),
 
   runAnalysis: () => {
-    const { baseFile, queryFile, groupThreshold, offLocThreshold } = get();
-    if (!baseFile || !queryFile) return;
+    const { baseFile, queryFile, selectedChr, groupThreshold, offLocThreshold } = get();
+    if (!baseFile || !queryFile || !selectedChr) return;
     try {
-      const result = queryGene(baseFile.rows, queryFile.rows, groupThreshold, offLocThreshold);
+      const result = queryGene(baseFile.rows, queryFile.rows, selectedChr, groupThreshold, offLocThreshold);
       set({ result, error: null });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });

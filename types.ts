@@ -31,3 +31,86 @@ export interface ResultRow {
   groupedQuery: string;
   isNoise: boolean;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layout types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ChrBar {
+  kind: "chr";
+  chr: string;
+  px: number;
+  pw: number;
+  bpLen: number;
+  colorIdx: number;
+}
+
+export interface OthersBar {
+  kind: "others";
+  baseChr: string;
+  side: "left" | "right";
+  px: number;
+  pw: number;
+  targetX: number;
+}
+
+export type QuerySlot = ChrBar | OthersBar;
+
+export interface BaseRow {
+  label: string;
+  bars: ChrBar[];
+  y: number;
+}
+
+export interface QueryRow {
+  label: string;
+  slots: QuerySlot[];
+  y: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Analysis types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EventCounts {
+  synteny: number;
+  inversion: number;
+  translocation: number;
+  "translocation+inversion": number;
+  total: number;
+  [key: string]: number;
+}
+
+/** A contiguous block of ResultRows grouped by position and event type. */
+export type ChunkEvent = "synteny" | "inversion" | "translocation" | "translocation+inversion";
+
+export interface Chunk {
+  id: string;
+  chrBase: string;
+  bp1Base: number;
+  bp2Base: number;
+  bpGeneBase: number;
+  chrQuery: string;
+  bp1Query: number;
+  bp2Query: number;
+  bpGeneQuery: number;
+  dominant: ChunkEvent;
+  eventCounts: EventCounts;
+  queryChromCounts: { [key: string]: number };
+  isInvert: boolean;
+  isOthers: boolean;
+}
+
+export interface ChunkRibbon {
+  chunk: Chunk;
+  bxs: number;
+  bxe: number;
+  qxs: number;
+  qxe: number;
+}
+
+export interface TooltipInfo {
+  /** SVG x-coordinate of the ribbon midpoint (used to horizontally centre the tooltip) */
+  ribbonMidX: number;
+  chunk: Chunk;
+}

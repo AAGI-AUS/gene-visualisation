@@ -41,7 +41,11 @@
   text-align: right;
   transition: border-color 0.15s;
 }
-.controlInput:focus { outline: none; border-color: #3b82f6; }
+
+.controlInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
 
 .sep {
   width: 1px;
@@ -66,15 +70,18 @@
   white-space: nowrap;
   letter-spacing: 0.02em;
 }
+
 .toggleBtn:hover {
   border-color: #94a3b8;
   color: #334155;
 }
+
 .toggleBtnOn {
   background: #f0f9ff;
   border-color: #38bdf8;
   color: #0284c7;
 }
+
 .toggleDot {
   width: 7px;
   height: 7px;
@@ -83,9 +90,11 @@
   flex-shrink: 0;
   transition: background 0.15s;
 }
+
 .toggleBtnOn .toggleDot {
   background: #38bdf8;
 }
+
 .toggleBadge {
   background: #e0f2fe;
   color: #0284c7;
@@ -93,6 +102,32 @@
   padding: 1px 5px;
   border-radius: 8px;
   font-weight: 600;
+}
+
+/* ── Export button ── */
+.exportBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #f8fafc;
+  color: #475569;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+
+.exportBtn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
 }
 
 /* ── Stats strip ── */
@@ -103,8 +138,17 @@
   color: #94a3b8;
   align-items: center;
 }
-.statItem { display: flex; gap: 4px; align-items: center; }
-.statNum  { font-weight: 600; color: #334155; }
+
+.statItem {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.statNum {
+  font-weight: 600;
+  color: #334155;
+}
 
 /* ── Legend ── */
 .legend {
@@ -113,6 +157,7 @@
   gap: 12px;
   margin-left: auto;
 }
+
 .legendItem {
   display: flex;
   align-items: center;
@@ -121,6 +166,7 @@
   color: #64748b;
   white-space: nowrap;
 }
+
 .legendSwatch {
   width: 14px;
   height: 8px;
@@ -137,7 +183,7 @@
   background: #fff;
   position: relative;
   min-height: 300px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .svgCanvas {
@@ -146,7 +192,8 @@
 
 /* ── Tooltip ── */
 .tooltip {
-  position: fixed;
+  position: absolute;
+  /* relative to canvasWrap */
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 5px;
@@ -155,9 +202,16 @@
   color: #1e293b;
   pointer-events: none;
   z-index: 999;
-  width: 270px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0,0,0,0.06);
+  width: 300px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+}
+
+/* Thin colour accent strip at top */
+.tooltipAccent {
+  height: 3px;
+  width: 100%;
+  opacity: 0.75;
 }
 
 .tooltipInner {
@@ -201,6 +255,38 @@
   padding-top: 1px;
 }
 
+.tooltipSubHeader {
+  margin-bottom: 5px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+/* Span stats row */
+.tooltipSpanRow {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.tooltipSpan {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tooltipSpanLabel {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.tooltipSpanVal {
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+}
+
 .tooltipDivider {
   height: 1px;
   background: #f1f5f9;
@@ -216,7 +302,10 @@
   margin-bottom: 5px;
   font-size: 10px;
 }
-.distRow:last-child { margin-bottom: 0; }
+
+.distRow:last-child {
+  margin-bottom: 0;
+}
 
 .distLabel {
   color: #64748b;
@@ -260,6 +349,18 @@
   gap: 10px;
   color: #94a3b8;
 }
-.emptyIcon  { font-size: 36px; opacity: 0.25; }
-.emptyTitle { font-size: 13px; color: #64748b; }
-.emptySub   { font-size: 11px; opacity: 0.6; }
+
+.emptyIcon {
+  font-size: 36px;
+  opacity: 0.25;
+}
+
+.emptyTitle {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.emptySub {
+  font-size: 11px;
+  opacity: 0.6;
+}
