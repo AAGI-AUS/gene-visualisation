@@ -1,15 +1,15 @@
 import type { QuerySlotLookup, ResultRow } from "@/types";
 import {
-  BAR_H,
   CHR_GAP_PX,
   CHR_PALETTE,
+  CHROM_THICKNESS,
   ChunkEvent,
   chunkEvents,
   OTHERS_W,
   PAD,
   ROW_GAP,
 } from "@/src/constants";
-import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, OthersBar, QueryRow, QuerySlot } from "@/types";
+import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
 import { withinThreshold } from "@/src/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ export type SlotSpec =
   | { kind: "others"; baseChr: string; side: "left" | "right" };
 
 export function buildQueryRow(slotSpecs: SlotSpec[], label: string, availW: number): QueryRow {
-  const y = PAD.top + BAR_H + ROW_GAP;
+  const y = PAD.top + CHROM_THICKNESS + ROW_GAP;
   const n = slotSpecs.length;
   if (n === 0) return { label, slots: [], y };
 

@@ -1,12 +1,12 @@
 import { useCallback, type MouseEvent, type RefObject } from "react";
 import { Group } from "@visx/group";
-import { PAD, BAR_H } from "@/src/constants";
+import { PAD, CHROM_THICKNESS, SVG_H } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
-import { BaseRowLayer, QueryRowLayer } from "./GenomeRowLayer";
-import { RibbonLayer } from "./RibbonLayer";
-import { ChunkTooltip } from "./ChunkTooltip";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
+import { RibbonLayer } from "@/src/components/visualizationTab/RibbonLayer";
+import { BaseRowLayer, QueryRowLayer } from "@/src/components/visualizationTab/GenomeRowLayer";
+import { ChunkTooltip } from "@/src/components/visualizationTab/ChunkTooltip";
 
 /** px gap between the bottom of the query bar label and the tooltip top */
 const TOOLTIP_OFFSET_Y = 22;
@@ -15,7 +15,6 @@ interface SyntenyCanvasProps {
   svgRef: RefObject<SVGSVGElement>;
   wrapRef: RefObject<HTMLDivElement>;
   svgW: number;
-  svgH: number;
   y1bot: number;
   y2top: number;
   baseRow: BaseRow;
@@ -27,7 +26,6 @@ export function SyntenyCanvas({
   svgRef,
   wrapRef,
   svgW,
-  svgH,
   y1bot,
   y2top,
   baseRow,
@@ -52,12 +50,12 @@ export function SyntenyCanvas({
   );
 
   // Fixed y: bottom of query bar + gap for the chromosome label
-  const tooltipTopY = queryRow.y + BAR_H + TOOLTIP_OFFSET_Y;
+  const tooltipTopY = queryRow.y + CHROM_THICKNESS + TOOLTIP_OFFSET_Y;
 
   return (
     <div className={styles.canvasWrap} ref={wrapRef}>
-      <svg ref={svgRef} className={styles.svgCanvas} width={svgW} height={svgH} onMouseLeave={clearHover}>
-        <rect width={svgW} height={svgH} fill="white" />
+      <svg ref={svgRef} className={styles.svgCanvas} width={svgW} height={SVG_H} onMouseLeave={clearHover}>
+        <rect width={svgW} height={SVG_H} fill="white" />
         <Group left={PAD.left}>
           <RibbonLayer
             ribbons={ribbons}
