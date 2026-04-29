@@ -51,7 +51,7 @@ export function useVisualizationLayout(
       )
     );
     return all;
-  }, [data, gapBp, hiddenThreshold]);
+  }, [data, gapBp, hiddenThreshold, queryLabel]);
 
   // prepare coords for base and query rows
   const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx } = useMemo(() => {
@@ -122,7 +122,7 @@ export function useVisualizationLayout(
     if (othersMode && needsStub.size > 0) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
     return buildQueryRow(specs, queryLabel, trackW);
-  }, [chunks, data, queryChrMax, queryChrMin, queryChrColorIdx, queryLabel, trackW, othersMode]);
+  }, [chunks, queryChrMax, queryChrMin, queryChrColorIdx, queryLabel, trackW, othersMode]);
 
   // Ribbon geometry
   const ribbons = useMemo<ChunkRibbon[]>(

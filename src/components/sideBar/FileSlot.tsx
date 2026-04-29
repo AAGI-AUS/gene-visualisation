@@ -1,4 +1,4 @@
-import type { BedFile, FileHandler } from "@/types";
+import type { FileHandler } from "@/types";
 import styles from "./FileSlot.module.css";
 import { DropZone } from "@/src/components/sideBar/DropZone";
 
@@ -8,7 +8,7 @@ interface FileSlotProps {
   onClear?: () => void;
 }
 
-export function FileSlot({ filename: filename, onLoad, onClear }: FileSlotProps) {
+export function FileSlot({ filename, onLoad, onClear }: FileSlotProps) {
   return (
     <div style={{ marginBottom: 10 }}>
       {filename ? (
