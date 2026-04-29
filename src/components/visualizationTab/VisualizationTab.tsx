@@ -71,7 +71,6 @@ export function VisualizationTab({
         svgRef={svgRef}
         wrapRef={wrapRef}
         svgW={svgW}
-        svgH={layout.svgH}
         y1bot={layout.y1bot}
         y2top={layout.y2top}
         baseRow={layout.baseRow}

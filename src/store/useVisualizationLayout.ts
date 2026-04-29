@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { BAR_H, CHR_PALETTE, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
+import { CHR_PALETTE, CHROM_THICKNESS, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, EventCounts, QueryRow } from "@/types";
 import {
   buildBaseRow,
@@ -18,7 +18,6 @@ export interface VisualizationLayout {
   ribbons: ChunkRibbon[];
   globalCounts: EventCounts;
   othersCount: number;
-  svgH: number;
   y1bot: number;
   y2top: number;
 }
@@ -32,30 +31,7 @@ export function useVisualizationLayout(
   othersMode: boolean,
   hiddenThreshold: number
 ): VisualizationLayout {
-  // 1. Chromosome extents (order of first appearance, max bp)
-  const { baseChrMax, baseChrOrder } = useMemo(() => {
-    const baseChrMax = new Map<string, number>();
-    const baseChrOrder: string[] = [];
-    const seenBase = new Set<string>();
-
-    for (const r of data) {
-      if (r.chromosomeBase && !seenBase.has(r.chromosomeBase)) {
-        seenBase.add(r.chromosomeBase);
-        baseChrOrder.push(r.chromosomeBase);
-      }
-      if (r.chromosomeBase)
-        baseChrMax.set(r.chromosomeBase, Math.max(baseChrMax.get(r.chromosomeBase) ?? 0, r.p2Base));
-    }
-    return { baseChrMax, baseChrOrder };
-  }, [data]);
-
-  // 2. Base row — always shows all base chromosomes
-  const baseRow = useMemo(
-    () => buildBaseRow(baseChrMax, baseChrOrder, baseLabel, trackW),
-    [baseChrMax, baseChrOrder, baseLabel, trackW]
-  );
-
-  // 3. Chunks — group rows per base chromosome, split on gap and event boundary
+  // Chunks — group rows per base chromosome, split on gap and event boundary
   const chunks = useMemo<Chunk[]>(() => {
     const valid = data.filter((r) => r.chromosomeQuery !== null);
     const byChr = new Map<string, ResultRow[]>();
@@ -68,7 +44,7 @@ export function useVisualizationLayout(
     byChr.forEach((rows) =>
       all.push(
         ...chunkRows(
-          [...rows].sort((a, b) => a.p1Base - b.p1Base),
+          rows.sort((a, b) => a.p1Base - b.p1Base),
           gapBp
         ).filter((c) => c.eventCounts.total > hiddenThreshold)
       )
@@ -76,7 +52,13 @@ export function useVisualizationLayout(
     return all;
   }, [data, gapBp, hiddenThreshold]);
 
-  const { queryChrMax, queryChrMin, queryChrColorIdx } = useMemo(() => {
+  // prepare coords for base and query rows
+  const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx } = useMemo(() => {
+    const baseChrMax = new Map<string, number>();
+    const baseChrMin = new Map<string, number>();
+    const baseChrOrder: string[] = [];
+    const seenBase = new Set<string>();
+
     const queryChrMax = new Map<string, number>();
     const queryChrMin = new Map<string, number>();
     const queryChrColorIdx = new Map<string, number>();
@@ -84,18 +66,31 @@ export function useVisualizationLayout(
     let qi = 0;
 
     for (const chunk of chunks) {
+      if (!seenBase.has(chunk.chrBase)) {
+        seenBase.add(chunk.chrBase);
+        baseChrOrder.push(chunk.chrBase);
+      }
+      baseChrMax.set(chunk.chrBase, Math.max(baseChrMax.get(chunk.chrBase) ?? 0, chunk.bp2Base));
+      baseChrMin.set(chunk.chrBase, Math.min(baseChrMin.get(chunk.chrBase) ?? 1e21, chunk.bp1Base));
+
       if (othersMode && chunk.isOthers) continue;
       if (!seenQuery.has(chunk.chrQuery)) {
         seenQuery.add(chunk.chrQuery);
         queryChrColorIdx.set(chunk.chrQuery, qi++ % CHR_PALETTE.length);
       }
       queryChrMax.set(chunk.chrQuery, Math.max(queryChrMax.get(chunk.chrQuery) ?? 0, chunk.bp2Query));
-      queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e111, chunk.bp1Query));
+      queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e21, chunk.bp1Query));
     }
-    return { queryChrMax, queryChrMin, queryChrColorIdx };
+    return { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx };
   }, [chunks, othersMode]);
 
-  // 4. Query row — only chrs that receive ribbons; others stubs when in othersMode
+  // Base row — always shows all base chromosomes
+  const baseRow = useMemo(
+    () => buildBaseRow(baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode),
+    [baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode]
+  );
+
+  // Query row — only chrs that receive ribbons; others stubs when in othersMode
   const queryRow = useMemo<QueryRow>(() => {
     const realChrs = new Set<string>();
     const needsStub = new Set<string>();
@@ -126,15 +121,15 @@ export function useVisualizationLayout(
     if (othersMode && needsStub.size > 0) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
     return buildQueryRow(specs, queryLabel, trackW);
-  }, [chunks, data, queryChrMax, queryChrColorIdx, queryLabel, trackW, othersMode]);
+  }, [chunks, data, queryChrMax, queryChrMin, queryChrColorIdx, queryLabel, trackW, othersMode]);
 
-  // 5. Ribbon geometry
+  // Ribbon geometry
   const ribbons = useMemo<ChunkRibbon[]>(
     () => computeRibbons(chunks, baseRow, queryRow, othersMode),
     [chunks, baseRow, queryRow, othersMode]
   );
 
-  // 6. Aggregate counts
+  // Aggregate counts
   const globalCounts = useMemo<EventCounts>(() => {
     const c = zeroCounts();
     for (const ch of chunks) {
@@ -146,9 +141,7 @@ export function useVisualizationLayout(
   }, [chunks]);
 
   // Extra bottom padding so the tooltip (≈180px) has space below the query bar
-  const TOOLTIP_ROOM = 200;
-  const svgH = PAD.top + BAR_H + ROW_GAP + BAR_H + PAD.bottom + TOOLTIP_ROOM;
-  const y1bot = baseRow.y + BAR_H + RIBBON_GAP;
+  const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
   const y2top = queryRow.y - RIBBON_GAP;
 
   return {
@@ -158,7 +151,6 @@ export function useVisualizationLayout(
     ribbons,
     globalCounts,
     othersCount: chunks.filter((c) => c.isOthers).length,
-    svgH,
     y1bot,
     y2top,
   };

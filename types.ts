@@ -1,3 +1,5 @@
+import { ChunkEvent } from "@/src/constants";
+
 /** A single record from a parsed BED file. */
 export interface BedRow {
   id: number;
@@ -69,6 +71,14 @@ export interface QueryRow {
   y: number;
 }
 
+export type QuerySlotLookup = {
+  others: {
+    left: OthersBar;
+    right: OthersBar;
+  };
+  chromosome: { [key: string]: ChrBar };
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Analysis types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,8 +93,6 @@ export interface EventCounts {
 }
 
 /** A contiguous block of ResultRows grouped by position and event type. */
-export type ChunkEvent = "synteny" | "inversion" | "translocation" | "translocation+inversion";
-
 export interface Chunk {
   id: string;
   chrBase: string;

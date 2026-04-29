@@ -1,5 +1,5 @@
 import { type MouseEvent } from "react";
-import { CHUNK_COLOR, CHUNK_OPACITY } from "@/src/constants";
+import { CHUNK_COLOR } from "@/src/constants";
 import type { Chunk, ChunkRibbon } from "@/types";
 import { ribbonPath } from "@/src/components/visualizationTab/utils";
 
@@ -12,16 +12,15 @@ interface RibbonLayerProps {
   onMove: (e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => void;
 }
 
-export function RibbonLayer({ ribbons, y1bot, y2top, hoverChunk, othersMode, onMove }: RibbonLayerProps) {
+export function RibbonLayer({ ribbons, y1bot, y2top, hoverChunk, onMove }: RibbonLayerProps) {
   return (
     <g>
       {ribbons.map((rib) => {
         const { chunk: ch, bxs, bxe, qxs, qxe } = rib;
         const hot = hoverChunk === ch.id;
         const dimmed = hoverChunk !== null && !hot;
-        const isOth = othersMode && ch.isOthers;
         const color = CHUNK_COLOR[ch.dominant];
-        const baseOp = isOth ? 0.28 : CHUNK_OPACITY[ch.dominant];
+        const baseOp = 0.21;
         const op = dimmed ? baseOp * 0.15 : baseOp;
 
         return (
