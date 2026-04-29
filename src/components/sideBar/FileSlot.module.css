@@ -86,12 +86,3 @@
 .clearBtn:hover {
   color: var(--red);
 }
-
-/* ── Slot label ── */
-.slotLabel {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-}

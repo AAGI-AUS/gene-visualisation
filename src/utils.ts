@@ -16,7 +16,7 @@ export const max = <T extends number | string>(...array: T[]): T => {
   return Math.max(...(array as number[])) as T;
 };
 
-export const withinThreshold = (a: number, b: number, threshold = 0.13) => {
+export const withinThreshold = (a: number, b: number, threshold = 0.1) => {
   return Math.abs(a - b) / b < threshold;
 };
 
@@ -65,40 +65,37 @@ const checkNoise = (base: BedRow, query: BedRow | null, offLocThreshold: number)
  */
 export function queryGene(
   baseRows: BedRow[],
-  queryRows: BedRow[],
-  chromosomeBase: string,
+  queryMap: Map<number, BedRow>,
   groupThreshold = 0.01,
   offLocThreshold = 0.05
 ): ResultRow[] {
   // Build a lookup map: id → query row
-  const queryMap = new Map<number, BedRow>(queryRows.map((r) => [r.id, r]));
+  // const queryMap = new Map<number, BedRow>(queryRows.map((r) => [r.id, r]));
 
   // Step 1 – left join
-  const queried = baseRows
-    .filter((base) => base.chromosome === chromosomeBase)
-    .map((base) => {
-      const query = queryMap.get(base.id) ?? null;
+  const queried = baseRows.map((base) => {
+    const query = queryMap.get(base.id) ?? null;
 
-      const isInvert = query?.sign === "-";
-      const isTranslocation = query?.chromosome !== null && base.chromosome !== query?.chromosome;
-      const mainEvent: MainEvent = isTranslocation ? "translocation" : isInvert ? "inversion" : "synteny";
-      const isNoise = !isTranslocation && checkNoise(base, query, offLocThreshold);
+    const isInvert = query?.sign === "-";
+    const isTranslocation = query?.chromosome !== null && base.chromosome !== query?.chromosome;
+    const mainEvent: MainEvent = isTranslocation ? "translocation" : isInvert ? "inversion" : "synteny";
+    const isNoise = !isTranslocation && checkNoise(base, query, offLocThreshold);
 
-      return {
-        id: base.id,
-        chromosomeBase: base.chromosome,
-        p1Base: base.p1,
-        p2Base: base.p2,
-        chromosomeQuery: query?.chromosome ?? null,
-        p1Query: query?.p1 ?? 0,
-        p2Query: query?.p2 ?? 0,
-        sign: query?.sign ?? null,
-        isInvert,
-        isTranslocation,
-        mainEvent,
-        isNoise,
-      };
-    });
+    return {
+      id: base.id,
+      chromosomeBase: base.chromosome,
+      p1Base: base.p1,
+      p2Base: base.p2,
+      chromosomeQuery: query?.chromosome ?? null,
+      p1Query: query?.p1 ?? 0,
+      p2Query: query?.p2 ?? 0,
+      sign: query?.sign ?? null,
+      isInvert,
+      isTranslocation,
+      mainEvent,
+      isNoise,
+    };
+  });
 
   // Step 3 – chromosomeQuery percentage table
   const total = queried.length || 1;
@@ -122,7 +119,7 @@ export function queryGene(
 }
 
 /** Read a File object as UTF-8 text. */
-export function readFileAsText(file: File): Promise<string> {
+export function fileToText(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target?.result as string);

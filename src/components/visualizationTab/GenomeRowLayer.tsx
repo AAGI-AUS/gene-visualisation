@@ -21,6 +21,15 @@ function LineLabel({ y, text, ...props }: LineLabelProps) {
   );
 }
 
+function ChromLabel({ y, text, ...props }: LineLabelProps) {
+  const yCalc = y + CHROM_THICKNESS / 2 + 3;
+  return (
+    <SVGText y={yCalc} fontSize={11} stroke="white" strokeWidth={3} paintOrder="stroke" {...props}>
+      {text}
+    </SVGText>
+  );
+}
+
 type HorizontalLineProps = React.SVGLineElementAttributes<SVGLineElement> & {
   x: number;
   width: number;
@@ -45,9 +54,7 @@ export function BaseRowLayer({ row }: BaseRowLayerProps) {
         <g key={bar.chr}>
           <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={CHR_PALETTE[bar.colorIdx]} />
           {bar.pw > 24 && (
-            <SVGText x={bar.px + bar.pw / 2} y={row.y - 7} fontSize={9} fill={CHR_PALETTE[bar.colorIdx]}>
-              {bar.chr}
-            </SVGText>
+            <ChromLabel x={bar.px + bar.pw / 2} y={row.y} fill={CHR_PALETTE[bar.colorIdx]} text={bar.chr} />
           )}
         </g>
       ))}
@@ -77,16 +84,14 @@ export function QueryRowLayer({ row }: QueryRowLayerProps) {
           key = `others-${slot.side}-${si}`;
           col = OTHERS_COL;
           dash = "3 2";
-          label = "others";
+          label = "O";
         }
 
         return (
           <g key={key}>
             <HorizontalLine x={slot.px} width={slot.pw} y={row.y} stroke={col} strokeDasharray={dash} />
             {(slot.pw > 24 || slot.kind === "others") && (
-              <SVGText x={slot.px + slot.pw / 2} y={row.y + CHROM_THICKNESS + 14} fontSize={9} fill={col}>
-                {label}
-              </SVGText>
+              <ChromLabel x={slot.px + slot.pw / 2} y={row.y} fill={col} text={label} />
             )}
           </g>
         );

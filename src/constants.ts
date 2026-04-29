@@ -32,12 +32,12 @@ export const OTHERS_COL = "#94a3b8";
 export const CHROM_THICKNESS = 2;
 export const RIBBON_GAP = 3;
 export const ROW_GAP = 150;
-export const PAD = { top: 44, bottom: 40, left: 90, right: 28 } as const;
+export const PAD = { top: 5, bottom: 5, left: 90, right: 13 } as const;
 export const FONT = "IBM Plex Mono, monospace";
 export const CHR_GAP_PX = 3;
 export const OTHERS_W = 24;
-const TOOLTIP_ROOM = 200;
-export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD.bottom + TOOLTIP_ROOM;
+export const TOOLTIP_SPACING = 233;
+export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD.bottom;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];

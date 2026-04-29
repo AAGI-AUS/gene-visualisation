@@ -1,14 +1,10 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
-import { EventCounts } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { CHUNK_COLOR, ChunkEvent, OTHERS_COL } from "@/src/constants";
 import { exportSvg } from "@/src/components/visualizationTab/utils";
 
 interface ControlsProps {
-  chunkCount: number;
-  globalCounts: EventCounts;
-  othersCount: number;
   svgRef: RefObject<SVGSVGElement | null>;
 }
 
@@ -19,7 +15,7 @@ const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
   { key: "translocation+inversion", short: "t+inv" },
 ];
 
-export function Controls({ chunkCount, globalCounts, othersCount, svgRef }: ControlsProps) {
+export function Controls({ svgRef }: ControlsProps) {
   const gapBp = useVisualizationStore((s) => s.gapBp);
   const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
   const othersMode = useVisualizationStore((s) => s.othersMode);
@@ -42,6 +38,8 @@ export function Controls({ chunkCount, globalCounts, othersCount, svgRef }: Cont
           style={{ width: 71 }}
         />
       </div>
+
+      <div className={styles.sep} />
 
       {/* hidden threshold */}
       <div className={styles.controlGroup}>
@@ -67,26 +65,7 @@ export function Controls({ chunkCount, globalCounts, othersCount, svgRef }: Cont
       >
         <span className={styles.toggleDot} />
         Group others
-        {othersCount > 0 && <span className={styles.toggleBadge}>{othersCount}</span>}
       </button>
-
-      <div className={styles.sep} />
-
-      {/* Stats */}
-      <div className={styles.statsStrip}>
-        <div className={styles.statItem}>
-          <span className={styles.statNum}>{chunkCount}</span>
-          <span>chunks</span>
-        </div>
-        {EVENTS.map(({ key, short }) => (
-          <div className={styles.statItem} key={key}>
-            <span className={styles.statNum} style={{ color: CHUNK_COLOR[key] }}>
-              {globalCounts[key]}
-            </span>
-            <span>{short}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Legend */}
       <div className={styles.legend}>

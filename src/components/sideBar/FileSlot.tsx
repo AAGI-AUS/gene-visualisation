@@ -1,29 +1,27 @@
-import type { BedFile } from "@/types";
+import type { FileHandler } from "@/types";
 import styles from "./FileSlot.module.css";
 import { DropZone } from "@/src/components/sideBar/DropZone";
 
 interface FileSlotProps {
-  label: string;
-  file: BedFile | null;
-  onLoad: (file: BedFile) => void;
-  onClear: () => void;
+  filename?: string | null;
+  onLoad?: FileHandler;
+  onClear?: () => void;
 }
 
-export function FileSlot({ label, file, onLoad, onClear }: FileSlotProps) {
+export function FileSlot({ filename, onLoad, onClear }: FileSlotProps) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <div className={styles.slotLabel}>{label}</div>
-      {file ? (
+      {filename ? (
         <div className={styles.fileLoaded}>
           <span className={styles.dot}>●</span>
-          <span className={styles.fileName}>{file.name}</span>
-          <span className={styles.rowCount}>{file.rows.length} rows</span>
+          <span className={styles.fileName}>{filename}</span>
+          {/* <span className={styles.rowCount}>{filename.rows.length} rows</span> */}
           <button className={styles.clearBtn} onClick={onClear} type="button">
             ✕
           </button>
         </div>
       ) : (
-        <DropZone label={`Load ${label}`} onLoad={onLoad} />
+        onLoad && <DropZone label="Select bed file" onLoad={onLoad} />
       )}
     </div>
   );
