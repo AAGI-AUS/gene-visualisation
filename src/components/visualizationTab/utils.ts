@@ -37,7 +37,7 @@ export function dominantEvent(c: EventCounts): ChunkEvent {
 // Chunk building
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function buildChunk(rows: ResultRow[], idx: number): Chunk {
+export function buildChunk(rows: ResultRow[], idx: number, lineName: string): Chunk {
   const chrBase = rows[0].chromosomeBase;
   const bp1Base = rows[0].p1Base;
   const bp2Base = rows[rows.length - 1].p2Base;
@@ -68,7 +68,7 @@ export function buildChunk(rows: ResultRow[], idx: number): Chunk {
   const isOthers = rows.filter((r) => r.groupedQuery === "others").length > rows.length / 2;
 
   return {
-    id: `${chrBase}-${idx}`,
+    id: `${lineName}-${chrBase}-${idx}`,
     chrBase,
     bp1Base,
     bp2Base,
@@ -90,7 +90,7 @@ export function buildChunk(rows: ResultRow[], idx: number): Chunk {
  * Non-translocations and translocations are chunked separately so they're
  * never merged together, then both sets are returned.
  */
-export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
+export function chunkRows(rows: ResultRow[], gapBp: number, lineName: string): Chunk[] {
   if (!rows.length) return [];
   const out: Chunk[] = [];
 
@@ -122,11 +122,11 @@ export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
       if (ok) {
         acc.push(cur);
       } else {
-        out.push(buildChunk(acc, out.length));
+        out.push(buildChunk(acc, out.length, lineName));
         acc = [cur];
       }
     }
-    out.push(buildChunk(acc, out.length));
+    out.push(buildChunk(acc, out.length, lineName));
   }
 
   sweep(nonTrans, true);

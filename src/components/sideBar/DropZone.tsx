@@ -1,23 +1,15 @@
 import { useRef, useState, type DragEvent, type ChangeEvent } from "react";
-import type { BedFile } from "@/types";
+import type { FileHandler } from "@/types";
 import styles from "./FileSlot.module.css";
-import { parseBED, readFileAsText } from "@/src/utils";
 
 interface DropZoneProps {
   label: string;
-  onLoad: (file: BedFile) => void;
+  onLoad: FileHandler;
 }
 
 export function DropZone({ label, onLoad }: DropZoneProps) {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  async function handleFile(file: File | null | undefined) {
-    if (!file) return;
-    const text = await readFileAsText(file);
-    const rows = parseBED(text);
-    onLoad({ name: file.name, rows });
-  }
 
   function onDragOver(e: DragEvent) {
     e.preventDefault();
@@ -31,11 +23,11 @@ export function DropZone({ label, onLoad }: DropZoneProps) {
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDrag(false);
-    handleFile(e.dataTransfer.files[0]);
+    onLoad(e.dataTransfer.files[0]);
   }
 
-  async function onChange(e: ChangeEvent<HTMLInputElement>) {
-    await handleFile(e.target.files?.[0]);
+  function onChange(e: ChangeEvent<HTMLInputElement>) {
+    onLoad(e.target.files?.[0]);
 
     if (inputRef.current) {
       inputRef.current.value = "";

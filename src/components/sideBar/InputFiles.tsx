@@ -3,10 +3,10 @@ import styles from "./Sidebar.module.css";
 import { FileSlot } from "@/src/components/sideBar/FileSlot";
 
 export function InputFiles() {
-  const baseFile = useAppStore((s) => s.baseFile);
-  const queryFile = useAppStore((s) => s.queryFile);
-  const setBaseFile = useAppStore((s) => s.setBaseFile);
-  const setQueryFile = useAppStore((s) => s.setQueryFile);
+  const base = useAppStore((s) => s.base);
+  const setBase = useAppStore((s) => s.setBase);
+  const queryFiles = useAppStore((s) => s.queryFiles);
+  const setQueryFile = useAppStore((s) => s.setQueryFiles);
   const clearBase = useAppStore((s) => s.clearBase);
   const clearQuery = useAppStore((s) => s.clearQuery);
 
@@ -14,8 +14,13 @@ export function InputFiles() {
     <div className={styles.panel}>
       <div className={styles.panelHeader}>Input Files</div>
       <div className={styles.panelBody}>
-        <FileSlot label="Baseline" file={baseFile} onLoad={setBaseFile} onClear={clearBase} />
-        <FileSlot label="Query" file={queryFile} onLoad={setQueryFile} onClear={clearQuery} />
+        <div className={styles.slotLabel}>Baseline</div>
+        <FileSlot filename={base?.name} onLoad={setBase} onClear={clearBase} />
+        <div className={styles.slotLabel}>Query</div>
+        {queryFiles.map((qf, i) => (
+          <FileSlot key={i} filename={qf.name} onClear={() => clearQuery(i)} />
+        ))}
+        <FileSlot onLoad={setQueryFile} />
       </div>
     </div>
   );

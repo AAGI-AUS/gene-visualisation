@@ -123,3 +123,5 @@ export interface TooltipInfo {
   ribbonMidX: number;
   chunk: Chunk;
 }
+
+export type FileHandler = (file: File | null | undefined) => void;

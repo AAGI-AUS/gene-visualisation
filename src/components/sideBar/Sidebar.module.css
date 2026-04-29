@@ -133,10 +133,21 @@
   line-height: 1;
 }
 
-.statVal.green { color: var(--green); }
-.statVal.amber { color: var(--amber); }
-.statVal.red   { color: var(--red);   }
-.statVal.blue  { color: var(--blue);  }
+.statVal.green {
+  color: var(--green);
+}
+
+.statVal.amber {
+  color: var(--amber);
+}
+
+.statVal.red {
+  color: var(--red);
+}
+
+.statVal.blue {
+  color: var(--blue);
+}
 
 .statLabel {
   font-size: 9px;
@@ -144,4 +155,14 @@
   color: var(--text-dim);
   text-transform: uppercase;
   margin-top: 3px;
+}
+
+
+/* ── Slot label ── */
+.slotLabel {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  text-transform: uppercase;
 }

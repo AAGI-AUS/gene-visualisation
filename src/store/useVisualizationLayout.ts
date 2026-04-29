@@ -45,7 +45,8 @@ export function useVisualizationLayout(
       all.push(
         ...chunkRows(
           rows.sort((a, b) => a.p1Base - b.p1Base),
-          gapBp
+          gapBp,
+          queryLabel
         ).filter((c) => c.eventCounts.total > hiddenThreshold)
       )
     );

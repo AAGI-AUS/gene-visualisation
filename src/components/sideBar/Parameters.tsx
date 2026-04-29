@@ -28,14 +28,14 @@ function ChrSelect() {
 }
 
 export function Parameters() {
-  const baseFile = useAppStore((s) => s.baseFile);
-  const queryFile = useAppStore((s) => s.queryFile);
+  const base = useAppStore((s) => s.base);
+  const queryFiles = useAppStore((s) => s.queryFiles);
   const offLocThreshold = useAppStore((s) => s.offLocThreshold);
   const groupThreshold = useAppStore((s) => s.groupThreshold);
   const setAppState = useAppStore((s) => s.setAppState);
   const runAnalysis = useAppStore((s) => s.runAnalysis);
 
-  const canRun = Boolean(baseFile && queryFile);
+  const canRun = Boolean(base && queryFiles?.[0]);
 
   return (
     <div className={styles.panel}>
@@ -48,7 +48,7 @@ export function Parameters() {
           <input
             className={styles.thresholdInput}
             type="number"
-            step="0.001"
+            step="0.01"
             min="0"
             max="1"
             value={offLocThreshold}

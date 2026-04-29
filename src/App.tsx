@@ -2,19 +2,16 @@ import { useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
-import { TableTab } from "@/src/components/TableTab";
 import { DistributionTab } from "@/src/components/DistributionTab";
 import { VisualizationTab } from "@/src/components/visualizationTab/VisualizationTab";
 import { Sidebar } from "@/src/components/sideBar/Sidebar";
 
-type Tab = "Visualization" | "Results" | "Distribution";
-const TABS: Tab[] = ["Visualization", "Results", "Distribution"];
+type Tab = "Visualization" | "Distribution";
+const TABS: Tab[] = ["Visualization", "Distribution"];
 
 const App = () => {
   const result = useAppStore((s) => s.result);
   const error = useAppStore((s) => s.error);
-  const baseFile = useAppStore((s) => s.baseFile);
-  const queryFile = useAppStore((s) => s.queryFile);
   const [tab, setTab] = useState<Tab>("Visualization");
 
   return (
@@ -47,12 +44,8 @@ const App = () => {
             {error && <div className={styles.errorBox}>⚠ {error}</div>}
 
             {tab === "Visualization" &&
-              (result ? (
-                <VisualizationTab
-                  data={result}
-                  baseLabel={baseFile?.name ?? "Baseline"}
-                  queryLabel={queryFile?.name ?? "Query"}
-                />
+              (result.length ? (
+                <VisualizationTab data={result} />
               ) : (
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>◈</span>
@@ -61,20 +54,9 @@ const App = () => {
                 </div>
               ))}
 
-            {tab === "Results" &&
-              (result ? (
-                <TableTab data={result} />
-              ) : (
-                <div className={styles.emptyState}>
-                  <span className={styles.emptyIcon}>⬡</span>
-                  <span className={styles.emptyTitle}>No results yet</span>
-                  <span className={styles.emptySub}>Load both BED files and click RUN ANALYSIS</span>
-                </div>
-              ))}
-
             {tab === "Distribution" &&
-              (result ? (
-                <DistributionTab data={result} />
+              (result.length ? (
+                <DistributionTab data={result[0]} />
               ) : (
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>▦</span>
