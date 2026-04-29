@@ -1,16 +1,15 @@
-import type { ResultRow } from "@/types";
-import { BAR_H, CHR_GAP_PX, CHR_PALETTE, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
-import type {
-  BaseRow,
-  Chunk,
+import type { QuerySlotLookup, ResultRow } from "@/types";
+import {
+  BAR_H,
+  CHR_GAP_PX,
+  CHR_PALETTE,
   ChunkEvent,
-  ChunkRibbon,
-  ChrBar,
-  EventCounts,
-  OthersBar,
-  QueryRow,
-  QuerySlot,
-} from "@/types";
+  chunkEvents,
+  OTHERS_W,
+  PAD,
+  ROW_GAP,
+} from "@/src/constants";
+import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, OthersBar, QueryRow, QuerySlot } from "@/types";
 import { withinThreshold } from "@/src/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,10 +17,12 @@ import { withinThreshold } from "@/src/utils";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function rowCategory(r: ResultRow): ChunkEvent {
-  if (r.isTranslocation && r.isInvert) return "translocation+inversion";
-  if (r.isTranslocation) return "translocation";
-  if (r.isInvert) return "inversion";
-  return "synteny";
+  if (!r.isTranslocation) {
+    if (!r.isInvert) return "synteny";
+    return "inversion";
+  }
+  if (!r.isInvert) return "translocation";
+  return "translocation+inversion";
 }
 
 export function zeroCounts(): EventCounts {
@@ -29,8 +30,7 @@ export function zeroCounts(): EventCounts {
 }
 
 export function dominantEvent(c: EventCounts): ChunkEvent {
-  const keys: ChunkEvent[] = ["synteny", "inversion", "translocation", "translocation+inversion"];
-  return keys.reduce((b, k) => (c[k] > c[b] ? k : b), keys[0]);
+  return chunkEvents.reduce((b, k) => (c[k] > c[b] ? k : b), chunkEvents[0]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,9 +61,9 @@ export function buildChunk(rows: ResultRow[], idx: number): Chunk {
   }
   const chrQuery = Object.entries(queryChromCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
 
-  const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery && r.p1Query != null);
-  const bp1Query = qRows.length ? Math.min(...qRows.map((r) => r.p1Query!)) : 0;
-  const bp2Query = qRows.length ? Math.max(...qRows.map((r) => r.p2Query!)) : 0;
+  const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery);
+  const bp1Query = qRows.length ? Math.min(...qRows.map((r) => r.p1Query)) : 0;
+  const bp2Query = qRows.length ? Math.max(...qRows.map((r) => r.p2Query)) : 0;
   const isInvert = qRows.filter((r) => r.isInvert).length > qRows.length / 2;
   const isOthers = rows.filter((r) => r.groupedQuery === "others").length > rows.length / 2;
 
@@ -99,6 +99,7 @@ export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
   const transMinor = trans.filter((r) => r.groupedQuery === "others");
   const transMajor = trans.filter((r) => r.groupedQuery !== "others");
 
+  // group stuff together
   function sweep(group: ResultRow[], strict: boolean) {
     if (!group.length) return;
     let acc = [group[0]];
@@ -111,8 +112,8 @@ export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
       let ok = gap <= gapBp;
       if (ok && strict) {
         // Additional check: query span must stay proportional to base span
-        const firstQ = first.isInvert ? first.p2Query! : first.p1Query!;
-        const curQ = cur.isInvert ? cur.p1Query! : cur.p2Query!;
+        const firstQ = first.isInvert ? first.p2Query : first.p1Query;
+        const curQ = cur.isInvert ? cur.p1Query : cur.p2Query;
         const projBase = cur.p2Base - first.p1Base;
         const projQuery = Math.abs(curQ - firstQ);
         ok = withinThreshold(projQuery, projBase);
@@ -141,22 +142,25 @@ export function chunkRows(rows: ResultRow[], gapBp: number): Chunk[] {
 
 export function buildBaseRow(
   chrMaxBp: Map<string, number>,
+  chrMinBp: Map<string, number>,
   chrOrder: string[],
   label: string,
-  availW: number
+  availW: number,
+  othersMode: boolean
 ): BaseRow {
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
 
   const totalBp = chrOrder.reduce((s, c) => s + (chrMaxBp.get(c) ?? 1), 0);
   const gapBudget = (n - 1) * CHR_GAP_PX;
-  const pxPerBp = Math.max(availW - gapBudget, n) / Math.max(totalBp, 1);
 
-  let cursor = 0;
+  let cursor = othersMode ? OTHERS_W + CHR_GAP_PX : 0;
+  const pxPerBp = Math.max(availW - gapBudget - 2 * cursor, n) / Math.max(totalBp, 1);
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
-    const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1);
+    const p1 = chrMinBp.get(chr) ?? 0;
+    const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
     const pw = bpLen * pxPerBp;
-    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1: 0, colorIdx: i % CHR_PALETTE.length };
+    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1, colorIdx: i % CHR_PALETTE.length };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
   });
@@ -254,6 +258,15 @@ export function computeRibbons(
   othersMode: boolean
 ): ChunkRibbon[] {
   const out: ChunkRibbon[] = [];
+  const querySlotLookup = queryRow.slots.reduce(
+    (acc, s) => {
+      if (s.kind === "chr") acc.chromosome[s.chr] = s;
+      else if (s.side === "left") acc.others.left = s;
+      else acc.others.right = s;
+      return acc;
+    },
+    { others: {}, chromosome: {} } as QuerySlotLookup
+  );
 
   for (const chunk of chunks) {
     const bBar = baseRow.bars.find((b) => b.chr === chunk.chrBase);
@@ -266,18 +279,15 @@ export function computeRibbons(
       const chunkMid = (bxs + bxe) / 2;
       const barMid = bBar.px + bBar.pw / 2;
       const side: "left" | "right" = chunkMid <= barMid ? "left" : "right";
-      const stub = queryRow.slots.find((s) => s.kind === "others" && (s as OthersBar).side === side) as
-        | OthersBar
-        | undefined;
+      const stub = querySlotLookup.others[side];
       if (!stub) continue;
+
       const halfW = Math.min((bxe - bxs) / 2, OTHERS_W / 2);
       out.push({ chunk, bxs, bxe, qxs: stub.targetX - halfW, qxe: stub.targetX + halfW });
       continue;
     }
 
-    const qSlot = queryRow.slots.find((s) => s.kind === "chr" && s.chr === chunk.chrQuery) as
-      | ChrBar
-      | undefined;
+    const qSlot = querySlotLookup.chromosome[chunk.chrQuery];
     if (!qSlot) continue;
 
     const rx0 = bpToPx(qSlot, chunk.bp1Query);

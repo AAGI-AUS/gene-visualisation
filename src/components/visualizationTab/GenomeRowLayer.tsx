@@ -1,5 +1,37 @@
-import { BAR_H, CHR_PALETTE, FONT, OTHERS_COL } from "@/src/constants";
+import { CHR_PALETTE, CHROM_THICKNESS, FONT, OTHERS_COL } from "@/src/constants";
 import type { BaseRow, QueryRow } from "@/types";
+
+type SVGTextProps = React.SVGTextElementAttributes<SVGTextElement>;
+
+function SVGText({ children, ...props }: SVGTextProps) {
+  return (
+    <text textAnchor="middle" fontFamily={FONT} {...props}>
+      {children}
+    </text>
+  );
+}
+
+type LineLabelProps = SVGTextProps & { y: number; text: string };
+
+function LineLabel({ y, text, ...props }: LineLabelProps) {
+  return (
+    <SVGText x={-10} y={y + CHROM_THICKNESS / 2 + 4} textAnchor="end" fontSize={11} fill="#64748b" {...props}>
+      {text}
+    </SVGText>
+  );
+}
+
+type HorizontalLineProps = React.SVGLineElementAttributes<SVGLineElement> & {
+  x: number;
+  width: number;
+  y: number;
+};
+
+function HorizontalLine({ x, width, y, ...props }: HorizontalLineProps) {
+  const yCalc = y + CHROM_THICKNESS / 2;
+  const minWidth = Math.max(width, 1);
+  return <line x1={x} x2={x + minWidth} y1={yCalc} y2={yCalc} strokeWidth={CHROM_THICKNESS} {...props} />;
+}
 
 interface BaseRowLayerProps {
   row: BaseRow;
@@ -8,41 +40,17 @@ interface BaseRowLayerProps {
 export function BaseRowLayer({ row }: BaseRowLayerProps) {
   return (
     <g>
-      <text x={-10} y={row.y + BAR_H / 2 + 4} textAnchor="end" fontSize={11} fontFamily={FONT} fill="#64748b">
-        {row.label}
-      </text>
-      {row.bars.map((bar) => {
-        const col = CHR_PALETTE[bar.colorIdx];
-        return (
-          <g key={bar.chr}>
-            <rect
-              x={bar.px}
-              y={row.y}
-              width={Math.max(bar.pw, 1)}
-              height={BAR_H}
-              fill={col}
-              fillOpacity={0.12}
-              stroke={col}
-              strokeWidth={1.2}
-              strokeOpacity={0.55}
-              rx={2}
-            />
-            {bar.pw > 24 && (
-              <text
-                x={bar.px + bar.pw / 2}
-                y={row.y - 7}
-                textAnchor="middle"
-                fontSize={9}
-                fontFamily={FONT}
-                fill={col}
-                fillOpacity={0.8}
-              >
-                {bar.chr}
-              </text>
-            )}
-          </g>
-        );
-      })}
+      <LineLabel y={row.y} text={row.label} />
+      {row.bars.map((bar) => (
+        <g key={bar.chr}>
+          <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={CHR_PALETTE[bar.colorIdx]} />
+          {bar.pw > 24 && (
+            <SVGText x={bar.px + bar.pw / 2} y={row.y - 7} fontSize={9} fill={CHR_PALETTE[bar.colorIdx]}>
+              {bar.chr}
+            </SVGText>
+          )}
+        </g>
+      ))}
     </g>
   );
 }
@@ -54,68 +62,32 @@ interface QueryRowLayerProps {
 export function QueryRowLayer({ row }: QueryRowLayerProps) {
   return (
     <g>
-      <text x={-10} y={row.y + BAR_H / 2 + 4} textAnchor="end" fontSize={11} fontFamily={FONT} fill="#64748b">
-        {row.label}
-      </text>
+      <LineLabel y={row.y} text={row.label} />
       {row.slots.map((slot, si) => {
+        let key: string;
+        let col: string;
+        let dash: string;
+        let label: string;
         if (slot.kind === "chr") {
-          const col = CHR_PALETTE[slot.colorIdx];
-          return (
-            <g key={slot.chr}>
-              <rect
-                x={slot.px}
-                y={row.y}
-                width={Math.max(slot.pw, 1)}
-                height={BAR_H}
-                fill={col}
-                fillOpacity={0.12}
-                stroke={col}
-                strokeWidth={1.2}
-                strokeOpacity={0.55}
-                rx={2}
-              />
-              {slot.pw > 24 && (
-                <text
-                  x={slot.px + slot.pw / 2}
-                  y={row.y + BAR_H + 14}
-                  textAnchor="middle"
-                  fontSize={9}
-                  fontFamily={FONT}
-                  fill={col}
-                  fillOpacity={0.8}
-                >
-                  {slot.chr}
-                </text>
-              )}
-            </g>
-          );
+          key = slot.chr;
+          col = CHR_PALETTE[slot.colorIdx];
+          label = slot.chr;
+          dash = "none";
+        } else {
+          key = `others-${slot.side}-${si}`;
+          col = OTHERS_COL;
+          dash = "3 2";
+          label = "others";
         }
+
         return (
-          <g key={`others-${slot.side}-${si}`}>
-            <rect
-              x={slot.px}
-              y={row.y}
-              width={slot.pw}
-              height={BAR_H}
-              fill={OTHERS_COL}
-              fillOpacity={0.1}
-              stroke={OTHERS_COL}
-              strokeWidth={1}
-              strokeOpacity={0.4}
-              strokeDasharray="3 2"
-              rx={2}
-            />
-            <text
-              x={slot.px + slot.pw / 2}
-              y={row.y + BAR_H + 14}
-              textAnchor="middle"
-              fontSize={8}
-              fontFamily={FONT}
-              fill={OTHERS_COL}
-              fillOpacity={0.8}
-            >
-              others
-            </text>
+          <g key={key}>
+            <HorizontalLine x={slot.px} width={slot.pw} y={row.y} stroke={col} strokeDasharray={dash} />
+            {(slot.pw > 24 || slot.kind === "others") && (
+              <SVGText x={slot.px + slot.pw / 2} y={row.y + CHROM_THICKNESS + 14} fontSize={9} fill={col}>
+                {label}
+              </SVGText>
+            )}
           </g>
         );
       })}

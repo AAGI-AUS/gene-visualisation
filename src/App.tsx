@@ -2,10 +2,10 @@ import { useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
-import { Sidebar } from "@/src/components/Sidebar";
 import { TableTab } from "@/src/components/TableTab";
 import { DistributionTab } from "@/src/components/DistributionTab";
 import { VisualizationTab } from "@/src/components/visualizationTab/VisualizationTab";
+import { Sidebar } from "@/src/components/sideBar/Sidebar";
 
 type Tab = "Visualization" | "Results" | "Distribution";
 const TABS: Tab[] = ["Visualization", "Results", "Distribution"];

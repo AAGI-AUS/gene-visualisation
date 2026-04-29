@@ -33,8 +33,9 @@ export function useVisualizationLayout(
   hiddenThreshold: number
 ): VisualizationLayout {
   // 1. Chromosome extents (order of first appearance, max bp)
-  const { baseChrMax, baseChrOrder } = useMemo(() => {
+  const { baseChrMax, baseChrMin, baseChrOrder } = useMemo(() => {
     const baseChrMax = new Map<string, number>();
+    const baseChrMin = new Map<string, number>();
     const baseChrOrder: string[] = [];
     const seenBase = new Set<string>();
 
@@ -43,16 +44,18 @@ export function useVisualizationLayout(
         seenBase.add(r.chromosomeBase);
         baseChrOrder.push(r.chromosomeBase);
       }
-      if (r.chromosomeBase)
+      if (r.chromosomeBase) {
         baseChrMax.set(r.chromosomeBase, Math.max(baseChrMax.get(r.chromosomeBase) ?? 0, r.p2Base));
+        baseChrMin.set(r.chromosomeBase, Math.min(baseChrMin.get(r.chromosomeBase) ?? 1e21, r.p1Base));
+      }
     }
-    return { baseChrMax, baseChrOrder };
+    return { baseChrMax, baseChrMin, baseChrOrder };
   }, [data]);
 
   // 2. Base row — always shows all base chromosomes
   const baseRow = useMemo(
-    () => buildBaseRow(baseChrMax, baseChrOrder, baseLabel, trackW),
-    [baseChrMax, baseChrOrder, baseLabel, trackW]
+    () => buildBaseRow(baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode),
+    [baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode]
   );
 
   // 3. Chunks — group rows per base chromosome, split on gap and event boundary
@@ -90,7 +93,7 @@ export function useVisualizationLayout(
         queryChrColorIdx.set(chunk.chrQuery, qi++ % CHR_PALETTE.length);
       }
       queryChrMax.set(chunk.chrQuery, Math.max(queryChrMax.get(chunk.chrQuery) ?? 0, chunk.bp2Query));
-      queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e111, chunk.bp1Query));
+      queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e21, chunk.bp1Query));
     }
     return { queryChrMax, queryChrMin, queryChrColorIdx };
   }, [chunks, othersMode]);
@@ -133,6 +136,9 @@ export function useVisualizationLayout(
     () => computeRibbons(chunks, baseRow, queryRow, othersMode),
     [chunks, baseRow, queryRow, othersMode]
   );
+
+  console.log(baseRow);
+  console.log(queryRow);
 
   // 6. Aggregate counts
   const globalCounts = useMemo<EventCounts>(() => {

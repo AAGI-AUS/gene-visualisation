@@ -1,6 +1,6 @@
 import type { BedFile } from "@/types";
 import styles from "./FileSlot.module.css";
-import { DropZone } from "@/src/components/DropZone";
+import { DropZone } from "@/src/components/sideBar/DropZone";
 
 interface FileSlotProps {
   label: string;

@@ -23,16 +23,23 @@ export function DropZone({ label, onLoad }: DropZoneProps) {
     e.preventDefault();
     setDrag(true);
   }
+
   function onDragLeave() {
     setDrag(false);
   }
+
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setDrag(false);
     handleFile(e.dataTransfer.files[0]);
   }
-  function onChange(e: ChangeEvent<HTMLInputElement>) {
-    handleFile(e.target.files?.[0]);
+
+  async function onChange(e: ChangeEvent<HTMLInputElement>) {
+    await handleFile(e.target.files?.[0]);
+
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
   }
 
   return (
@@ -43,9 +50,8 @@ export function DropZone({ label, onLoad }: DropZoneProps) {
       onDrop={onDrop}
       onClick={() => inputRef.current?.click()}
     >
-      <span className={styles.icon}>⬡</span>
       <span className={styles.label}>{label}</span>
-      <span className={styles.sub}>drop .bed / .tsv or click</span>
+      <span className={styles.sub}>drop .bed/.tsv or click</span>
       <input
         ref={inputRef}
         className={styles.hiddenInput}

@@ -37,13 +37,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   error: null,
 
   // ── actions ────────────────────────────────────────────────────────────
-  setBaseFile: (baseFile) =>
-    set({
-      baseFile,
-      result: null,
-      error: null,
-      chromosomes: getChromosomes(baseFile.rows),
-    }),
+  setBaseFile: (baseFile) => {
+    const chromosomes = getChromosomes(baseFile.rows);
+    set({ baseFile, result: null, error: null, chromosomes, selectedChr: chromosomes[0] });
+  },
   setQueryFile: (queryFile) => set({ queryFile, result: null, error: null }),
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),

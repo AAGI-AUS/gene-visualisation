@@ -1,8 +1,8 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
-import { ChunkEvent, EventCounts } from "@/types";
+import { EventCounts } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
-import { CHUNK_COLOR, OTHERS_COL } from "@/src/constants";
+import { CHUNK_COLOR, ChunkEvent, OTHERS_COL } from "@/src/constants";
 import { exportSvg } from "@/src/components/visualizationTab/utils";
 
 interface ControlsProps {
