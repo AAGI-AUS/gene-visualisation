@@ -33,7 +33,7 @@
 /* ── Main layout ── */
 .main {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 233px 1fr;
   overflow: hidden;
   min-height: 0;
 }

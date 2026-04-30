@@ -26,8 +26,8 @@ export function LinePair({ data, queryName, i }: LinePairProps) {
 
   const layout = useVisualizationLayout(
     data,
-    i === 0 ? (base?.name ?? "") : "",
-    queryName,
+    i === 0 ? (base?.name.split(".")[0] ?? "") : "",
+    queryName.split(".")[0],
     svgW - PAD.left - PAD.right,
     gapBp,
     othersMode,
