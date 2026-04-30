@@ -122,6 +122,7 @@ export interface TooltipInfo {
   /** SVG x-coordinate of the ribbon midpoint (used to horizontally centre the tooltip) */
   ribbonMidX: number;
   chunk: Chunk;
+  topY: number;
 }
 
 export type FileHandler = (file: File | null | undefined) => void;

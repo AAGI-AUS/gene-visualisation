@@ -38,7 +38,8 @@ export function LinePair({ data, queryName, i }: LinePairProps) {
     (_e: MouseEvent<SVGPathElement>, ch: Chunk, rib: ChunkRibbon) => {
       // Centre tooltip on the ribbon's midpoint (in canvas-space px)
       const ribbonMidX = PAD.left + (rib.bxs + rib.bxe) / 2;
-      setTooltip({ ribbonMidX, chunk: ch });
+      const topY = (i + 1) * SVG_H - i * PAD.top + 21;
+      setTooltip({ ribbonMidX, chunk: ch, topY });
       setHoverChunk(ch.id);
     },
     [setTooltip, setHoverChunk]

@@ -49,9 +49,7 @@ export function VisualizationTab({ data }: VisualizationTabProps) {
       <Controls svgRef={svgRef} />
       <div className={styles.canvasWrap} ref={wrapRef} style={{ height }} onMouseLeave={clearHover}>
         <SyntenyCanvas data={data} width={svgW} height={svgH} svgRef={svgRef} />
-        {tooltip && (
-          <ChunkTooltip chunk={tooltip.chunk} ribbonMidX={tooltip.ribbonMidX} topY={svgH + 21} canvasW={svgW} />
-        )}
+        {tooltip && <ChunkTooltip {...tooltip} canvasW={svgW} />}
       </div>
     </div>
   );

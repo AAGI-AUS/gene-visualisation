@@ -21,7 +21,7 @@ export function RibbonLayer({ ribbons, y1bot, y2top, hoverChunk, onMove }: Ribbo
         const dimmed = hoverChunk !== null && !hot;
         const color = CHUNK_COLOR[ch.dominant];
         const baseOp = 0.21;
-        const op = dimmed ? baseOp * 0.15 : baseOp;
+        const op = dimmed ? baseOp * 0.31 : baseOp;
 
         return (
           <path
