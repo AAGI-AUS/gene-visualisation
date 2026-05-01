@@ -17,14 +17,14 @@ export const max = <T extends number | string>(...array: T[]): T => {
 };
 
 export const withinThreshold = (a: number, b: number, threshold = 0.1) => {
-  return Math.abs(a - b) / b < threshold;
+  return Math.abs(a / b - 1) < threshold;
 };
 
 /**
  * Parse a raw BED file string into typed rows.
  * Mirrors Python's loadBed(): tab-separated, no header, id = row index.
  */
-export function parseBED(text: string): BedRow[] {
+export const parseBED = (text: string): BedRow[] => {
   return text
     .trim()
     .split("\n")
@@ -39,7 +39,7 @@ export function parseBED(text: string): BedRow[] {
         sign: sign as "+" | "-",
       };
     });
-}
+};
 
 /**
  * Mirrors Python's queryGene().
@@ -50,11 +50,11 @@ export function parseBED(text: string): BedRow[] {
  *    share ≤ groupThreshold into "others".
  * 4. Merge groupedQuery back onto every row.
  */
-export function queryGene(
+export const queryGene = (
   baseRows: BedRow[],
   queryMap: Map<number, BedRow>,
   groupThreshold = 0.01
-): ResultRow[] {
+): ResultRow[] => {
   // Step 1 – left join
   const queried = baseRows.reduce<Omit<ResultRow, "groupedQuery">[]>((acc, base) => {
     const query = queryMap.get(base.id);
@@ -98,19 +98,19 @@ export function queryGene(
     ...r,
     groupedQuery: groupedMap.get(r.chromosomeQuery) ?? "others",
   }));
-}
+};
 
 /** Read a File object as UTF-8 text. */
-export function fileToText(file: File): Promise<string> {
+export const fileToText = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target?.result as string);
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsText(file);
   });
-}
+};
 
-export function getChromosomes(rows: BedRow[]): string[] {
+export const getChromosomes = (rows: BedRow[]): string[] => {
   return Array.from(
     rows.reduce<Set<string>>((set, r) => {
       const chr = r.chromosome;
@@ -118,4 +118,4 @@ export function getChromosomes(rows: BedRow[]): string[] {
       return set;
     }, new Set())
   );
-}
+};

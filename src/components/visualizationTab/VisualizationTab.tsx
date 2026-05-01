@@ -11,7 +11,7 @@ interface VisualizationTabProps {
   data: Result;
 }
 
-export function VisualizationTab({ data }: VisualizationTabProps) {
+export const VisualizationTab = ({ data }: VisualizationTabProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -53,4 +53,4 @@ export function VisualizationTab({ data }: VisualizationTabProps) {
       </div>
     </div>
   );
-}
+};

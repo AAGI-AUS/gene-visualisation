@@ -2,22 +2,13 @@ import { useMemo } from "react";
 import type { ResultRow } from "@/types";
 import styles from "./DistributionTab.module.css";
 
-const BARCOLORS = [
-  "#4ea8ff",
-  "#39ff87",
-  "#ffb340",
-  "#ff4e6a",
-  "#c084fc",
-  "#34d399",
-  "#f97316",
-  "#60a5fa",
-];
+const BARCOLORS = ["#4ea8ff", "#39ff87", "#ffb340", "#ff4e6a", "#c084fc", "#34d399", "#f97316", "#60a5fa"];
 
 interface DistributionTabProps {
   data: ResultRow[];
 }
 
-export function DistributionTab({ data }: DistributionTabProps) {
+export const DistributionTab = ({ data }: DistributionTabProps) => {
   const total = data.length || 1;
 
   const eventCounts = useMemo(
@@ -26,7 +17,7 @@ export function DistributionTab({ data }: DistributionTabProps) {
       inversion: data.filter((r) => r.mainEvent === "inversion").length,
       translocation: data.filter((r) => r.mainEvent === "translocation").length,
     }),
-    [data],
+    [data]
   );
 
   const groupedCounts = useMemo(() => {
@@ -78,9 +69,7 @@ export function DistributionTab({ data }: DistributionTabProps) {
                 />
               </div>
               <div className={styles.eventLabel}>{label}</div>
-              <div className={styles.eventPct}>
-                {((count / total) * 100).toFixed(1)}%
-              </div>
+              <div className={styles.eventPct}>{((count / total) * 100).toFixed(1)}%</div>
             </div>
           ))}
         </div>
@@ -88,9 +77,7 @@ export function DistributionTab({ data }: DistributionTabProps) {
 
       {/* groupedQuery chromosome distribution */}
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>
-          Query Chromosome Groups (groupedQuery)
-        </div>
+        <div className={styles.sectionTitle}>Query Chromosome Groups (groupedQuery)</div>
         <div className={styles.chrChart}>
           {groupedCounts.map(([name, count], i) => (
             <div className={styles.chrRow} key={name}>
@@ -106,13 +93,11 @@ export function DistributionTab({ data }: DistributionTabProps) {
                   }}
                 />
               </div>
-              <div className={styles.chrPct}>
-                {((count / total) * 100).toFixed(1)}%
-              </div>
+              <div className={styles.chrPct}>{((count / total) * 100).toFixed(1)}%</div>
             </div>
           ))}
         </div>
       </div>
     </div>
   );
-}
+};

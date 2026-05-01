@@ -6,7 +6,7 @@ import { DistributionRow } from "@/src/components/visualizationTab/DistributionR
 const TOOLTIP_W = 300;
 const TOOLTIP_PAD = 16; // px from canvas edge
 
-function parseChromCounts(queryChromCounts: Record<string, number>, total: number) {
+const parseChromCounts = (queryChromCounts: Record<string, number>, total: number) => {
   const rest: [string, number][] = [];
   let others = 0;
 
@@ -19,7 +19,7 @@ function parseChromCounts(queryChromCounts: Record<string, number>, total: numbe
   if (others > 0) rest.push(["Others", others]);
 
   return rest;
-}
+};
 
 interface ChunkTooltipProps {
   chunk: Chunk;
@@ -38,7 +38,7 @@ const EVENTS: Array<{ key: ChunkEvent; label: string }> = [
   { key: "translocation+inversion", label: "Trans+Inv" },
 ];
 
-export function ChunkTooltip({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipProps) {
+export const ChunkTooltip = ({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipProps) => {
   const {
     chrBase,
     bp1Base,
@@ -137,4 +137,4 @@ export function ChunkTooltip({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipP
       </div>
     </div>
   );
-}
+};

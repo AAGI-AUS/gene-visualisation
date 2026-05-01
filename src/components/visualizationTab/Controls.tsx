@@ -15,7 +15,7 @@ const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
   { key: "translocation+inversion", short: "t+inv" },
 ];
 
-export function Controls({ svgRef }: ControlsProps) {
+export const Controls = ({ svgRef }: ControlsProps) => {
   const gapBp = useVisualizationStore((s) => s.gapBp);
   const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
   const othersMode = useVisualizationStore((s) => s.othersMode);
@@ -87,4 +87,4 @@ export function Controls({ svgRef }: ControlsProps) {
       </button>
     </div>
   );
-}
+};

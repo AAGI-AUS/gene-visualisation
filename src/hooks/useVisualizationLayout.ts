@@ -18,7 +18,7 @@ export interface VisualizationLayout {
   y2top: number;
 }
 
-export function useVisualizationLayout(
+export const useVisualizationLayout = (
   data: ResultRow[],
   baseLabel: string,
   queryLabel: string,
@@ -27,7 +27,7 @@ export function useVisualizationLayout(
   othersMode: boolean,
   hiddenThreshold: number,
   preBaseRow?: BaseRow
-): VisualizationLayout {
+): VisualizationLayout => {
   // Chunks — group rows per base chromosome, split on gap and event boundary
   const chunks = useMemo<Chunk[]>(() => {
     const byChr = new Map<string, ResultRow[]>();
@@ -144,4 +144,4 @@ export function useVisualizationLayout(
     y1bot,
     y2top,
   };
-}
+};
