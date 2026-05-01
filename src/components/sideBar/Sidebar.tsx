@@ -12,7 +12,7 @@ interface StatGridProps {
   result: ResultRow[];
 }
 
-function StatGrid({ result }: StatGridProps) {
+const StatGrid = ({ result }: StatGridProps) => {
   const total = result.length;
   const synteny = result.filter((r) => r.mainEvent === "synteny").length;
   const inversion = result.filter((r) => r.mainEvent === "inversion").length;
@@ -37,7 +37,7 @@ function StatGrid({ result }: StatGridProps) {
       ))}
     </div>
   );
-}
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SummaryPanel
@@ -47,29 +47,27 @@ interface SummaryPanelProps {
   result: ResultRow[];
 }
 
-function SummaryPanel({ result }: SummaryPanelProps) {
-  return (
-    <div className={styles.panel}>
-      <div className={styles.panelHeader}>Summary</div>
-      <div className={styles.panelBody}>
-        <StatGrid result={result} />
-      </div>
+const SummaryPanel = ({ result }: SummaryPanelProps) => (
+  <div className={styles.panel}>
+    <div className={styles.panelHeader}>Summary</div>
+    <div className={styles.panelBody}>
+      <StatGrid result={result} />
     </div>
-  );
-}
+  </div>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sidebar (root)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function Sidebar() {
+export const Sidebar = () => {
   const result = useAppStore((s) => s.result);
 
   return (
     <aside className={styles.sidebar}>
       <InputFiles />
       <Parameters />
-      {result.length > 0 && <SummaryPanel result={result[0]} />}
+      {result.length > 0 && <SummaryPanel result={result[0].rows} />}
     </aside>
   );
-}
+};

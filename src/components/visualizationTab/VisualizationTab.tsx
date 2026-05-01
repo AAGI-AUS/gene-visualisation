@@ -1,14 +1,14 @@
 import { useRef, useEffect } from "react";
-import type { ResultRow } from "@/types";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { Controls } from "@/src/components/visualizationTab/Controls";
 import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
 import { PAD, SVG_H, TOOLTIP_SPACING } from "@/src/constants";
 import { ChunkTooltip } from "@/src/components/visualizationTab/ChunkTooltip";
+import { Result } from "@/src/store/useAppStore";
 
 interface VisualizationTabProps {
-  data: ResultRow[][];
+  data: Result;
 }
 
 export function VisualizationTab({ data }: VisualizationTabProps) {

@@ -7,32 +7,32 @@ interface DropZoneProps {
   onLoad: FileHandler;
 }
 
-export function DropZone({ label, onLoad }: DropZoneProps) {
+export const DropZone = ({ label, onLoad }: DropZoneProps) => {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function onDragOver(e: DragEvent) {
+  const onDragOver = (e: DragEvent) => {
     e.preventDefault();
     setDrag(true);
-  }
+  };
 
-  function onDragLeave() {
+  const onDragLeave = () => {
     setDrag(false);
-  }
+  };
 
-  function onDrop(e: DragEvent) {
+  const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDrag(false);
     onLoad(e.dataTransfer.files[0]);
-  }
+  };
 
-  function onChange(e: ChangeEvent<HTMLInputElement>) {
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     onLoad(e.target.files?.[0]);
 
     if (inputRef.current) {
       inputRef.current.value = "";
     }
-  }
+  };
 
   return (
     <div
@@ -53,4 +53,4 @@ export function DropZone({ label, onLoad }: DropZoneProps) {
       />
     </div>
   );
-}
+};

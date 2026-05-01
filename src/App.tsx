@@ -56,7 +56,7 @@ const App = () => {
 
             {tab === "Distribution" &&
               (result.length ? (
-                <DistributionTab data={result[0]} />
+                <DistributionTab data={result[0].rows} />
               ) : (
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>▦</span>

@@ -1,5 +1,5 @@
 export const CHUNK_COLOR: Record<ChunkEvent, string> = {
-  synteny: "#3b82f6",
+  synteny: "darkgrey",
   inversion: "#f59e0b",
   translocation: "#ef4444",
   "translocation+inversion": "#a855f7",
@@ -30,7 +30,7 @@ export const OTHERS_COL = "#94a3b8";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CHROM_THICKNESS = 2;
-export const RIBBON_GAP = 3;
+export const RIBBON_GAP = 0;
 export const ROW_GAP = 150;
 export const PAD = { top: 5, bottom: 5, left: 90, right: 13 } as const;
 export const FONT = "IBM Plex Mono, monospace";

@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
-import { CHUNK_COLOR, ChunkEvent, OTHERS_COL } from "@/src/constants";
+import { CHUNK_COLOR, ChunkEvent } from "@/src/constants";
 import { exportSvg } from "@/src/components/visualizationTab/utils";
 
 interface ControlsProps {
@@ -75,12 +75,6 @@ export function Controls({ svgRef }: ControlsProps) {
             {short}
           </div>
         ))}
-        {othersMode && (
-          <div className={styles.legendItem}>
-            <div className={styles.legendSwatch} style={{ background: OTHERS_COL }} />
-            others
-          </div>
-        )}
       </div>
 
       {/* Export */}

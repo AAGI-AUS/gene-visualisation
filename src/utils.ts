@@ -41,19 +41,6 @@ export function parseBED(text: string): BedRow[] {
     });
 }
 
-const checkNoise = (base: BedRow, query: BedRow | null, offLocThreshold: number) => {
-  if (!query) return true;
-
-  const widthBase = base.p2 - base.p1;
-  const widthQuery = Math.abs(query.p2 - query.p1);
-
-  const midBpBase = (base.p1 + base.p2) / 2;
-  const midBpQuery = (query.p1 + query.p2) / 2;
-  const offMid = Math.abs(midBpBase - midBpQuery) / midBpBase;
-
-  return widthQuery <= 0 || !withinThreshold(widthQuery, widthBase) || offMid > offLocThreshold;
-};
-
 /**
  * Mirrors Python's queryGene().
  *
@@ -66,55 +53,50 @@ const checkNoise = (base: BedRow, query: BedRow | null, offLocThreshold: number)
 export function queryGene(
   baseRows: BedRow[],
   queryMap: Map<number, BedRow>,
-  groupThreshold = 0.01,
-  offLocThreshold = 0.05
+  groupThreshold = 0.01
 ): ResultRow[] {
-  // Build a lookup map: id → query row
-  // const queryMap = new Map<number, BedRow>(queryRows.map((r) => [r.id, r]));
-
   // Step 1 – left join
-  const queried = baseRows.map((base) => {
-    const query = queryMap.get(base.id) ?? null;
+  const queried = baseRows.reduce<Omit<ResultRow, "groupedQuery">[]>((acc, base) => {
+    const query = queryMap.get(base.id);
+    if (!query) return acc;
 
-    const isInvert = query?.sign === "-";
-    const isTranslocation = query?.chromosome !== null && base.chromosome !== query?.chromosome;
+    const isInvert = base.sign !== query.sign;
+    const isTranslocation = base.chromosome !== query.chromosome;
     const mainEvent: MainEvent = isTranslocation ? "translocation" : isInvert ? "inversion" : "synteny";
-    const isNoise = !isTranslocation && checkNoise(base, query, offLocThreshold);
 
-    return {
+    acc.push({
       id: base.id,
       chromosomeBase: base.chromosome,
       p1Base: base.p1,
       p2Base: base.p2,
-      chromosomeQuery: query?.chromosome ?? null,
-      p1Query: query?.p1 ?? 0,
-      p2Query: query?.p2 ?? 0,
-      sign: query?.sign ?? null,
+      chromosomeQuery: query.chromosome,
+      p1Query: query.p1,
+      p2Query: query.p2,
+      sign: query.sign,
       isInvert,
       isTranslocation,
       mainEvent,
-      isNoise,
-    };
-  });
+    });
+    return acc;
+  }, []);
 
   // Step 3 – chromosomeQuery percentage table
   const total = queried.length || 1;
   const counts = new Map<string, number>();
   queried.forEach((r) => {
-    const key = r.chromosomeQuery ?? "__null__";
+    const key = r.chromosomeQuery;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   });
 
   const groupedMap = new Map<string, string>();
   counts.forEach((n, chr) => {
-    const pct = n / total;
-    groupedMap.set(chr, pct > groupThreshold ? chr : "others");
+    groupedMap.set(chr, n / total > groupThreshold ? chr : "others");
   });
 
   // Step 4 – attach groupedQuery
   return queried.map((r) => ({
     ...r,
-    groupedQuery: groupedMap.get(r.chromosomeQuery ?? "__null__") ?? "others",
+    groupedQuery: groupedMap.get(r.chromosomeQuery) ?? "others",
   }));
 }
 

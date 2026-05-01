@@ -192,15 +192,14 @@
   position: absolute;
   /* relative to canvasWrap */
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
+  border-radius: 3px;
   padding: 0;
   font-family: var(--mono);
   color: #1e293b;
   pointer-events: none;
   z-index: 999;
   width: 300px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.13);
   overflow: hidden;
 }
 
@@ -212,7 +211,7 @@
 }
 
 .tooltipInner {
-  padding: 10px 13px 12px;
+  padding: 5px 8px;
 }
 
 .tooltipHeader {
@@ -287,7 +286,7 @@
 .tooltipDivider {
   height: 1px;
   background: #f1f5f9;
-  margin: 9px -13px 9px;
+  margin: 5px -8px;
 }
 
 /* ── Distribution mini-bars ── */
