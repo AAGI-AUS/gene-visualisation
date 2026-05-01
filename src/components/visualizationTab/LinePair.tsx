@@ -1,12 +1,12 @@
-import { useCallback, type MouseEvent } from "react";
-import { PAD, SVG_H } from "@/src/constants";
+import { useCallback, useEffect, type MouseEvent } from "react";
+import { NO_BASE_OFFSET, PAD, SVG_H } from "@/src/constants";
 import type { Chunk, ChunkRibbon, ResultRow } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { RibbonLayer } from "@/src/components/visualizationTab/RibbonLayer";
 import { BaseRowLayer, QueryRowLayer } from "@/src/components/visualizationTab/GenomeRowLayer";
 import { useAppStore } from "@/src/store/useAppStore";
-import { useVisualizationLayout } from "@/src/store/useVisualizationLayout";
 import { Group } from "@visx/group";
+import { useVisualizationLayout } from "@/src/hooks/useVisualizationLayout";
 
 interface LinePairProps {
   data: ResultRow[];
@@ -16,47 +16,51 @@ interface LinePairProps {
 
 export function LinePair({ data, queryName, i }: LinePairProps) {
   const base = useAppStore((s) => s.base);
+  const baseRows = useVisualizationStore((s) => s.baseRows);
   const svgW = useVisualizationStore((s) => s.svgW);
   const gapBp = useVisualizationStore((s) => s.gapBp);
   const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
   const hoverChunk = useVisualizationStore((s) => s.hoverChunk);
   const othersMode = useVisualizationStore((s) => s.othersMode);
+  const setBaseRows = useVisualizationStore((s) => s.setBaseRows);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
   const setHoverChunk = useVisualizationStore((s) => s.setHoverChunk);
 
-  const layout = useVisualizationLayout(
+  const { baseRow, queryRow, ...layout } = useVisualizationLayout(
     data,
     i === 0 ? (base?.name.split(".")[0] ?? "") : "",
     queryName.split(".")[0],
     svgW - PAD.left - PAD.right,
     gapBp,
     othersMode,
-    hiddenThreshold
+    hiddenThreshold,
+    i > 0 ? baseRows[i - 1] : undefined
   );
 
+  useEffect(() => {
+    console.log(i, baseRows);
+
+    setBaseRows(i, baseRow, queryRow);
+  }, [baseRow, queryRow]);
+
   const onMove = useCallback(
-    (_e: MouseEvent<SVGPathElement>, ch: Chunk, rib: ChunkRibbon) => {
+    (_e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => {
       // Centre tooltip on the ribbon's midpoint (in canvas-space px)
       const ribbonMidX = PAD.left + (rib.bxs + rib.bxe) / 2;
       const topY = (i + 1) * SVG_H - i * PAD.top + 21;
-      setTooltip({ ribbonMidX, chunk: ch, topY });
-      setHoverChunk(ch.id);
+      setTooltip({ ribbonMidX, chunk, topY });
+      setHoverChunk(chunk.id);
     },
     [setTooltip, setHoverChunk]
   );
 
+  const top = i * (SVG_H - PAD.top) - (i > 1 ? 2 * (i - 1) * NO_BASE_OFFSET : 0);
+
   return (
-    <Group left={PAD.left} top={i * (SVG_H - PAD.top)}>
-      <RibbonLayer
-        ribbons={layout.ribbons}
-        y1bot={layout.y1bot}
-        y2top={layout.y2top}
-        hoverChunk={hoverChunk}
-        othersMode={othersMode}
-        onMove={onMove}
-      />
-      <BaseRowLayer row={layout.baseRow} />
-      <QueryRowLayer row={layout.queryRow} />
+    <Group left={PAD.left} top={top}>
+      <RibbonLayer hoverChunk={hoverChunk} othersMode={othersMode} onMove={onMove} {...layout} />
+      {i === 0 && <BaseRowLayer row={baseRow} />}
+      <QueryRowLayer row={queryRow} />
     </Group>
   );
 }

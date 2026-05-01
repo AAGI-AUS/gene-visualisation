@@ -69,7 +69,7 @@ export function Sidebar() {
     <aside className={styles.sidebar}>
       <InputFiles />
       <Parameters />
-      {result.length > 0 && <SummaryPanel result={result[0]} />}
+      {result.length > 0 && <SummaryPanel result={result[0].rows} />}
     </aside>
   );
 }

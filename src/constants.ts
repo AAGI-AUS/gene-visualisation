@@ -1,5 +1,5 @@
 export const CHUNK_COLOR: Record<ChunkEvent, string> = {
-  synteny: "#3b82f6",
+  synteny: "darkgrey",
   inversion: "#f59e0b",
   translocation: "#ef4444",
   "translocation+inversion": "#a855f7",
@@ -37,6 +37,7 @@ export const FONT = "IBM Plex Mono, monospace";
 export const CHR_GAP_PX = 3;
 export const OTHERS_W = 24;
 export const TOOLTIP_SPACING = 233;
+export const NO_BASE_OFFSET = RIBBON_GAP + CHROM_THICKNESS + 2;
 export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD.bottom;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;

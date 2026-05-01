@@ -23,15 +23,14 @@ export interface ResultRow {
   chromosomeBase: string;
   p1Base: number;
   p2Base: number;
-  chromosomeQuery: string | null;
+  chromosomeQuery: string;
   p1Query: number;
   p2Query: number;
-  sign: "+" | "-" | null;
+  sign: "+" | "-";
   isInvert: boolean;
   isTranslocation: boolean;
   mainEvent: MainEvent;
   groupedQuery: string;
-  isNoise: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
