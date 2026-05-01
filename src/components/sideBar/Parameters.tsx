@@ -1,7 +1,7 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
 
-function ChrSelect() {
+const ChrSelect = () => {
   // Unique chromosomes in order of first appearance
   const selectedChr = useAppStore((s) => s.selectedChr);
   const chromosomes = useAppStore((s) => s.chromosomes);
@@ -25,9 +25,9 @@ function ChrSelect() {
       </select>
     </div>
   );
-}
+};
 
-export function Parameters() {
+export const Parameters = () => {
   const base = useAppStore((s) => s.base);
   const queryFiles = useAppStore((s) => s.queryFiles);
   const groupThreshold = useAppStore((s) => s.groupThreshold);
@@ -60,4 +60,4 @@ export function Parameters() {
       </div>
     </div>
   );
-}
+};

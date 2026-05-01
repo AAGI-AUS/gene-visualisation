@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { CHR_PALETTE, CHROM_THICKNESS, NO_BASE_OFFSET, PAD, RIBBON_GAP } from "@/src/constants";
+import { CHR_PALETTE, CHROM_THICKNESS, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
 import {
   buildBaseRow,
@@ -133,9 +133,8 @@ export function useVisualizationLayout(
   );
 
   // Extra bottom padding so the tooltip (≈180px) has space below the query bar
-  const yOffset = preBaseRow ? NO_BASE_OFFSET : 0;
-  queryRow.y -= yOffset;
-  const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP - yOffset;
+  if (preBaseRow) baseRow.y = -2;
+  const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
   const y2top = queryRow.y - RIBBON_GAP;
 
   return {

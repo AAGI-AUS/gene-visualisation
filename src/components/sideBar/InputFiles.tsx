@@ -2,7 +2,7 @@ import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
 import { FileSlot } from "@/src/components/sideBar/FileSlot";
 
-export function InputFiles() {
+export const InputFiles = () => {
   const base = useAppStore((s) => s.base);
   const setBase = useAppStore((s) => s.setBase);
   const queryFiles = useAppStore((s) => s.queryFiles);
@@ -24,4 +24,4 @@ export function InputFiles() {
       </div>
     </div>
   );
-}
+};

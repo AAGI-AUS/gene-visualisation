@@ -1,5 +1,5 @@
 import { useCallback, useEffect, type MouseEvent } from "react";
-import { NO_BASE_OFFSET, PAD, SVG_H } from "@/src/constants";
+import { PAD, SVG_H } from "@/src/constants";
 import type { Chunk, ChunkRibbon, ResultRow } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { RibbonLayer } from "@/src/components/visualizationTab/RibbonLayer";
@@ -14,7 +14,7 @@ interface LinePairProps {
   i: number;
 }
 
-export function LinePair({ data, queryName, i }: LinePairProps) {
+export const LinePair = ({ data, queryName, i }: LinePairProps) => {
   const base = useAppStore((s) => s.base);
   const baseRows = useVisualizationStore((s) => s.baseRows);
   const svgW = useVisualizationStore((s) => s.svgW);
@@ -38,8 +38,6 @@ export function LinePair({ data, queryName, i }: LinePairProps) {
   );
 
   useEffect(() => {
-    console.log(i, baseRows);
-
     setBaseRows(i, baseRow, queryRow);
   }, [baseRow, queryRow]);
 
@@ -54,13 +52,11 @@ export function LinePair({ data, queryName, i }: LinePairProps) {
     [setTooltip, setHoverChunk]
   );
 
-  const top = i * (SVG_H - PAD.top) - (i > 1 ? 2 * (i - 1) * NO_BASE_OFFSET : 0);
-
   return (
-    <Group left={PAD.left} top={top}>
+    <Group left={PAD.left} top={i * (SVG_H - PAD.top)}>
       <RibbonLayer hoverChunk={hoverChunk} othersMode={othersMode} onMove={onMove} {...layout} />
-      {i === 0 && <BaseRowLayer row={baseRow} />}
+      <BaseRowLayer row={baseRow} noLine={i > 0} />
       <QueryRowLayer row={queryRow} />
     </Group>
   );
-}
+};
