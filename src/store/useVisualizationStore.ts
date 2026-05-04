@@ -1,10 +1,12 @@
 import { BaseRow, QueryRow, TooltipInfo } from "@/types";
 import { create } from "zustand";
 
+export type OthersMode = "hide" | "group" | "show";
+
 interface VisualizationState {
   gapBp: number;
   hiddenThreshold: number;
-  othersMode: boolean;
+  othersMode: OthersMode;
   svgW: number;
   hoverChunk: string | null;
   tooltip: TooltipInfo | null;
@@ -15,7 +17,7 @@ interface VisualizationActions {
   setBaseRows: (i: number, baseRow: BaseRow, queryRow: QueryRow) => void;
   setGapBp: (v: number) => void;
   setHiddenThreshold: (v: number) => void;
-  setOthersMode: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setOthersMode: (v: OthersMode | ((prev: OthersMode) => OthersMode)) => void;
   setSvgW: (w: number) => void;
   setHoverChunk: (id: string | null) => void;
   setTooltip: (t: TooltipInfo | null) => void;
@@ -23,9 +25,9 @@ interface VisualizationActions {
 }
 
 export const useVisualizationStore = create<VisualizationState & VisualizationActions>((set) => ({
-  gapBp: 50000,
+  gapBp: 100000,
   hiddenThreshold: 20,
-  othersMode: true,
+  othersMode: "group",
   svgW: 900,
   hoverChunk: null,
   tooltip: null,

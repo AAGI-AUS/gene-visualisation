@@ -1,5 +1,4 @@
 import type { ResultRow } from "@/types";
-import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
 import { InputFiles } from "@/src/components/sideBar/InputFiles";
 import { Parameters } from "@/src/components/sideBar/Parameters";
@@ -60,14 +59,9 @@ const SummaryPanel = ({ result }: SummaryPanelProps) => (
 // Sidebar (root)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const Sidebar = () => {
-  const result = useAppStore((s) => s.result);
-
-  return (
-    <aside className={styles.sidebar}>
-      <InputFiles />
-      <Parameters />
-      {result.length > 0 && <SummaryPanel result={result[0].rows} />}
-    </aside>
-  );
-};
+export const Sidebar = () => (
+  <aside className={styles.sidebar}>
+    <InputFiles />
+    <Parameters />
+  </aside>
+);

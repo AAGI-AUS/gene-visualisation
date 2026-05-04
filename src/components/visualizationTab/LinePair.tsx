@@ -54,7 +54,7 @@ export const LinePair = ({ data, queryName, i }: LinePairProps) => {
 
   return (
     <Group left={PAD.left} top={i * (SVG_H - PAD.top)}>
-      <RibbonLayer hoverChunk={hoverChunk} othersMode={othersMode} onMove={onMove} {...layout} />
+      <RibbonLayer hoverChunk={hoverChunk} onMove={onMove} {...layout} />
       <BaseRowLayer row={baseRow} noLine={i > 0} />
       <QueryRowLayer row={queryRow} />
     </Group>

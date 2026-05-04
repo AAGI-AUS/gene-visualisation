@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { BedFile, FileHandler, ResultRow } from "@/types";
+import { BedFile, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, queryGene, fileToText } from "@/src/utils";
 
 export type Result = {
@@ -15,15 +15,17 @@ interface AppState {
   groupThreshold: number;
   result: Result;
   error: string | null;
+  running: boolean;
 }
 
 interface AppActions {
-  setBase: FileHandler;
-  setQueryFiles: FileHandler;
+  setBase: FilesHandler;
+  setQueryFiles: FilesHandler;
   setGroupThreshold: (value: number) => void;
   setAppState: (state: Partial<AppState>) => void;
   clearBase: () => void;
   clearQuery: (i: number) => void;
+  reorderQuery: (from: number, to: number) => void;
   runAnalysis: () => void;
 }
 
@@ -38,9 +40,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   groupThreshold: 0.01,
   result: [],
   error: null,
+  running: false,
 
   // ── actions ────────────────────────────────────────────────────────────
-  setBase: async (file) => {
+  setBase: async (files) => {
+    const file = files?.[0];
     if (!file) return set({ base: null });
 
     const text = await fileToText(file);
@@ -51,15 +55,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setQueryFiles: (file) => {
     if (!file) return;
     set((state) => ({
-      queryFiles: [...state.queryFiles, file],
+      queryFiles: [...state.queryFiles, ...file],
     }));
   },
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),
   clearBase: () => set({ base: null, result: [], error: null }),
   clearQuery: (i) => set((state) => ({ queryFiles: state.queryFiles.filter((_, j) => i !== j), error: null })),
+  reorderQuery: (from, to) =>
+    set((state) => {
+      if (from === to) return state;
+      const next = [...state.queryFiles];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return { queryFiles: next, error: null };
+    }),
 
   runAnalysis: async () => {
+    set({ running: true });
     const { base, queryFiles, selectedChr, groupThreshold } = get();
     if (!base || !selectedChr) return;
 
@@ -69,16 +82,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const queries = await Promise.all(
       queryFiles.map(async (f) => parseBED(await fileToText(f)).filter((r) => ids.has(r.id)))
     );
-    // const queries = await Promise.all(
-    //   queryFiles.map(
-    //     async (f) =>
-    //       new Map(
-    //         parseBED(await fileToText(f))
-    //           .filter((r) => ids.has(r.id))
-    //           .map((r) => [r.id, r])
-    //       )
-    //   )
-    // );
 
     if (!queries.length) return;
     try {
@@ -92,5 +95,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
     }
+
+    set({ running: false });
   },
 }));

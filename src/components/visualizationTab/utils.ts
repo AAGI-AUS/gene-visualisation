@@ -11,6 +11,7 @@ import {
 } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
 import { withinThreshold } from "@/src/utils";
+import { OthersMode } from "@/src/store/useVisualizationStore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event classification
@@ -144,7 +145,7 @@ export const buildBaseRow = (
   chrOrder: string[],
   label: string,
   availW: number,
-  othersMode: boolean
+  othersMode: OthersMode
 ): BaseRow => {
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
@@ -152,7 +153,7 @@ export const buildBaseRow = (
   const totalBp = chrOrder.reduce((s, c) => s + (chrMaxBp.get(c) ?? 1), 0);
   const gapBudget = (n - 1) * CHR_GAP_PX;
 
-  let cursor = othersMode ? OTHERS_W + CHR_GAP_PX : 0;
+  let cursor = othersMode === "group" ? OTHERS_W + CHR_GAP_PX : 0;
   const pxPerBp = Math.max(availW - gapBudget - 2 * cursor, n) / Math.max(totalBp, 1);
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const p1 = chrMinBp.get(chr) ?? 0;
@@ -253,7 +254,7 @@ export const computeRibbons = (
   chunks: Chunk[],
   baseRow: BaseRow,
   queryRow: QueryRow,
-  othersMode: boolean
+  othersMode: OthersMode
 ): ChunkRibbon[] => {
   const out: ChunkRibbon[] = [];
   const querySlotLookup = queryRow.slots.reduce(
@@ -273,7 +274,7 @@ export const computeRibbons = (
     const bxs = bpToPx(bBar, chunk.bp1Base);
     const bxe = bpToPx(bBar, chunk.bp2Base);
 
-    if (othersMode && chunk.isOthers) {
+    if (othersMode === "group" && chunk.isOthers) {
       const chunkMid = (bxs + bxe) / 2;
       const barMid = bBar.px + bBar.pw / 2;
       const side: "left" | "right" = chunkMid <= barMid ? "left" : "right";

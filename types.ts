@@ -124,4 +124,5 @@ export interface TooltipInfo {
   topY: number;
 }
 
-export type FileHandler = (file: File | null | undefined) => void;
+export type FileHandler = (files: File | null | undefined) => void;
+export type FilesHandler = (files: FileList | null | undefined) => void;

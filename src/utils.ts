@@ -38,8 +38,11 @@ export const parseBED = (text: string): BedRow[] => {
         p2: Number(p2Raw) || 0,
         sign: sign as "+" | "-",
       };
-    });
+    })
+    .filter(({ chromosome }) => validChromosomes(chromosome));
 };
+
+const validChromosomes = (chr: string) => chr.length === 2;
 
 /**
  * Mirrors Python's queryGene().
@@ -114,7 +117,7 @@ export const getChromosomes = (rows: BedRow[]): string[] => {
   return Array.from(
     rows.reduce<Set<string>>((set, r) => {
       const chr = r.chromosome;
-      if (chr && chr.length <= 2) set.add(chr);
+      if (!set.has(chr)) set.add(chr);
       return set;
     }, new Set())
   );

@@ -8,7 +8,6 @@ interface RibbonLayerProps {
   y1bot: number;
   y2top: number;
   hoverChunk: string | null;
-  othersMode: boolean;
   onMove: (e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => void;
 }
 

@@ -22,6 +22,12 @@
   --mono: "IBM Plex Mono", monospace;
   --sans: "IBM Plex Sans", sans-serif;
   --radius: 3px;
+  --shadow-dark: rgba(0, 0, 0, 0.854);
+  --shadow-heavy: rgba(0, 0, 0, 0.618);
+  --shadow-mid: rgba(0, 0, 0, 0.3);
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --hover-shadow-light: inset 0 0 0 9999px var(--shadow-light);
+  --hover-shadow-mid: inset 0 0 0 9999px var(--shadow-mid);
 }
 
 html,
