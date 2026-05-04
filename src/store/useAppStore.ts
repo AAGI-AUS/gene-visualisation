@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { BedFile, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, queryGene, fileToText } from "@/src/utils";
+import { buildPalette } from "@/src/store/utils";
 
 export type Result = {
   name: string;
@@ -16,6 +17,7 @@ interface AppState {
   result: Result;
   error: string | null;
   running: boolean;
+  palette: Record<string, string>;
 }
 
 interface AppActions {
@@ -42,6 +44,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   result: [],
   error: null,
   running: false,
+  palette: {},
 
   // ── actions ────────────────────────────────────────────────────────────
   setBase: async (files) => {
@@ -74,27 +77,33 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   runAnalysis: async () => {
     set({ running: true });
-    const { base, queryFiles, selectedChr, groupThreshold } = get();
-    if (!base || !selectedChr) return;
-
-    // filter before analysis
-    const filteredBase = base.rows.filter((r) => r.chromosome === selectedChr);
-    const ids = new Set(filteredBase.map((r) => r.id));
-    const queries = await Promise.all(
-      queryFiles.map(async (f) => parseBED(await fileToText(f)).filter((r) => ids.has(r.id)))
-    );
-
-    if (!queries.length) return;
     try {
-      const result = queries.map((query, i) =>
-        queryGene(i === 0 ? filteredBase : queries[i - 1], new Map(query.map((r) => [r.id, r])), groupThreshold)
+      const { base, queryFiles, selectedChr, groupThreshold } = get();
+      if (!base || !selectedChr) return;
+
+      const filteredBase = base.rows.filter((r) => r.chromosome === selectedChr);
+      const ids = new Set(filteredBase.map((r) => r.id));
+      const queries = await Promise.all(
+        queryFiles.map(async (f) => parseBED(await fileToText(f)).filter((r) => ids.has(r.id)))
       );
-      set({
-        result: result.map((res, i) => ({ name: queryFiles[i].name, rows: res })),
-        error: null,
-      });
-    } catch (e) {
-      set({ error: e instanceof Error ? e.message : String(e) });
+      if (!queries.length) return;
+
+      try {
+        const allChroms: string[] = [];
+        const result = queries.map((query, i) => {
+          const { rows, chromosomes } = queryGene(
+            i === 0 ? filteredBase : queries[i - 1],
+            new Map(query.map((r) => [r.id, r])),
+            groupThreshold
+          );
+          allChroms.push(...chromosomes);
+          return { name: queryFiles[i].name, rows };
+        });
+
+        set({ result, palette: buildPalette(selectedChr, allChroms), error: null });
+      } catch (e) {
+        set({ error: e instanceof Error ? e.message : String(e) });
+      }
     } finally {
       set({ running: false });
     }
@@ -108,7 +117,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
       const filteredBase = base.rows.filter((r) => r.chromosome === selectedChr);
       const ids = new Set(filteredBase.map((r) => r.id));
-
       const parsed = await Promise.all(
         queryFiles.map(async (f) => ({
           file: f,
@@ -120,32 +128,44 @@ export const useAppStore = create<AppStore>((set, get) => ({
         const remaining = [...parsed];
         const sortedResult: Result = [];
         const sortedFiles: File[] = [];
+        const allChroms: string[] = [];
         let prev = filteredBase;
 
         while (remaining.length) {
           let bestIdx = 0;
           let bestPct = -1;
           let bestRows: ResultRow[] = [];
+          let bestChroms: string[] = [];
 
           for (let i = 0; i < remaining.length; i++) {
-            const q = remaining[i];
-            const rows = queryGene(prev, new Map(q.rows.map((r) => [r.id, r])), groupThreshold);
+            const { rows, chromosomes } = queryGene(
+              prev,
+              new Map(remaining[i].rows.map((r) => [r.id, r])),
+              groupThreshold
+            );
             const pct = rows.length ? rows.filter((r) => r.mainEvent === "synteny").length / rows.length : 0;
             if (pct > bestPct) {
               bestPct = pct;
               bestIdx = i;
               bestRows = rows;
+              bestChroms = chromosomes;
             }
           }
 
           const winner = remaining[bestIdx];
           sortedResult.push({ name: winner.file.name, rows: bestRows });
           sortedFiles.push(winner.file);
+          allChroms.push(...bestChroms);
           prev = winner.rows;
           remaining.splice(bestIdx, 1);
         }
 
-        set({ queryFiles: sortedFiles, result: sortedResult, error: null });
+        set({
+          queryFiles: sortedFiles,
+          result: sortedResult,
+          palette: buildPalette(selectedChr, allChroms),
+          error: null,
+        });
       } catch (e) {
         set({ error: e instanceof Error ? e.message : String(e) });
       }

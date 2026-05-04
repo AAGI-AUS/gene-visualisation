@@ -44,7 +44,6 @@ export interface ChrBar {
   pw: number;
   bpLen: number;
   p1: number;
-  colorIdx: number;
 }
 
 export interface OthersBar {

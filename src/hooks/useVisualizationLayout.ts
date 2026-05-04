@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { CHR_PALETTE, CHROM_THICKNESS, RIBBON_GAP } from "@/src/constants";
+import { CHROM_THICKNESS, OthersMode, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
 import {
   buildBaseRow,
@@ -9,7 +9,6 @@ import {
   computeRibbons,
   SlotSpec,
 } from "@/src/components/visualizationTab/utils";
-import { OthersMode } from "@/src/store/useVisualizationStore";
 
 export interface VisualizationLayout {
   baseRow: BaseRow;
@@ -56,42 +55,29 @@ export const useVisualizationLayout = (
   );
 
   // prepare coords for base and query rows
-  const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx } = useMemo(() => {
+  const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin } = useMemo(() => {
     const baseChrMax = new Map<string, number>();
     const baseChrMin = new Map<string, number>();
     const seenBase = new Set<string>();
 
     const queryChrMax = new Map<string, number>();
     const queryChrMin = new Map<string, number>();
-    const queryChrColorIdx = new Map<string, number>();
-    const allChroms = new Set<string>();
 
     for (const chunk of cleanChunks) {
       if (!preBaseRow && !seenBase.has(chunk.chrBase)) {
         seenBase.add(chunk.chrBase);
-        allChroms.add(chunk.chrBase);
       }
       baseChrMax.set(chunk.chrBase, Math.max(baseChrMax.get(chunk.chrBase) ?? 0, chunk.bp2Base));
       baseChrMin.set(chunk.chrBase, Math.min(baseChrMin.get(chunk.chrBase) ?? 1e21, chunk.bp1Base));
 
       if (othersMode !== "show" && chunk.isOthers) continue;
-      if (!allChroms.has(chunk.chrQuery)) {
-        allChroms.add(chunk.chrQuery);
-      }
       queryChrMax.set(chunk.chrQuery, Math.max(queryChrMax.get(chunk.chrQuery) ?? 0, chunk.bp2Query));
       queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e21, chunk.bp1Query));
     }
 
     const baseChrOrder = Array.from(seenBase).sort((a, b) => a.localeCompare(b));
 
-    let qi = 0;
-    Array.from(allChroms)
-      .sort((a, b) => a.localeCompare(b))
-      .forEach((chr) => {
-        if (!queryChrColorIdx.has(chr)) queryChrColorIdx.set(chr, qi++ % CHR_PALETTE.length);
-      });
-
-    return { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx };
+    return { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin };
   }, [cleanChunks, othersMode, preBaseRow]);
 
   const baseRow = useMemo(
@@ -120,7 +106,6 @@ export const useVisualizationLayout = (
           chr: chromosome,
           p1,
           bpLen: Math.max(queryChrMax.get(chromosome) ?? 1, 1) - p1,
-          colorIdx: queryChrColorIdx.get(chromosome) ?? 0,
         });
       }
     }
@@ -133,7 +118,7 @@ export const useVisualizationLayout = (
       specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
     return buildQueryRow(specs, queryLabel, trackW);
-  }, [cleanChunks, queryChrMax, queryChrMin, queryChrColorIdx, queryLabel, trackW, othersMode]);
+  }, [cleanChunks, queryChrMax, queryChrMin, queryLabel, trackW, othersMode]);
 
   // Ribbon geometry
   const ribbons = useMemo<ChunkRibbon[]>(

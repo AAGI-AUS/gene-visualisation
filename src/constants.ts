@@ -41,3 +41,11 @@ export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];
+
+export const OTHERS_CYCLE = ["hide", "show", "group"] as const;
+export type OthersMode = (typeof OTHERS_CYCLE)[number];
+export const OTHERS_LABEL: Record<OthersMode, string> = {
+  hide: "Hide others",
+  group: "Group others",
+  show: "Show all",
+};

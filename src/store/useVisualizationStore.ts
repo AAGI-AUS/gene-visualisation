@@ -1,7 +1,6 @@
+import { OTHERS_CYCLE, OthersMode } from "@/src/constants";
 import { BaseRow, QueryRow, TooltipInfo } from "@/types";
 import { create } from "zustand";
-
-export type OthersMode = "hide" | "group" | "show";
 
 interface VisualizationState {
   gapBp: number;
@@ -27,7 +26,7 @@ interface VisualizationActions {
 export const useVisualizationStore = create<VisualizationState & VisualizationActions>((set) => ({
   gapBp: 100000,
   hiddenThreshold: 20,
-  othersMode: "group",
+  othersMode: OTHERS_CYCLE[0],
   svgW: 900,
   hoverChunk: null,
   tooltip: null,

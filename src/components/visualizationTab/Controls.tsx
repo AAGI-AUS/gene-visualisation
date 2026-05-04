@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
-import { useVisualizationStore, type OthersMode } from "@/src/store/useVisualizationStore";
-import { CHUNK_COLOR, ChunkEvent } from "@/src/constants";
+import { useVisualizationStore } from "@/src/store/useVisualizationStore";
+import { CHUNK_COLOR, ChunkEvent, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
 import { exportSvg } from "@/src/components/visualizationTab/utils";
 
 interface ControlsProps {
@@ -14,13 +14,6 @@ const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
   { key: "translocation", short: "trans" },
   { key: "translocation+inversion", short: "t+inv" },
 ];
-
-const OTHERS_CYCLE: OthersMode[] = ["hide", "group", "show"];
-const OTHERS_LABEL: Record<OthersMode, string> = {
-  hide: "Hide others",
-  group: "Group others",
-  show: "Show all",
-};
 
 export const Controls = ({ svgRef }: ControlsProps) => {
   const gapBp = useVisualizationStore((s) => s.gapBp);

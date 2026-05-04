@@ -1,17 +1,16 @@
 import type { QuerySlotLookup, ResultRow } from "@/types";
 import {
   CHR_GAP_PX,
-  CHR_PALETTE,
   CHROM_THICKNESS,
   ChunkEvent,
   chunkEvents,
   OTHERS_W,
+  OthersMode,
   PAD,
   ROW_GAP,
 } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
 import { withinThreshold } from "@/src/utils";
-import { OthersMode } from "@/src/store/useVisualizationStore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event classification
@@ -64,7 +63,7 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
 
   const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery);
   // HACK: some info lost, but not matter vis wise
-  const dominants = qRows.filter((r) => r.mainEvent === dominant);
+  const dominants = dominant === "synteny" ? qRows.filter((r) => r.mainEvent === dominant) : qRows;
   const bp1Query = qRows.length ? Math.min(...dominants.map((r) => r.p1Query)) : 0;
   const bp2Query = qRows.length ? Math.max(...dominants.map((r) => r.p2Query)) : 0;
   const isInvert = qRows.filter((r) => r.isInvert).length > qRows.length / 2;
@@ -161,7 +160,7 @@ export const buildBaseRow = (
     const p1 = chrMinBp.get(chr) ?? 0;
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
     const pw = bpLen * pxPerBp;
-    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1, colorIdx: i % CHR_PALETTE.length };
+    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1 };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
   });
@@ -170,7 +169,7 @@ export const buildBaseRow = (
 };
 
 export type SlotSpec =
-  | { kind: "chr"; chr: string; bpLen: number; p1: number; colorIdx: number }
+  | { kind: "chr"; chr: string; bpLen: number; p1: number }
   | { kind: "others"; baseChr: string; side: "left" | "right" };
 
 export const buildQueryRow = (slotSpecs: SlotSpec[], label: string, availW: number): QueryRow => {
