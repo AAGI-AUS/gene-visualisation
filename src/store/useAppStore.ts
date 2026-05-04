@@ -27,6 +27,7 @@ interface AppActions {
   clearQuery: (i: number) => void;
   reorderQuery: (from: number, to: number) => void;
   runAnalysis: () => void;
+  autoSort: () => void;
 }
 
 export type AppStore = AppState & AppActions;
@@ -94,8 +95,62 @@ export const useAppStore = create<AppStore>((set, get) => ({
       });
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) });
+    } finally {
+      set({ running: false });
     }
+  },
 
-    set({ running: false });
+  autoSort: async () => {
+    set({ running: true });
+    try {
+      const { base, queryFiles, selectedChr, groupThreshold } = get();
+      if (!base || !selectedChr || !queryFiles.length) return;
+
+      const filteredBase = base.rows.filter((r) => r.chromosome === selectedChr);
+      const ids = new Set(filteredBase.map((r) => r.id));
+
+      const parsed = await Promise.all(
+        queryFiles.map(async (f) => ({
+          file: f,
+          rows: parseBED(await fileToText(f)).filter((r) => ids.has(r.id)),
+        }))
+      );
+
+      try {
+        const remaining = [...parsed];
+        const sortedResult: Result = [];
+        const sortedFiles: File[] = [];
+        let prev = filteredBase;
+
+        while (remaining.length) {
+          let bestIdx = 0;
+          let bestPct = -1;
+          let bestRows: ResultRow[] = [];
+
+          for (let i = 0; i < remaining.length; i++) {
+            const q = remaining[i];
+            const rows = queryGene(prev, new Map(q.rows.map((r) => [r.id, r])), groupThreshold);
+            const pct = rows.length ? rows.filter((r) => r.mainEvent === "synteny").length / rows.length : 0;
+            if (pct > bestPct) {
+              bestPct = pct;
+              bestIdx = i;
+              bestRows = rows;
+            }
+          }
+
+          const winner = remaining[bestIdx];
+          sortedResult.push({ name: winner.file.name, rows: bestRows });
+          sortedFiles.push(winner.file);
+          prev = winner.rows;
+          remaining.splice(bestIdx, 1);
+        }
+
+        set({ queryFiles: sortedFiles, result: sortedResult, error: null });
+      } catch (e) {
+        set({ error: e instanceof Error ? e.message : String(e) });
+      }
+    } finally {
+      set({ running: false });
+    }
   },
 }));
