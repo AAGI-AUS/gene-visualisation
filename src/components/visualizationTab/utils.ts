@@ -63,8 +63,10 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
   const chrQuery = Object.entries(queryChromCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
 
   const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery);
-  const bp1Query = qRows.length ? Math.min(...qRows.map((r) => r.p1Query)) : 0;
-  const bp2Query = qRows.length ? Math.max(...qRows.map((r) => r.p2Query)) : 0;
+  // HACK: some info lost, but not matter vis wise
+  const dominants = qRows.filter((r) => r.mainEvent === dominant);
+  const bp1Query = qRows.length ? Math.min(...dominants.map((r) => r.p1Query)) : 0;
+  const bp2Query = qRows.length ? Math.max(...dominants.map((r) => r.p2Query)) : 0;
   const isInvert = qRows.filter((r) => r.isInvert).length > qRows.length / 2;
   const isOthers = rows.filter((r) => r.groupedQuery === "others").length > rows.length / 2;
 
