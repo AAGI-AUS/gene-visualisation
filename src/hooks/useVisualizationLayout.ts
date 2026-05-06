@@ -43,9 +43,12 @@ export const useVisualizationLayout = (
       pairs.map(({ data, queryLabel }) => {
         const byChr = new Map<string, ResultRow[]>();
         for (const r of data) {
-          const arr = byChr.get(r.chromosomeBase) ?? [];
+          let arr = byChr.get(r.chromosomeBase);
+          if (!arr) {
+            arr = [];
+            byChr.set(r.chromosomeBase, arr);
+          }
           arr.push(r);
-          byChr.set(r.chromosomeBase, arr);
         }
         const all: Chunk[] = [];
         byChr.forEach((rows) =>
@@ -68,44 +71,43 @@ export const useVisualizationLayout = (
   );
 
   // Tracks: 0..N. Track i is the row shared by pair (i-1)'s query side and pair i's base side.
-  // bp bounds for a chromosome on track i:
-  //   - track 0: union of pair 0 chunks' chrBase
-  //   - track i > 0: pair (i-1) chunks' chrQuery defines the chr set; pair i chunks' chrBase
-  //     widens bounds only for chrs already present from that query side
+  // Each pair p contributes chrBase to track p and chrQuery to track p+1 in a single pass.
+  // The pair-major order ensures track p's chrQuery side (from pair p-1) is populated before
+  // pair p's chrBase contribution checks the restrict set.
   const tracks = useMemo<Track[]>(() => {
-    const out: Track[] = [];
     const trackCount = pairs.length + 1;
-
+    const out: Track[] = [];
     for (let i = 0; i < trackCount; i++) {
-      const chrMax = new Map<string, number>();
-      const chrMin = new Map<string, number>();
-      let needsOthersStub = false;
-
-      if (i > 0) {
-        for (const c of cleanChunksPerPair[i - 1]) {
-          if (othersMode === "group" && c.isOthers) {
-            needsOthersStub = true;
-            continue;
-          }
-          if (othersMode !== "show" && c.isOthers) continue;
-          chrMax.set(c.chrQuery, Math.max(chrMax.get(c.chrQuery) ?? 0, c.bp2Query));
-          chrMin.set(c.chrQuery, Math.min(chrMin.get(c.chrQuery) ?? 1e21, c.bp1Query));
-        }
-      }
-
-      if (i < pairs.length) {
-        const restrictToPrevQuery = i > 0;
-        for (const c of cleanChunksPerPair[i]) {
-          if (othersMode !== "show" && c.isOthers) continue;
-          if (restrictToPrevQuery && !chrMin.has(c.chrBase)) continue;
-          chrMax.set(c.chrBase, Math.max(chrMax.get(c.chrBase) ?? 0, c.bp2Base));
-          chrMin.set(c.chrBase, Math.min(chrMin.get(c.chrBase) ?? 1e21, c.bp1Base));
-        }
-      }
-
-      const chrOrder = Array.from(chrMin.keys()).sort((a, b) => a.localeCompare(b));
-      out.push({ chrMax, chrMin, chrOrder, needsOthersStub });
+      out.push({ chrMax: new Map(), chrMin: new Map(), chrOrder: [], needsOthersStub: false });
     }
+
+    for (let p = 0; p < pairs.length; p++) {
+      const baseTrack = out[p];
+      const queryTrack = out[p + 1];
+      const restrictBase = p > 0;
+
+      for (const c of cleanChunksPerPair[p]) {
+        const isHidden = othersMode !== "show" && c.isOthers;
+
+        if (!isHidden && (!restrictBase || baseTrack.chrMin.has(c.chrBase))) {
+          const minCur = baseTrack.chrMin.get(c.chrBase);
+          if (minCur === undefined || c.bp1Base < minCur) baseTrack.chrMin.set(c.chrBase, c.bp1Base);
+          const maxCur = baseTrack.chrMax.get(c.chrBase);
+          if (maxCur === undefined || c.bp2Base > maxCur) baseTrack.chrMax.set(c.chrBase, c.bp2Base);
+        }
+
+        if (othersMode === "group" && c.isOthers) {
+          queryTrack.needsOthersStub = true;
+        } else if (!isHidden) {
+          const minCur = queryTrack.chrMin.get(c.chrQuery);
+          if (minCur === undefined || c.bp1Query < minCur) queryTrack.chrMin.set(c.chrQuery, c.bp1Query);
+          const maxCur = queryTrack.chrMax.get(c.chrQuery);
+          if (maxCur === undefined || c.bp2Query > maxCur) queryTrack.chrMax.set(c.chrQuery, c.bp2Query);
+        }
+      }
+    }
+
+    for (const t of out) t.chrOrder = Array.from(t.chrMin.keys()).sort();
     return out;
   }, [cleanChunksPerPair, othersMode, pairs.length]);
 
@@ -125,12 +127,8 @@ export const useVisualizationLayout = (
 
       const chrSpecs: SlotSpec[] = queryTrack.chrOrder.map((chr) => {
         const p1 = queryTrack.chrMin.get(chr) ?? 0;
-        return {
-          kind: "chr",
-          chr,
-          p1,
-          bpLen: Math.max(queryTrack.chrMax.get(chr) ?? 1, 1) - p1,
-        };
+        const bpLen = Math.max(queryTrack.chrMax.get(chr) ?? 1, 1) - p1;
+        return { kind: "chr", chr, p1, bpLen };
       });
 
       const specs: SlotSpec[] = [];
@@ -140,6 +138,15 @@ export const useVisualizationLayout = (
       if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
       const queryRow = buildQueryRow(specs, pair.queryLabel, trackW);
+
+      // if (pair.queryLabel.startsWith("arin")) {
+      //   console.log(baseRow);
+      // }
+      // if (pair.queryLabel.startsWith("juli")) {
+      //   console.log(specs);
+      //   console.log(queryRow);
+      // }
+      // console.log(trackW, baseRow.bars[0].pw);
 
       if (p > 0) baseRow.y = -2;
 

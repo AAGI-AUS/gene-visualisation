@@ -126,6 +126,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
       try {
         const remaining = [...parsed];
+        const remainingMaps = remaining.map((p) => new Map(p.rows.map((r) => [r.id, r])));
         const sortedResult: Result = [];
         const sortedFiles: File[] = [];
         const allChroms: string[] = [];
@@ -134,30 +135,32 @@ export const useAppStore = create<AppStore>((set, get) => ({
         while (remaining.length) {
           let bestIdx = 0;
           let bestPct = -1;
-          let bestRows: ResultRow[] = [];
-          let bestChroms: string[] = [];
 
           for (let i = 0; i < remaining.length; i++) {
-            const { rows, chromosomes } = queryGene(
-              prev,
-              new Map(remaining[i].rows.map((r) => [r.id, r])),
-              groupThreshold
-            );
-            const pct = rows.length ? rows.filter((r) => r.mainEvent === "synteny").length / rows.length : 0;
+            const map = remainingMaps[i];
+            let joined = 0;
+            let synteny = 0;
+            for (const b of prev) {
+              const q = map.get(b.id);
+              if (!q) continue;
+              joined++;
+              if (b.chromosome === q.chromosome && b.sign === q.sign) synteny++;
+            }
+            const pct = joined ? synteny / joined : 0;
             if (pct > bestPct) {
               bestPct = pct;
               bestIdx = i;
-              bestRows = rows;
-              bestChroms = chromosomes;
             }
           }
 
           const winner = remaining[bestIdx];
-          sortedResult.push({ name: winner.file.name, rows: bestRows });
+          const { rows, chromosomes } = queryGene(prev, remainingMaps[bestIdx], groupThreshold);
+          sortedResult.push({ name: winner.file.name, rows });
           sortedFiles.push(winner.file);
-          allChroms.push(...bestChroms);
+          allChroms.push(...chromosomes);
           prev = winner.rows;
           remaining.splice(bestIdx, 1);
+          remainingMaps.splice(bestIdx, 1);
         }
 
         set({
