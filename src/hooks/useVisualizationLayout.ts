@@ -139,15 +139,6 @@ export const useVisualizationLayout = (
 
       const queryRow = buildQueryRow(specs, pair.queryLabel, trackW);
 
-      // if (pair.queryLabel.startsWith("arin")) {
-      //   console.log(baseRow);
-      // }
-      // if (pair.queryLabel.startsWith("juli")) {
-      //   console.log(specs);
-      //   console.log(queryRow);
-      // }
-      // console.log(trackW, baseRow.bars[0].pw);
-
       if (p > 0) baseRow.y = -2;
 
       const ribbons = computeRibbons(cleanChunksPerPair[p], baseRow, queryRow, othersMode);

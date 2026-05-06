@@ -36,6 +36,13 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--text);
+}
+
+button {
+  border: none;
+}
+
+* {
   font-family: var(--mono);
 }
 

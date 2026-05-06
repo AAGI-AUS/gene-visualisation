@@ -11,6 +11,7 @@ export const InputFiles = () => {
   const clearBase = useAppStore((s) => s.clearBase);
   const clearQuery = useAppStore((s) => s.clearQuery);
   const reorderQuery = useAppStore((s) => s.reorderQuery);
+  const swapBaseWithQuery = useAppStore((s) => s.swapBaseWithQuery);
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -59,7 +60,7 @@ export const InputFiles = () => {
             }}
             onDragEnd={resetDrag}
           >
-            <FileSlot filename={qf.name} onClear={() => clearQuery(i)} />
+            <FileSlot filename={qf.name} onClear={() => clearQuery(i)} onSwap={() => swapBaseWithQuery(i)} />
           </div>
         ))}
         <FileSlot onFilesLoad={setQueryFiles} multiple />

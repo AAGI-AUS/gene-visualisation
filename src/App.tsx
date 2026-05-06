@@ -2,12 +2,14 @@ import { useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
-import { DistributionTab } from "@/src/components/DistributionTab";
+// import { DistributionTab } from "@/src/components/DistributionTab";
 import { VisualizationTab } from "@/src/components/visualizationTab/VisualizationTab";
 import { Sidebar } from "@/src/components/sideBar/Sidebar";
 
-type Tab = "Visualization" | "Distribution";
-const TABS: Tab[] = ["Visualization", "Distribution"];
+// type Tab = "Visualization" | "Distribution";
+// const TABS: Tab[] = ["Visualization", "Distribution"];
+type Tab = "Visualization";
+const TABS: Tab[] = ["Visualization"];
 
 const App = () => {
   const result = useAppStore((s) => s.result);
@@ -54,15 +56,15 @@ const App = () => {
                 </div>
               ))}
 
-            {tab === "Distribution" &&
-              (result.length ? (
-                <DistributionTab data={result[0].rows} />
-              ) : (
-                <div className={styles.emptyState}>
-                  <span className={styles.emptyIcon}>▦</span>
-                  <span className={styles.emptyTitle}>Run an analysis first</span>
-                </div>
-              ))}
+            {/* {tab === "Distribution" && */}
+            {/*   (result.length ? ( */}
+            {/*     <DistributionTab data={result[0].rows} /> */}
+            {/*   ) : ( */}
+            {/*     <div className={styles.emptyState}> */}
+            {/*       <span className={styles.emptyIcon}>▦</span> */}
+            {/*       <span className={styles.emptyTitle}>Run an analysis first</span> */}
+            {/*     </div> */}
+            {/*   ))} */}
           </div>
         </div>
       </div>
