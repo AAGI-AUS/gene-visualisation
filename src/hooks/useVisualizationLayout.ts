@@ -18,124 +18,143 @@ export interface VisualizationLayout {
   y2top: number;
 }
 
+export interface PairInput {
+  data: ResultRow[];
+  queryLabel: string;
+}
+
+interface Track {
+  chrMax: Map<string, number>;
+  chrMin: Map<string, number>;
+  chrOrder: string[];
+  needsOthersStub: boolean;
+}
+
 export const useVisualizationLayout = (
-  data: ResultRow[],
+  pairs: PairInput[],
   baseLabel: string,
-  queryLabel: string,
   trackW: number,
   gapBp: number,
   othersMode: OthersMode,
-  hiddenThreshold: number,
-  preBaseRow?: BaseRow
-): VisualizationLayout => {
-  // Chunks — group rows per base chromosome, split on gap and event boundary
-  const chunks = useMemo<Chunk[]>(() => {
-    const byChr = new Map<string, ResultRow[]>();
-    for (const r of data) {
-      const arr = byChr.get(r.chromosomeBase) ?? [];
-      arr.push(r);
-      byChr.set(r.chromosomeBase, arr);
-    }
-    const all: Chunk[] = [];
-    byChr.forEach((rows) =>
-      all.push(
-        ...chunkRows(
-          rows.sort((a, b) => a.p1Base - b.p1Base),
-          gapBp,
-          queryLabel
-        ).filter((c) => c.eventCounts.total > hiddenThreshold)
-      )
-    );
-    return all;
-  }, [data, gapBp, hiddenThreshold, queryLabel]);
-
-  const cleanChunks = useMemo(
-    () => (othersMode === "hide" ? chunks.filter((c) => !c.isOthers) : chunks),
-    [chunks, othersMode]
+  hiddenThreshold: number
+): VisualizationLayout[] => {
+  const chunksPerPair = useMemo<Chunk[][]>(
+    () =>
+      pairs.map(({ data, queryLabel }) => {
+        const byChr = new Map<string, ResultRow[]>();
+        for (const r of data) {
+          let arr = byChr.get(r.chromosomeBase);
+          if (!arr) {
+            arr = [];
+            byChr.set(r.chromosomeBase, arr);
+          }
+          arr.push(r);
+        }
+        const all: Chunk[] = [];
+        byChr.forEach((rows) =>
+          all.push(
+            ...chunkRows(
+              rows.sort((a, b) => a.p1Base - b.p1Base),
+              gapBp,
+              queryLabel
+            ).filter((c) => c.eventCounts.total > hiddenThreshold)
+          )
+        );
+        return all;
+      }),
+    [pairs, gapBp, hiddenThreshold]
   );
 
-  // prepare coords for base and query rows
-  const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin } = useMemo(() => {
-    const baseChrMax = new Map<string, number>();
-    const baseChrMin = new Map<string, number>();
-    const seenBase = new Set<string>();
-
-    const queryChrMax = new Map<string, number>();
-    const queryChrMin = new Map<string, number>();
-
-    for (const chunk of cleanChunks) {
-      if (!preBaseRow && !seenBase.has(chunk.chrBase)) {
-        seenBase.add(chunk.chrBase);
-      }
-      baseChrMax.set(chunk.chrBase, Math.max(baseChrMax.get(chunk.chrBase) ?? 0, chunk.bp2Base));
-      baseChrMin.set(chunk.chrBase, Math.min(baseChrMin.get(chunk.chrBase) ?? 1e21, chunk.bp1Base));
-
-      if (othersMode !== "show" && chunk.isOthers) continue;
-      queryChrMax.set(chunk.chrQuery, Math.max(queryChrMax.get(chunk.chrQuery) ?? 0, chunk.bp2Query));
-      queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e21, chunk.bp1Query));
-    }
-
-    const baseChrOrder = Array.from(seenBase).sort((a, b) => a.localeCompare(b));
-
-    return { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin };
-  }, [cleanChunks, othersMode, preBaseRow]);
-
-  const baseRow = useMemo(
-    () => preBaseRow ?? buildBaseRow(baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode),
-    [preBaseRow, baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode]
+  const cleanChunksPerPair = useMemo<Chunk[][]>(
+    () => (othersMode === "hide" ? chunksPerPair.map((cs) => cs.filter((c) => !c.isOthers)) : chunksPerPair),
+    [chunksPerPair, othersMode]
   );
 
-  // Query row — only chrs that receive ribbons; others stubs when in othersMode
-  const queryRow = useMemo<QueryRow>(() => {
-    const realChrs = new Set<string>();
-    const needsStub = new Set<string>();
-    for (const ch of cleanChunks) {
-      if (othersMode === "group" && ch.isOthers) needsStub.add(ch.chrBase);
-      else if (othersMode === "hide" && ch.isOthers) continue;
-      else realChrs.add(ch.chrQuery);
+  // Tracks: 0..N. Track i is the row shared by pair (i-1)'s query side and pair i's base side.
+  // Each pair p contributes chrBase to track p and chrQuery to track p+1 in a single pass.
+  // The pair-major order ensures track p's chrQuery side (from pair p-1) is populated before
+  // pair p's chrBase contribution checks the restrict set.
+  const tracks = useMemo<Track[]>(() => {
+    const trackCount = pairs.length + 1;
+    const out: Track[] = [];
+    for (let i = 0; i < trackCount; i++) {
+      out.push({ chrMax: new Map(), chrMin: new Map(), chrOrder: [], needsOthersStub: false });
     }
 
-    const chrSpecs: SlotSpec[] = [];
-    const seen = new Set<string>();
-    for (const chromosome of [...realChrs].sort((a, b) => a.localeCompare(b))) {
-      if (realChrs.has(chromosome) && !seen.has(chromosome)) {
-        seen.add(chromosome);
-        const p1 = queryChrMin.get(chromosome) ?? 0;
-        chrSpecs.push({
-          kind: "chr",
-          chr: chromosome,
-          p1,
-          bpLen: Math.max(queryChrMax.get(chromosome) ?? 1, 1) - p1,
-        });
+    for (let p = 0; p < pairs.length; p++) {
+      const baseTrack = out[p];
+      const queryTrack = out[p + 1];
+      const restrictBase = p > 0;
+
+      for (const c of cleanChunksPerPair[p]) {
+        const isHidden = othersMode !== "show" && c.isOthers;
+
+        if (!isHidden && (!restrictBase || baseTrack.chrMin.has(c.chrBase))) {
+          const minCur = baseTrack.chrMin.get(c.chrBase);
+          if (minCur === undefined || c.bp1Base < minCur) baseTrack.chrMin.set(c.chrBase, c.bp1Base);
+          const maxCur = baseTrack.chrMax.get(c.chrBase);
+          if (maxCur === undefined || c.bp2Base > maxCur) baseTrack.chrMax.set(c.chrBase, c.bp2Base);
+        }
+
+        if (othersMode === "group" && c.isOthers) {
+          queryTrack.needsOthersStub = true;
+        } else if (!isHidden) {
+          const minCur = queryTrack.chrMin.get(c.chrQuery);
+          if (minCur === undefined || c.bp1Query < minCur) queryTrack.chrMin.set(c.chrQuery, c.bp1Query);
+          const maxCur = queryTrack.chrMax.get(c.chrQuery);
+          if (maxCur === undefined || c.bp2Query > maxCur) queryTrack.chrMax.set(c.chrQuery, c.bp2Query);
+        }
       }
     }
 
-    const specs: SlotSpec[] = [];
-    if (othersMode === "group" && needsStub.size > 0)
-      specs.push({ kind: "others", baseChr: "__others__", side: "left" });
-    specs.push(...chrSpecs);
-    if (othersMode === "group" && needsStub.size > 0)
-      specs.push({ kind: "others", baseChr: "__others__", side: "right" });
+    for (const t of out) t.chrOrder = Array.from(t.chrMin.keys()).sort();
+    return out;
+  }, [cleanChunksPerPair, othersMode, pairs.length]);
 
-    return buildQueryRow(specs, queryLabel, trackW);
-  }, [cleanChunks, queryChrMax, queryChrMin, queryLabel, trackW, othersMode]);
+  return useMemo<VisualizationLayout[]>(() => {
+    return pairs.map((pair, p) => {
+      const baseTrack = tracks[p];
+      const queryTrack = tracks[p + 1];
 
-  // Ribbon geometry
-  const ribbons = useMemo<ChunkRibbon[]>(
-    () => computeRibbons(cleanChunks, baseRow, queryRow, othersMode),
-    [cleanChunks, baseRow, queryRow, othersMode]
-  );
+      const baseRow = buildBaseRow(
+        baseTrack.chrMax,
+        baseTrack.chrMin,
+        baseTrack.chrOrder,
+        p === 0 ? baseLabel : "",
+        trackW,
+        othersMode
+      );
 
-  // Extra bottom padding so the tooltip (≈180px) has space below the query bar
-  if (preBaseRow) baseRow.y = -2;
-  const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
-  const y2top = queryRow.y - RIBBON_GAP;
+      const chrSpecs: SlotSpec[] = queryTrack.chrOrder.map((chr) => {
+        const p1 = queryTrack.chrMin.get(chr) ?? 0;
+        const bpLen = Math.max(queryTrack.chrMax.get(chr) ?? 1, 1) - p1;
+        return { kind: "chr", chr, p1, bpLen };
+      });
 
-  return {
-    baseRow,
-    queryRow,
-    ribbons,
-    y1bot,
-    y2top,
-  };
+      const specs: SlotSpec[] = [];
+      const showOthersStubs = othersMode === "group" && queryTrack.needsOthersStub;
+      if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "left" });
+      specs.push(...chrSpecs);
+      if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
+
+      const queryRow = buildQueryRow(specs, pair.queryLabel, trackW);
+
+      // if (pair.queryLabel.startsWith("arin")) {
+      //   console.log(baseRow);
+      // }
+      // if (pair.queryLabel.startsWith("juli")) {
+      //   console.log(specs);
+      //   console.log(queryRow);
+      // }
+      // console.log(trackW, baseRow.bars[0].pw);
+
+      if (p > 0) baseRow.y = -2;
+
+      const ribbons = computeRibbons(cleanChunksPerPair[p], baseRow, queryRow, othersMode);
+      const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
+      const y2top = queryRow.y - RIBBON_GAP;
+
+      return { baseRow, queryRow, ribbons, y1bot, y2top };
+    });
+  }, [pairs, tracks, cleanChunksPerPair, baseLabel, trackW, othersMode]);
 };

@@ -58,16 +58,18 @@ export const queryGene = (
   queryMap: Map<number, BedRow>,
   groupThreshold = 0.01
 ): { rows: ResultRow[]; chromosomes: string[] } => {
-  // Step 1 – left join
-  const queried = baseRows.reduce<Omit<ResultRow, "groupedQuery">[]>((acc, base) => {
+  // Step 1 – left join + chromosomeQuery tally in one pass
+  const queried: ResultRow[] = [];
+  const counts = new Map<string, number>();
+  for (const base of baseRows) {
     const query = queryMap.get(base.id);
-    if (!query) return acc;
+    if (!query) continue;
 
     const isInvert = base.sign !== query.sign;
     const isTranslocation = base.chromosome !== query.chromosome;
     const mainEvent: MainEvent = isTranslocation ? "translocation" : isInvert ? "inversion" : "synteny";
 
-    acc.push({
+    queried.push({
       id: base.id,
       chromosomeBase: base.chromosome,
       p1Base: base.p1,
@@ -79,18 +81,13 @@ export const queryGene = (
       isInvert,
       isTranslocation,
       mainEvent,
+      groupedQuery: "",
     });
-    return acc;
-  }, []);
+    counts.set(query.chromosome, (counts.get(query.chromosome) ?? 0) + 1);
+  }
 
-  // Step 3 – chromosomeQuery percentage table
+  // Step 2 – build groupedMap from counts
   const total = queried.length || 1;
-  const counts = new Map<string, number>();
-  queried.forEach((r) => {
-    const key = r.chromosomeQuery;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  });
-
   const groupedMap = new Map<string, string>();
   const chromosomes: string[] = [];
   counts.forEach((n, chr) => {
@@ -102,14 +99,12 @@ export const queryGene = (
     }
   });
 
-  // Step 4 – attach groupedQuery
-  return {
-    rows: queried.map((r) => ({
-      ...r,
-      groupedQuery: groupedMap.get(r.chromosomeQuery) ?? "others",
-    })),
-    chromosomes,
-  };
+  // Step 3 – attach groupedQuery in place (no spread allocation per row)
+  for (const r of queried) {
+    r.groupedQuery = groupedMap.get(r.chromosomeQuery) ?? "others";
+  }
+
+  return { rows: queried, chromosomes };
 };
 
 /** Read a File object as UTF-8 text. */

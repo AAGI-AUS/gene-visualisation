@@ -43,31 +43,49 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
   const bp2Base = rows[rows.length - 1].p2Base;
 
   const eventCounts = zeroCounts();
-  for (const r of rows) {
-    eventCounts[rowCategory(r)]++;
-    eventCounts.total++;
-  }
-  const dominant = dominantEvent(eventCounts);
-
   let bpGeneBase = 0;
   let bpGeneQuery = 0;
   const queryChromCounts: Record<string, number> = {};
+  let chrQuery = "";
+  let chrQueryMaxCount = 0;
+  let othersCount = 0;
   for (const r of rows) {
+    eventCounts[rowCategory(r)]++;
+    eventCounts.total++;
     bpGeneBase += r.p2Base - r.p1Base;
     if (r.chromosomeQuery) {
       bpGeneQuery += r.p2Query - r.p1Query;
-      queryChromCounts[r.chromosomeQuery] = (queryChromCounts[r.chromosomeQuery] ?? 0) + 1;
+      const next = (queryChromCounts[r.chromosomeQuery] ?? 0) + 1;
+      queryChromCounts[r.chromosomeQuery] = next;
+      if (next > chrQueryMaxCount) {
+        chrQueryMaxCount = next;
+        chrQuery = r.chromosomeQuery;
+      }
     }
+    if (r.groupedQuery === "others") othersCount++;
   }
-  const chrQuery = Object.entries(queryChromCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  const dominant = dominantEvent(eventCounts);
 
-  const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery);
   // HACK: some info lost, but not matter vis wise
-  const dominants = dominant === "synteny" ? qRows.filter((r) => r.mainEvent === dominant) : qRows;
-  const bp1Query = qRows.length ? Math.min(...dominants.map((r) => r.p1Query)) : 0;
-  const bp2Query = qRows.length ? Math.max(...dominants.map((r) => r.p2Query)) : 0;
-  const isInvert = qRows.filter((r) => r.isInvert).length > qRows.length / 2;
-  const isOthers = rows.filter((r) => r.groupedQuery === "others").length > rows.length / 2;
+  const onlySynteny = dominant === "synteny";
+  let bp1Query = Infinity;
+  let bp2Query = -Infinity;
+  let qRowsCount = 0;
+  let invertCount = 0;
+  for (const r of rows) {
+    if (r.chromosomeQuery !== chrQuery) continue;
+    qRowsCount++;
+    if (r.isInvert) invertCount++;
+    if (onlySynteny && r.mainEvent !== "synteny") continue;
+    if (r.p1Query < bp1Query) bp1Query = r.p1Query;
+    if (r.p2Query > bp2Query) bp2Query = r.p2Query;
+  }
+  if (qRowsCount === 0) {
+    bp1Query = 0;
+    bp2Query = 0;
+  }
+  const isInvert = invertCount > qRowsCount / 2;
+  const isOthers = othersCount > rows.length / 2;
 
   return {
     id: `${lineName}-${chrBase}-${idx}`,
@@ -96,10 +114,14 @@ export const chunkRows = (rows: ResultRow[], gapBp: number, lineName: string): C
   if (!rows.length) return [];
   const out: Chunk[] = [];
 
-  const nonTrans = rows.filter((r) => !r.isTranslocation);
-  const trans = rows.filter((r) => r.isTranslocation);
-  const transMinor = trans.filter((r) => r.groupedQuery === "others");
-  const transMajor = trans.filter((r) => r.groupedQuery !== "others");
+  const nonTrans: ResultRow[] = [];
+  const transMajor: ResultRow[] = [];
+  const transMinor: ResultRow[] = [];
+  for (const r of rows) {
+    if (!r.isTranslocation) nonTrans.push(r);
+    else if (r.groupedQuery === "others") transMinor.push(r);
+    else transMajor.push(r);
+  }
 
   // group stuff together
   const sweep = (group: ResultRow[], strict: boolean) => {
@@ -151,15 +173,20 @@ export const buildBaseRow = (
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
 
-  const totalBp = chrOrder.reduce((s, c) => s + (chrMaxBp.get(c) ?? 1), 0);
+  const totalBp = chrOrder.reduce(
+    (total, chr) => total + ((chrMaxBp.get(chr) ?? 1) - (chrMinBp.get(chr) ?? 0)),
+    0
+  );
   const gapBudget = (n - 1) * CHR_GAP_PX;
 
   let cursor = othersMode === "group" ? OTHERS_W + CHR_GAP_PX : 0;
   const pxPerBp = Math.max(availW - gapBudget - 2 * cursor, n) / Math.max(totalBp, 1);
+
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const p1 = chrMinBp.get(chr) ?? 0;
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
     const pw = bpLen * pxPerBp;
+
     const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1 };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
@@ -177,15 +204,19 @@ export const buildQueryRow = (slotSpecs: SlotSpec[], label: string, availW: numb
   const n = slotSpecs.length;
   if (n === 0) return { label, slots: [], y };
 
-  const nOthers = slotSpecs.filter((s) => s.kind === "others").length;
-  const totalBpForChr = slotSpecs
-    .filter((s) => s.kind === "chr")
-    .reduce((sum, s) => sum + (s as { bpLen: number }).bpLen, 0);
+  let nOthers = 0;
+  let nChrs = 0;
+  let totalBpForChr = 0;
+  for (const s of slotSpecs) {
+    if (s.kind === "chr") {
+      nChrs++;
+      totalBpForChr += s.bpLen;
+    } else {
+      nOthers++;
+    }
+  }
   const gapPx = (n - 1) * CHR_GAP_PX;
-  const chrBudget = Math.max(
-    availW - nOthers * OTHERS_W - gapPx,
-    slotSpecs.filter((s) => s.kind === "chr").length * 2
-  );
+  const chrBudget = Math.max(availW - nOthers * OTHERS_W - gapPx, nChrs * 2);
   const pxPerBp = totalBpForChr > 0 ? chrBudget / totalBpForChr : 1;
 
   let cursor = 0;
@@ -267,9 +298,11 @@ export const computeRibbons = (
     },
     { others: {}, chromosome: {} } as QuerySlotLookup
   );
+  const baseBarLookup = new Map<string, ChrBar>();
+  for (const b of baseRow.bars) baseBarLookup.set(b.chr, b);
 
   for (const chunk of chunks) {
-    const bBar = baseRow.bars.find((b) => b.chr === chunk.chrBase);
+    const bBar = baseBarLookup.get(chunk.chrBase);
     if (!bBar) continue;
 
     const bxs = bpToPx(bBar, chunk.bp1Base);

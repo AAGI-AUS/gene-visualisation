@@ -6,3 +6,6 @@ node_modules/
 env/
 
 data/
+
+# claude — keep shared config, ignore per-user local overrides
+.claude/settings.local.json
