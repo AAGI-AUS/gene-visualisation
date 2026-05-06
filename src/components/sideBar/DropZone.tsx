@@ -1,13 +1,13 @@
 import { useRef, useState, type DragEvent, type ChangeEvent } from "react";
-import type { FileHandler } from "@/types";
+import type { FilesHandler } from "@/types";
 import styles from "./FileSlot.module.css";
 
-interface DropZoneProps {
+interface DropZoneProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  onLoad: FileHandler;
+  onFilesLoad: FilesHandler;
 }
 
-export const DropZone = ({ label, onLoad }: DropZoneProps) => {
+export const DropZone = ({ label, onFilesLoad, ...props }: DropZoneProps) => {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -23,11 +23,11 @@ export const DropZone = ({ label, onLoad }: DropZoneProps) => {
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDrag(false);
-    onLoad(e.dataTransfer.files[0]);
+    onFilesLoad(e.dataTransfer.files);
   };
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    onLoad(e.target.files?.[0]);
+    onFilesLoad(e.target.files);
 
     if (inputRef.current) {
       inputRef.current.value = "";
@@ -50,6 +50,7 @@ export const DropZone = ({ label, onLoad }: DropZoneProps) => {
         type="file"
         accept=".bed,.tsv,.txt"
         onChange={onChange}
+        {...props}
       />
     </div>
   );

@@ -25,6 +25,7 @@ export const LinePair = ({ data, queryName, i }: LinePairProps) => {
   const setBaseRows = useVisualizationStore((s) => s.setBaseRows);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
   const setHoverChunk = useVisualizationStore((s) => s.setHoverChunk);
+  const palette = useAppStore((s) => s.palette);
 
   const { baseRow, queryRow, ...layout } = useVisualizationLayout(
     data,
@@ -54,9 +55,9 @@ export const LinePair = ({ data, queryName, i }: LinePairProps) => {
 
   return (
     <Group left={PAD.left} top={i * (SVG_H - PAD.top)}>
-      <RibbonLayer hoverChunk={hoverChunk} othersMode={othersMode} onMove={onMove} {...layout} />
-      <BaseRowLayer row={baseRow} noLine={i > 0} />
-      <QueryRowLayer row={queryRow} />
+      <RibbonLayer hoverChunk={hoverChunk} onMove={onMove} {...layout} />
+      <BaseRowLayer row={baseRow} noLine={i > 0} palette={palette} />
+      <QueryRowLayer row={queryRow} palette={palette} />
     </Group>
   );
 };

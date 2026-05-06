@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
-import { CHUNK_COLOR, ChunkEvent } from "@/src/constants";
+import { CHUNK_COLOR, ChunkEvent, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
 import { exportSvg } from "@/src/components/visualizationTab/utils";
 
 interface ControlsProps {
@@ -21,7 +21,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const othersMode = useVisualizationStore((s) => s.othersMode);
   const setGapBp = useVisualizationStore((s) => s.setGapBp);
   const setHiddenThreshold = useVisualizationStore((s) => s.setHiddenThreshold);
-  const setOthers = useVisualizationStore((s) => s.setOthersMode);
+  const setOthersMode = useVisualizationStore((s) => s.setOthersMode);
 
   return (
     <div className={styles.controls}>
@@ -59,12 +59,12 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
       {/* Others mode toggle */}
       <button
-        className={`${styles.toggleBtn} ${othersMode ? styles.toggleBtnOn : ""}`}
-        onClick={() => setOthers((v) => !v)}
+        className={`${styles.toggleBtn} ${othersMode !== "hide" ? styles.toggleBtnOn : ""}`}
+        onClick={() => setOthersMode((v) => OTHERS_CYCLE[(OTHERS_CYCLE.indexOf(v) + 1) % OTHERS_CYCLE.length])}
         type="button"
       >
         <span className={styles.toggleDot} />
-        Group others
+        {OTHERS_LABEL[othersMode]}
       </button>
 
       {/* Legend */}

@@ -4,7 +4,6 @@
   padding: 18px 12px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
   font-size: 11px;
   color: var(--text-dim);
   position: relative;
@@ -83,7 +82,6 @@
   font-size: 13px;
   line-height: 1;
   padding: 0;
-  transition: color 0.1s;
 }
 
 .clearBtn:hover {

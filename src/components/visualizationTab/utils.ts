@@ -1,11 +1,11 @@
 import type { QuerySlotLookup, ResultRow } from "@/types";
 import {
   CHR_GAP_PX,
-  CHR_PALETTE,
   CHROM_THICKNESS,
   ChunkEvent,
   chunkEvents,
   OTHERS_W,
+  OthersMode,
   PAD,
   ROW_GAP,
 } from "@/src/constants";
@@ -62,8 +62,10 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
   const chrQuery = Object.entries(queryChromCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
 
   const qRows = rows.filter((r) => r.chromosomeQuery === chrQuery);
-  const bp1Query = qRows.length ? Math.min(...qRows.map((r) => r.p1Query)) : 0;
-  const bp2Query = qRows.length ? Math.max(...qRows.map((r) => r.p2Query)) : 0;
+  // HACK: some info lost, but not matter vis wise
+  const dominants = dominant === "synteny" ? qRows.filter((r) => r.mainEvent === dominant) : qRows;
+  const bp1Query = qRows.length ? Math.min(...dominants.map((r) => r.p1Query)) : 0;
+  const bp2Query = qRows.length ? Math.max(...dominants.map((r) => r.p2Query)) : 0;
   const isInvert = qRows.filter((r) => r.isInvert).length > qRows.length / 2;
   const isOthers = rows.filter((r) => r.groupedQuery === "others").length > rows.length / 2;
 
@@ -144,7 +146,7 @@ export const buildBaseRow = (
   chrOrder: string[],
   label: string,
   availW: number,
-  othersMode: boolean
+  othersMode: OthersMode
 ): BaseRow => {
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
@@ -152,13 +154,13 @@ export const buildBaseRow = (
   const totalBp = chrOrder.reduce((s, c) => s + (chrMaxBp.get(c) ?? 1), 0);
   const gapBudget = (n - 1) * CHR_GAP_PX;
 
-  let cursor = othersMode ? OTHERS_W + CHR_GAP_PX : 0;
+  let cursor = othersMode === "group" ? OTHERS_W + CHR_GAP_PX : 0;
   const pxPerBp = Math.max(availW - gapBudget - 2 * cursor, n) / Math.max(totalBp, 1);
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const p1 = chrMinBp.get(chr) ?? 0;
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
     const pw = bpLen * pxPerBp;
-    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1, colorIdx: i % CHR_PALETTE.length };
+    const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1 };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
   });
@@ -167,7 +169,7 @@ export const buildBaseRow = (
 };
 
 export type SlotSpec =
-  | { kind: "chr"; chr: string; bpLen: number; p1: number; colorIdx: number }
+  | { kind: "chr"; chr: string; bpLen: number; p1: number }
   | { kind: "others"; baseChr: string; side: "left" | "right" };
 
 export const buildQueryRow = (slotSpecs: SlotSpec[], label: string, availW: number): QueryRow => {
@@ -253,7 +255,7 @@ export const computeRibbons = (
   chunks: Chunk[],
   baseRow: BaseRow,
   queryRow: QueryRow,
-  othersMode: boolean
+  othersMode: OthersMode
 ): ChunkRibbon[] => {
   const out: ChunkRibbon[] = [];
   const querySlotLookup = queryRow.slots.reduce(
@@ -273,7 +275,7 @@ export const computeRibbons = (
     const bxs = bpToPx(bBar, chunk.bp1Base);
     const bxe = bpToPx(bBar, chunk.bp2Base);
 
-    if (othersMode && chunk.isOthers) {
+    if (othersMode === "group" && chunk.isOthers) {
       const chunkMid = (bxs + bxe) / 2;
       const barMid = bBar.px + bBar.pw / 2;
       const side: "left" | "right" = chunkMid <= barMid ? "left" : "right";

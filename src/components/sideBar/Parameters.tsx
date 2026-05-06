@@ -33,6 +33,8 @@ export const Parameters = () => {
   const groupThreshold = useAppStore((s) => s.groupThreshold);
   const setAppState = useAppStore((s) => s.setAppState);
   const runAnalysis = useAppStore((s) => s.runAnalysis);
+  const running = useAppStore((s) => s.running);
+  const autoSort = useAppStore((s) => s.autoSort);
 
   const canRun = Boolean(base && queryFiles?.[0]);
   return (
@@ -54,8 +56,11 @@ export const Parameters = () => {
           />
         </div>
 
-        <button className={styles.runBtn} disabled={!canRun} onClick={runAnalysis} type="button">
-          ▶ RUN
+        <button className={styles.runBtn} disabled={!canRun || running} onClick={runAnalysis} type="button">
+          {running ? "RUNNING..." : "▶ RUN"}
+        </button>
+        <button className={styles.runBtn} disabled={!canRun || running} onClick={autoSort} type="button">
+          {running ? "RUNNING..." : "▶ AUTOSORT"}
         </button>
       </div>
     </div>

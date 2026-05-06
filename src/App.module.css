@@ -63,7 +63,6 @@
   color: var(--text-dim);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
   user-select: none;
   margin-bottom: -1px;
 }

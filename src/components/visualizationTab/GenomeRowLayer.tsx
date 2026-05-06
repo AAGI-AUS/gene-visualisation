@@ -40,17 +40,16 @@ const HorizontalLine = ({ x, width, y, ...props }: HorizontalLineProps) => {
 interface BaseRowLayerProps {
   row: BaseRow;
   noLine?: boolean;
+  palette: Record<string, string>;
 }
 
-export const BaseRowLayer = ({ row, noLine }: BaseRowLayerProps) => (
+export const BaseRowLayer = ({ row, noLine, palette }: BaseRowLayerProps) => (
   <g>
     <LineLabel y={row.y} text={row.label} />
     {row.bars.map((bar) => (
       <g key={bar.chr}>
-        {!noLine && <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={CHR_PALETTE[bar.colorIdx]} />}
-        {bar.pw > 24 && (
-          <ChromLabel x={bar.px + bar.pw / 2} y={row.y} fill={CHR_PALETTE[bar.colorIdx]} text={bar.chr} />
-        )}
+        {!noLine && <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={palette[bar.chr]} />}
+        {bar.pw > 24 && <ChromLabel x={bar.px + bar.pw / 2} y={row.y} fill={palette[bar.chr]} text={bar.chr} />}
       </g>
     ))}
   </g>
@@ -58,9 +57,10 @@ export const BaseRowLayer = ({ row, noLine }: BaseRowLayerProps) => (
 
 interface QueryRowLayerProps {
   row: QueryRow;
+  palette: Record<string, string>;
 }
 
-export const QueryRowLayer = ({ row }: QueryRowLayerProps) => (
+export const QueryRowLayer = ({ row, palette }: QueryRowLayerProps) => (
   <g>
     <LineLabel y={row.y} text={row.label} />
     {row.slots.map((slot, si) => {
@@ -70,7 +70,7 @@ export const QueryRowLayer = ({ row }: QueryRowLayerProps) => (
       let label: string;
       if (slot.kind === "chr") {
         key = slot.chr;
-        col = CHR_PALETTE[slot.colorIdx];
+        col = palette[slot.chr];
         label = slot.chr;
         dash = "none";
       } else {

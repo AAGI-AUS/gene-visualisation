@@ -38,8 +38,11 @@ export const parseBED = (text: string): BedRow[] => {
         p2: Number(p2Raw) || 0,
         sign: sign as "+" | "-",
       };
-    });
+    })
+    .filter(({ chromosome }) => validChromosomes(chromosome));
 };
+
+const validChromosomes = (chr: string) => chr.length === 2;
 
 /**
  * Mirrors Python's queryGene().
@@ -54,7 +57,7 @@ export const queryGene = (
   baseRows: BedRow[],
   queryMap: Map<number, BedRow>,
   groupThreshold = 0.01
-): ResultRow[] => {
+): { rows: ResultRow[]; chromosomes: string[] } => {
   // Step 1 – left join
   const queried = baseRows.reduce<Omit<ResultRow, "groupedQuery">[]>((acc, base) => {
     const query = queryMap.get(base.id);
@@ -89,15 +92,24 @@ export const queryGene = (
   });
 
   const groupedMap = new Map<string, string>();
+  const chromosomes: string[] = [];
   counts.forEach((n, chr) => {
-    groupedMap.set(chr, n / total > groupThreshold ? chr : "others");
+    if (n / total > groupThreshold) {
+      groupedMap.set(chr, chr);
+      chromosomes.push(chr);
+    } else {
+      groupedMap.set(chr, "others");
+    }
   });
 
   // Step 4 – attach groupedQuery
-  return queried.map((r) => ({
-    ...r,
-    groupedQuery: groupedMap.get(r.chromosomeQuery) ?? "others",
-  }));
+  return {
+    rows: queried.map((r) => ({
+      ...r,
+      groupedQuery: groupedMap.get(r.chromosomeQuery) ?? "others",
+    })),
+    chromosomes,
+  };
 };
 
 /** Read a File object as UTF-8 text. */
@@ -114,7 +126,7 @@ export const getChromosomes = (rows: BedRow[]): string[] => {
   return Array.from(
     rows.reduce<Set<string>>((set, r) => {
       const chr = r.chromosome;
-      if (chr && chr.length <= 2) set.add(chr);
+      if (!set.has(chr)) set.add(chr);
       return set;
     }, new Set())
   );

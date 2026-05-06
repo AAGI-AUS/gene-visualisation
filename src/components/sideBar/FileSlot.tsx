@@ -1,14 +1,14 @@
-import type { FileHandler } from "@/types";
+import type { FilesHandler } from "@/types";
 import styles from "./FileSlot.module.css";
 import { DropZone } from "@/src/components/sideBar/DropZone";
 
-interface FileSlotProps {
+interface FileSlotProps extends React.InputHTMLAttributes<HTMLInputElement> {
   filename?: string | null;
-  onLoad?: FileHandler;
+  onFilesLoad?: FilesHandler;
   onClear?: () => void;
 }
 
-export const FileSlot = ({ filename, onLoad, onClear }: FileSlotProps) => (
+export const FileSlot = ({ filename, onFilesLoad, onClear, ...inputProps }: FileSlotProps) => (
   <div style={{ marginBottom: 10 }}>
     {filename ? (
       <div className={styles.fileLoaded}>
@@ -19,7 +19,7 @@ export const FileSlot = ({ filename, onLoad, onClear }: FileSlotProps) => (
         </button>
       </div>
     ) : (
-      onLoad && <DropZone label="Select bed file" onLoad={onLoad} />
+      onFilesLoad && <DropZone label="Select bed file" onFilesLoad={onFilesLoad} {...inputProps} />
     )}
   </div>
 );

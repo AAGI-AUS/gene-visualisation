@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { CHR_PALETTE, CHROM_THICKNESS, RIBBON_GAP } from "@/src/constants";
+import { CHROM_THICKNESS, OthersMode, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
 import {
   buildBaseRow,
@@ -24,7 +24,7 @@ export const useVisualizationLayout = (
   queryLabel: string,
   trackW: number,
   gapBp: number,
-  othersMode: boolean,
+  othersMode: OthersMode,
   hiddenThreshold: number,
   preBaseRow?: BaseRow
 ): VisualizationLayout => {
@@ -49,44 +49,36 @@ export const useVisualizationLayout = (
     return all;
   }, [data, gapBp, hiddenThreshold, queryLabel]);
 
+  const cleanChunks = useMemo(
+    () => (othersMode === "hide" ? chunks.filter((c) => !c.isOthers) : chunks),
+    [chunks, othersMode]
+  );
+
   // prepare coords for base and query rows
-  const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx } = useMemo(() => {
+  const { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin } = useMemo(() => {
     const baseChrMax = new Map<string, number>();
     const baseChrMin = new Map<string, number>();
     const seenBase = new Set<string>();
 
     const queryChrMax = new Map<string, number>();
     const queryChrMin = new Map<string, number>();
-    const queryChrColorIdx = new Map<string, number>();
-    const allChroms = new Set<string>();
 
-    for (const chunk of chunks) {
+    for (const chunk of cleanChunks) {
       if (!preBaseRow && !seenBase.has(chunk.chrBase)) {
         seenBase.add(chunk.chrBase);
-        allChroms.add(chunk.chrBase);
       }
       baseChrMax.set(chunk.chrBase, Math.max(baseChrMax.get(chunk.chrBase) ?? 0, chunk.bp2Base));
       baseChrMin.set(chunk.chrBase, Math.min(baseChrMin.get(chunk.chrBase) ?? 1e21, chunk.bp1Base));
 
-      if (othersMode && chunk.isOthers) continue;
-      if (!allChroms.has(chunk.chrQuery)) {
-        allChroms.add(chunk.chrQuery);
-      }
+      if (othersMode !== "show" && chunk.isOthers) continue;
       queryChrMax.set(chunk.chrQuery, Math.max(queryChrMax.get(chunk.chrQuery) ?? 0, chunk.bp2Query));
       queryChrMin.set(chunk.chrQuery, Math.min(queryChrMin.get(chunk.chrQuery) ?? 1e21, chunk.bp1Query));
     }
 
     const baseChrOrder = Array.from(seenBase).sort((a, b) => a.localeCompare(b));
 
-    let qi = 0;
-    Array.from(allChroms)
-      .sort((a, b) => a.localeCompare(b))
-      .forEach((chr) => {
-        if (!queryChrColorIdx.has(chr)) queryChrColorIdx.set(chr, qi++ % CHR_PALETTE.length);
-      });
-
-    return { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin, queryChrColorIdx };
-  }, [chunks, othersMode, preBaseRow]);
+    return { baseChrMax, baseChrMin, baseChrOrder, queryChrMax, queryChrMin };
+  }, [cleanChunks, othersMode, preBaseRow]);
 
   const baseRow = useMemo(
     () => preBaseRow ?? buildBaseRow(baseChrMax, baseChrMin, baseChrOrder, baseLabel, trackW, othersMode),
@@ -97,8 +89,9 @@ export const useVisualizationLayout = (
   const queryRow = useMemo<QueryRow>(() => {
     const realChrs = new Set<string>();
     const needsStub = new Set<string>();
-    for (const ch of chunks) {
-      if (othersMode && ch.isOthers) needsStub.add(ch.chrBase);
+    for (const ch of cleanChunks) {
+      if (othersMode === "group" && ch.isOthers) needsStub.add(ch.chrBase);
+      else if (othersMode === "hide" && ch.isOthers) continue;
       else realChrs.add(ch.chrQuery);
     }
 
@@ -113,23 +106,24 @@ export const useVisualizationLayout = (
           chr: chromosome,
           p1,
           bpLen: Math.max(queryChrMax.get(chromosome) ?? 1, 1) - p1,
-          colorIdx: queryChrColorIdx.get(chromosome) ?? 0,
         });
       }
     }
 
     const specs: SlotSpec[] = [];
-    if (othersMode && needsStub.size > 0) specs.push({ kind: "others", baseChr: "__others__", side: "left" });
+    if (othersMode === "group" && needsStub.size > 0)
+      specs.push({ kind: "others", baseChr: "__others__", side: "left" });
     specs.push(...chrSpecs);
-    if (othersMode && needsStub.size > 0) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
+    if (othersMode === "group" && needsStub.size > 0)
+      specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
     return buildQueryRow(specs, queryLabel, trackW);
-  }, [chunks, queryChrMax, queryChrMin, queryChrColorIdx, queryLabel, trackW, othersMode]);
+  }, [cleanChunks, queryChrMax, queryChrMin, queryLabel, trackW, othersMode]);
 
   // Ribbon geometry
   const ribbons = useMemo<ChunkRibbon[]>(
-    () => computeRibbons(chunks, baseRow, queryRow, othersMode),
-    [chunks, baseRow, queryRow, othersMode]
+    () => computeRibbons(cleanChunks, baseRow, queryRow, othersMode),
+    [cleanChunks, baseRow, queryRow, othersMode]
   );
 
   // Extra bottom padding so the tooltip (≈180px) has space below the query bar
