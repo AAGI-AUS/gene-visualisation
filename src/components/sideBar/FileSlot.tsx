@@ -6,14 +6,25 @@ interface FileSlotProps extends React.InputHTMLAttributes<HTMLInputElement> {
   filename?: string | null;
   onFilesLoad?: FilesHandler;
   onClear?: () => void;
+  onSwap?: () => void;
 }
 
-export const FileSlot = ({ filename, onFilesLoad, onClear, ...inputProps }: FileSlotProps) => (
+export const FileSlot = ({ filename, onFilesLoad, onClear, onSwap, ...inputProps }: FileSlotProps) => (
   <div style={{ marginBottom: 10 }}>
     {filename ? (
       <div className={styles.fileLoaded}>
         <span className={styles.dot}>●</span>
         <span className={styles.fileName}>{filename}</span>
+        {onSwap && (
+          <button
+            className={styles.swapBtn}
+            onClick={onSwap}
+            type="button"
+            title="Use as baseline (swap with current base)"
+          >
+            ⇄
+          </button>
+        )}
         <button className={styles.clearBtn} onClick={onClear} type="button">
           ✕
         </button>

@@ -11,6 +11,7 @@ export type Result = {
 interface AppState {
   queryFiles: File[];
   base: BedFile | null;
+  baseFile: File | null;
   chromosomes: string[];
   selectedChr: string;
   groupThreshold: number;
@@ -28,6 +29,7 @@ interface AppActions {
   clearBase: () => void;
   clearQuery: (i: number) => void;
   reorderQuery: (from: number, to: number) => void;
+  swapBaseWithQuery: (i: number) => Promise<void>;
   runAnalysis: () => void;
   autoSort: () => void;
 }
@@ -37,6 +39,7 @@ export type AppStore = AppState & AppActions;
 export const useAppStore = create<AppStore>((set, get) => ({
   // ── state ──────────────────────────────────────────────────────────────
   base: null,
+  baseFile: null,
   queryFiles: [],
   chromosomes: [],
   selectedChr: "",
@@ -49,12 +52,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // ── actions ────────────────────────────────────────────────────────────
   setBase: async (files) => {
     const file = files?.[0];
-    if (!file) return set({ base: null });
+    if (!file) return set({ base: null, baseFile: null });
 
     const text = await fileToText(file);
     const rows = parseBED(text);
     const chromosomes = getChromosomes(rows);
-    set({ base: { name: file.name, rows }, chromosomes, selectedChr: chromosomes[0] });
+    set({ base: { name: file.name, rows }, baseFile: file, chromosomes, selectedChr: chromosomes[0] });
   },
   setQueryFiles: (file) => {
     if (!file) return;
@@ -64,7 +67,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),
-  clearBase: () => set({ base: null, result: [], error: null }),
+  clearBase: () => set({ base: null, baseFile: null, result: [], error: null }),
   clearQuery: (i) => set((state) => ({ queryFiles: state.queryFiles.filter((_, j) => i !== j), error: null })),
   reorderQuery: (from, to) =>
     set((state) => {
@@ -74,6 +77,30 @@ export const useAppStore = create<AppStore>((set, get) => ({
       next.splice(to, 0, moved);
       return { queryFiles: next, error: null };
     }),
+  swapBaseWithQuery: async (i) => {
+    const { baseFile, queryFiles } = get();
+    const incoming = queryFiles[i];
+    if (!incoming) return;
+
+    const text = await fileToText(incoming);
+    const rows = parseBED(text);
+    const chromosomes = getChromosomes(rows);
+    const nextQueries = [...queryFiles];
+    if (baseFile) {
+      nextQueries[i] = baseFile;
+    } else {
+      nextQueries.splice(i, 1);
+    }
+    set({
+      base: { name: incoming.name, rows },
+      baseFile: incoming,
+      queryFiles: nextQueries,
+      chromosomes,
+      selectedChr: chromosomes[0],
+      result: [],
+      error: null,
+    });
+  },
 
   runAnalysis: async () => {
     set({ running: true });

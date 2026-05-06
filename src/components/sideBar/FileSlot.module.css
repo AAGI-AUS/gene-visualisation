@@ -84,3 +84,22 @@
 .clearBtn:hover {
   color: var(--red);
 }
+
+.swapBtn {
+  cursor: pointer;
+  color: var(--muted);
+  border: none;
+  background: none;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  visibility: hidden;
+}
+
+.fileLoaded:hover .swapBtn {
+  visibility: visible;
+}
+
+.swapBtn:hover {
+  color: var(--green);
+}
