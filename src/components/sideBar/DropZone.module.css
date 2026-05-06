@@ -77,7 +77,6 @@
 .clearBtn {
   cursor: pointer;
   color: var(--muted);
-  border: none;
   background: none;
   font-size: 13px;
   line-height: 1;

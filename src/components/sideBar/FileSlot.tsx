@@ -13,7 +13,7 @@ export const FileSlot = ({ filename, onFilesLoad, onClear, onSwap, ...inputProps
   <div style={{ marginBottom: 10 }}>
     {filename ? (
       <div className={styles.fileLoaded}>
-        <span className={styles.dot}>●</span>
+        <span className={styles.glyph}>ᛝ</span>
         <span className={styles.fileName}>{filename}</span>
         {onSwap && (
           <button
@@ -22,7 +22,7 @@ export const FileSlot = ({ filename, onFilesLoad, onClear, onSwap, ...inputProps
             type="button"
             title="Use as baseline (swap with current base)"
           >
-            ⇄
+            🡅<a>make base</a>
           </button>
         )}
         <button className={styles.clearBtn} onClick={onClear} type="button">

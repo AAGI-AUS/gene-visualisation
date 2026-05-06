@@ -13,8 +13,8 @@
 
 .dropZone:hover,
 .dragOver {
-  border-color: var(--green-dim);
-  background: rgba(57, 255, 135, 0.04);
+  border-color: var(--green);
+  background: rgba(57, 255, 135, 0.32);
   color: var(--text);
 }
 
@@ -43,19 +43,20 @@
 
 /* ── Loaded state ── */
 .fileLoaded {
+  position: relative;
   display: flex;
   align-items: center;
+  height: 26px;
   gap: 8px;
-  padding: 8px 10px;
-  background: rgba(57, 255, 135, 0.06);
-  /* border: 1px solid var(--green-dim); */
+  padding: 5px 8px;
+  background: rgba(57, 255, 135, 0.32);
   border-radius: var(--radius);
-  font-size: 11px;
+  font-size: 12px;
 }
 
-.dot {
+.glyph {
   color: var(--green);
-  font-size: 8px;
+  /* font-size: 8px; */
 }
 
 .fileName {
@@ -72,13 +73,19 @@
 }
 
 .clearBtn {
+  position: absolute;
+  right: 0;
+  height: 100%;
+  width: 21px;
+  z-index: 2;
   cursor: pointer;
   color: var(--muted);
-  border: none;
-  background: none;
-  font-size: 13px;
+  background: var(--shadow-light);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 9px;
   line-height: 1;
   padding: 0;
+  visibility: hidden;
 }
 
 .clearBtn:hover {
@@ -86,20 +93,40 @@
 }
 
 .swapBtn {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 21px;
+  width: 55px;
+  z-index: 1;
   cursor: pointer;
-  color: var(--muted);
-  border: none;
-  background: none;
-  font-size: 13px;
+  color: var(--green);
+  background: rgba(57, 255, 135, 0.55);
+  font-size: 10px;
   line-height: 1;
   padding: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* gap: 4px; */
   visibility: hidden;
 }
 
+.swapBtn a {
+  width: 34px;
+}
+
+.fileLoaded:hover .clearBtn,
 .fileLoaded:hover .swapBtn {
   visibility: visible;
 }
 
+.fileLoaded:hover span,
 .swapBtn:hover {
-  color: var(--green);
+  color: black;
+}
+
+.swapBtn:hover {
+  background: rgba(57, 255, 135, 0.75);
 }
