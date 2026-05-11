@@ -6,6 +6,8 @@ interface VisualizationState {
   gapBp: number;
   hiddenThreshold: number;
   othersMode: OthersMode;
+  commonOnly: boolean;
+  denoise: boolean;
   svgW: number;
   hoverChunk: string | null;
   tooltip: TooltipInfo | null;
@@ -15,6 +17,8 @@ interface VisualizationActions {
   setGapBp: (v: number) => void;
   setHiddenThreshold: (v: number) => void;
   setOthersMode: (v: OthersMode | ((prev: OthersMode) => OthersMode)) => void;
+  setCommonOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSvgW: (w: number) => void;
   setHoverChunk: (id: string | null) => void;
   setTooltip: (t: TooltipInfo | null) => void;
@@ -25,6 +29,8 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   gapBp: 100000,
   hiddenThreshold: 20,
   othersMode: OTHERS_CYCLE[0],
+  commonOnly: true,
+  denoise: true,
   svgW: 900,
   hoverChunk: null,
   tooltip: null,
@@ -32,6 +38,8 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setGapBp: (v) => set({ gapBp: Math.max(1000, v) }),
   setHiddenThreshold: (v) => set({ hiddenThreshold: Math.max(0, v) }),
   setOthersMode: (v) => set((s) => ({ othersMode: typeof v === "function" ? v(s.othersMode) : v })),
+  setCommonOnly: (v) => set((s) => ({ commonOnly: typeof v === "function" ? v(s.commonOnly) : v })),
+  setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setHoverChunk: (id) => set({ hoverChunk: id }),
   setTooltip: (t) => set({ tooltip: t }),
