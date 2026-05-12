@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { BedFile, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, queryGene, fileToText } from "@/src/utils";
-import { buildPalette } from "@/src/store/utils";
+import { buildPalette, computeCommonIds } from "@/src/store/utils";
 
 export type Result = {
   name: string;
@@ -16,6 +16,7 @@ interface AppState {
   selectedChr: string;
   groupThreshold: number;
   result: Result;
+  commonIds: Set<number>;
   error: string | null;
   running: boolean;
   palette: Record<string, string>;
@@ -45,6 +46,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   selectedChr: "",
   groupThreshold: 0.01,
   result: [],
+  commonIds: new Set(),
   error: null,
   running: false,
   palette: {},
@@ -67,7 +69,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),
-  clearBase: () => set({ base: null, baseFile: null, result: [], error: null }),
+  clearBase: () => set({ base: null, baseFile: null, result: [], commonIds: new Set(), error: null }),
   clearQuery: (i) => set((state) => ({ queryFiles: state.queryFiles.filter((_, j) => i !== j), error: null })),
   reorderQuery: (from, to) =>
     set((state) => {
@@ -98,6 +100,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       chromosomes,
       selectedChr: chromosomes[0],
       result: [],
+      commonIds: new Set(),
       error: null,
     });
   },
@@ -127,7 +130,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
           return { name: queryFiles[i].name, rows };
         });
 
-        set({ result, palette: buildPalette(selectedChr, allChroms), error: null });
+        set({
+          result,
+          commonIds: computeCommonIds(result),
+          palette: buildPalette(selectedChr, allChroms),
+          error: null,
+        });
       } catch (e) {
         set({ error: e instanceof Error ? e.message : String(e) });
       }
@@ -193,6 +201,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         set({
           queryFiles: sortedFiles,
           result: sortedResult,
+          commonIds: computeCommonIds(sortedResult),
           palette: buildPalette(selectedChr, allChroms),
           error: null,
         });

@@ -34,6 +34,38 @@ export const dominantEvent = (c: EventCounts): ChunkEvent => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Noisy gene-id detection
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A gene id is noisy if it's absent from chunks in at least one pair.
+ * Equivalent: keep only ids present in every pair's chunk set.
+ */
+export const collectNoisyIds = (chunksPerPair: Chunk[][]): Set<number> => {
+  if (chunksPerPair.length <= 1) return new Set();
+
+  const keptPerPair = chunksPerPair.map((chunks) => {
+    const s = new Set<number>();
+    for (const c of chunks) for (const id of c.ids) s.add(id);
+    return s;
+  });
+
+  const allIds = new Set<number>();
+  for (const s of keptPerPair) for (const id of s) allIds.add(id);
+
+  const noisy = new Set<number>();
+  for (const id of allIds) {
+    for (const s of keptPerPair) {
+      if (!s.has(id)) {
+        noisy.add(id);
+        break;
+      }
+    }
+  }
+  return noisy;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Chunk building
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -46,10 +78,12 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
   let bpGeneBase = 0;
   let bpGeneQuery = 0;
   const queryChromCounts: Record<string, number> = {};
+  const ids: number[] = [];
   let chrQuery = "";
   let chrQueryMaxCount = 0;
   let othersCount = 0;
   for (const r of rows) {
+    ids.push(r.id);
     eventCounts[rowCategory(r)]++;
     eventCounts.total++;
     bpGeneBase += r.p2Base - r.p1Base;
@@ -89,6 +123,7 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
 
   return {
     id: `${lineName}-${chrBase}-${idx}`,
+    ids,
     chrBase,
     bp1Base,
     bp2Base,

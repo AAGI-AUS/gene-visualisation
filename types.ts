@@ -93,6 +93,7 @@ export interface EventCounts {
 /** A contiguous block of ResultRows grouped by position and event type. */
 export interface Chunk {
   id: string;
+  ids: number[];
   chrBase: string;
   bp1Base: number;
   bp2Base: number;

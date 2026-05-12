@@ -6,6 +6,7 @@ import {
   buildBaseRow,
   buildQueryRow,
   chunkRows,
+  collectNoisyIds,
   computeRibbons,
   SlotSpec,
 } from "@/src/components/visualizationTab/utils";
@@ -36,34 +37,57 @@ export const useVisualizationLayout = (
   trackW: number,
   gapBp: number,
   othersMode: OthersMode,
-  hiddenThreshold: number
+  hiddenThreshold: number,
+  commonIds: Set<number>,
+  commonOnly: boolean,
+  denoise: boolean
 ): VisualizationLayout[] => {
-  const chunksPerPair = useMemo<Chunk[][]>(
-    () =>
-      pairs.map(({ data, queryLabel }) => {
-        const byChr = new Map<string, ResultRow[]>();
-        for (const r of data) {
-          let arr = byChr.get(r.chromosomeBase);
-          if (!arr) {
-            arr = [];
-            byChr.set(r.chromosomeBase, arr);
-          }
-          arr.push(r);
+  const filteredData = useMemo<ResultRow[][]>(() => {
+    const data = pairs.map((p) => p.data);
+    if (commonOnly && commonIds.size) {
+      return data.map((rows) => rows.filter((r) => commonIds.has(r.id)));
+    }
+    return data;
+  }, [pairs, commonIds, commonOnly]);
+
+  const chunksPerPair = useMemo<Chunk[][]>(() => {
+    const buildPair = (rows: ResultRow[], queryLabel: string) => {
+      const byChr = new Map<string, ResultRow[]>();
+      for (const r of rows) {
+        let arr = byChr.get(r.chromosomeBase);
+        if (!arr) {
+          arr = [];
+          byChr.set(r.chromosomeBase, arr);
         }
-        const all: Chunk[] = [];
-        byChr.forEach((rows) =>
-          all.push(
-            ...chunkRows(
-              rows.sort((a, b) => a.p1Base - b.p1Base),
-              gapBp,
-              queryLabel
-            ).filter((c) => c.eventCounts.total > hiddenThreshold)
+        arr.push(r);
+      }
+      const all: Chunk[] = [];
+      byChr.forEach((rs) =>
+        all.push(
+          ...chunkRows(
+            rs.sort((a, b) => a.p1Base - b.p1Base),
+            gapBp,
+            queryLabel
+          ).filter((c) => c.eventCounts.total > hiddenThreshold)
+        )
+      );
+      return all;
+    };
+
+    let chunks = pairs.map((p, i) => buildPair(filteredData[i], p.queryLabel));
+    if (denoise) {
+      const noisy = collectNoisyIds(chunks);
+      if (noisy.size) {
+        chunks = pairs.map((p, i) =>
+          buildPair(
+            filteredData[i].filter((r) => !noisy.has(r.id)),
+            p.queryLabel
           )
         );
-        return all;
-      }),
-    [pairs, gapBp, hiddenThreshold]
-  );
+      }
+    }
+    return chunks;
+  }, [pairs, filteredData, gapBp, hiddenThreshold, denoise]);
 
   const cleanChunksPerPair = useMemo<Chunk[][]>(
     () => (othersMode === "hide" ? chunksPerPair.map((cs) => cs.filter((c) => !c.isOthers)) : chunksPerPair),

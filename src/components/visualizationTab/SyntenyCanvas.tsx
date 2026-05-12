@@ -15,10 +15,13 @@ interface SyntenyCanvasProps {
 
 export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProps) => {
   const base = useAppStore((s) => s.base);
+  const commonIds = useAppStore((s) => s.commonIds);
   const svgW = useVisualizationStore((s) => s.svgW);
   const gapBp = useVisualizationStore((s) => s.gapBp);
   const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
   const othersMode = useVisualizationStore((s) => s.othersMode);
+  const commonOnly = useVisualizationStore((s) => s.commonOnly);
+  const denoise = useVisualizationStore((s) => s.denoise);
 
   const pairs = useMemo<PairInput[]>(
     () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0] })),
@@ -31,7 +34,10 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     svgW - PAD.left - PAD.right,
     gapBp,
     othersMode,
-    hiddenThreshold
+    hiddenThreshold,
+    commonIds,
+    commonOnly,
+    denoise
   );
 
   return (
