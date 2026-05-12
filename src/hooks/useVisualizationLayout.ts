@@ -40,7 +40,8 @@ export const useVisualizationLayout = (
   hiddenThreshold: number,
   commonIds: Set<number>,
   commonOnly: boolean,
-  denoise: boolean
+  denoise: boolean,
+  sharedAxis: boolean
 ): VisualizationLayout[] => {
   const filteredData = useMemo<ResultRow[][]>(() => {
     const data = pairs.map((p) => p.data);
@@ -135,28 +136,46 @@ export const useVisualizationLayout = (
     return out;
   }, [cleanChunksPerPair, othersMode, pairs.length]);
 
+  const unifiedAxis = useMemo(() => {
+    const chrMin = new Map<string, number>();
+    const chrMax = new Map<string, number>();
+    for (const t of tracks) {
+      t.chrMin.forEach((v, chr) => {
+        const cur = chrMin.get(chr);
+        if (cur === undefined || v < cur) chrMin.set(chr, v);
+      });
+      t.chrMax.forEach((v, chr) => {
+        const cur = chrMax.get(chr);
+        if (cur === undefined || v > cur) chrMax.set(chr, v);
+      });
+    }
+    const chrOrder = Array.from(chrMin.keys()).sort();
+    const needsOthersStub = tracks.some((t) => t.needsOthersStub);
+    return { chrMin, chrMax, chrOrder, needsOthersStub };
+  }, [tracks]);
+
   return useMemo<VisualizationLayout[]>(() => {
     return pairs.map((pair, p) => {
-      const baseTrack = tracks[p];
-      const queryTrack = tracks[p + 1];
+      const baseAxis = sharedAxis ? unifiedAxis : tracks[p];
+      const queryAxis = sharedAxis ? unifiedAxis : tracks[p + 1];
 
       const baseRow = buildBaseRow(
-        baseTrack.chrMax,
-        baseTrack.chrMin,
-        baseTrack.chrOrder,
+        baseAxis.chrMax,
+        baseAxis.chrMin,
+        baseAxis.chrOrder,
         p === 0 ? baseLabel : "",
         trackW,
         othersMode
       );
 
-      const chrSpecs: SlotSpec[] = queryTrack.chrOrder.map((chr) => {
-        const p1 = queryTrack.chrMin.get(chr) ?? 0;
-        const bpLen = Math.max(queryTrack.chrMax.get(chr) ?? 1, 1) - p1;
+      const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
+        const p1 = queryAxis.chrMin.get(chr) ?? 0;
+        const bpLen = Math.max(queryAxis.chrMax.get(chr) ?? 1, 1) - p1;
         return { kind: "chr", chr, p1, bpLen };
       });
 
       const specs: SlotSpec[] = [];
-      const showOthersStubs = othersMode === "group" && queryTrack.needsOthersStub;
+      const showOthersStubs = othersMode === "group" && queryAxis.needsOthersStub;
       if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "left" });
       specs.push(...chrSpecs);
       if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
@@ -171,5 +190,5 @@ export const useVisualizationLayout = (
 
       return { baseRow, queryRow, ribbons, y1bot, y2top };
     });
-  }, [pairs, tracks, cleanChunksPerPair, baseLabel, trackW, othersMode]);
+  }, [pairs, tracks, unifiedAxis, sharedAxis, cleanChunksPerPair, baseLabel, trackW, othersMode]);
 };
