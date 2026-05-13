@@ -8,6 +8,7 @@ interface VisualizationState {
   othersMode: OthersMode;
   commonOnly: boolean;
   denoise: boolean;
+  sharedAxis: boolean;
   svgW: number;
   hoverChunk: string | null;
   tooltip: TooltipInfo | null;
@@ -19,6 +20,7 @@ interface VisualizationActions {
   setOthersMode: (v: OthersMode | ((prev: OthersMode) => OthersMode)) => void;
   setCommonOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSvgW: (w: number) => void;
   setHoverChunk: (id: string | null) => void;
   setTooltip: (t: TooltipInfo | null) => void;
@@ -31,6 +33,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   othersMode: OTHERS_CYCLE[0],
   commonOnly: true,
   denoise: true,
+  sharedAxis: true,
   svgW: 900,
   hoverChunk: null,
   tooltip: null,
@@ -40,6 +43,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setOthersMode: (v) => set((s) => ({ othersMode: typeof v === "function" ? v(s.othersMode) : v })),
   setCommonOnly: (v) => set((s) => ({ commonOnly: typeof v === "function" ? v(s.commonOnly) : v })),
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
+  setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setHoverChunk: (id) => set({ hoverChunk: id }),
   setTooltip: (t) => set({ tooltip: t }),

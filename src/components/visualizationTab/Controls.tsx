@@ -9,6 +9,19 @@ interface ControlsProps {
   svgRef: RefObject<SVGSVGElement | null>;
 }
 
+interface ToggleButtonProps {
+  active: boolean;
+  onClick: () => void;
+  text: string;
+}
+
+const ToggleButton = ({ active, onClick, text }: ToggleButtonProps) => (
+  <button className={`${styles.toggleBtn} ${active ? styles.toggleBtnOn : ""}`} onClick={onClick} type="button">
+    <span className={styles.toggleDot} />
+    {text}
+  </button>
+);
+
 const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
   { key: "synteny", short: "synt" },
   { key: "inversion", short: "inv" },
@@ -23,11 +36,16 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const othersMode = useVisualizationStore((s) => s.othersMode);
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
+  const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
   const setGapBp = useVisualizationStore((s) => s.setGapBp);
   const setHiddenThreshold = useVisualizationStore((s) => s.setHiddenThreshold);
   const setOthersMode = useVisualizationStore((s) => s.setOthersMode);
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
+  const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
+
+  const toggleOthersMode = () =>
+    setOthersMode((v) => OTHERS_CYCLE[(OTHERS_CYCLE.indexOf(v) + 1) % OTHERS_CYCLE.length]);
 
   return (
     <div className={styles.controls}>
@@ -64,34 +82,20 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       <div className={styles.sep} />
 
       {/* Others mode toggle */}
-      <button
-        className={`${styles.toggleBtn} ${othersMode !== "hide" ? styles.toggleBtnOn : ""}`}
-        onClick={() => setOthersMode((v) => OTHERS_CYCLE[(OTHERS_CYCLE.indexOf(v) + 1) % OTHERS_CYCLE.length])}
-        type="button"
-      >
-        <span className={styles.toggleDot} />
-        {OTHERS_LABEL[othersMode]}
-      </button>
+      <ToggleButton active={othersMode !== "hide"} onClick={toggleOthersMode} text={OTHERS_LABEL[othersMode]} />
 
       {/* Common-only toggle */}
-      <button
-        className={`${styles.toggleBtn} ${commonOnly ? styles.toggleBtnOn : ""}`}
+      <ToggleButton
+        active={commonOnly}
         onClick={() => setCommonOnly((v) => !v)}
-        type="button"
-      >
-        <span className={styles.toggleDot} />
-        Common ≥{Math.round(COMMON_CHR_THRESHOLD * 100)}%
-      </button>
+        text={`Common ≥${Math.round(COMMON_CHR_THRESHOLD * 100)}%`}
+      />
 
       {/* Denoise toggle */}
-      <button
-        className={`${styles.toggleBtn} ${denoise ? styles.toggleBtnOn : ""}`}
-        onClick={() => setDenoise((v) => !v)}
-        type="button"
-      >
-        <span className={styles.toggleDot} />
-        Denoise
-      </button>
+      <ToggleButton active={denoise} onClick={() => setDenoise((v) => !v)} text="Denoise" />
+
+      {/* Shared axis toggle */}
+      <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
 
       {/* Legend */}
       <div className={styles.legend}>

@@ -22,6 +22,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const othersMode = useVisualizationStore((s) => s.othersMode);
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
+  const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
 
   const pairs = useMemo<PairInput[]>(
     () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0] })),
@@ -37,14 +38,15 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     hiddenThreshold,
     commonIds,
     commonOnly,
-    denoise
+    denoise,
+    sharedAxis
   );
 
   return (
     <svg ref={svgRef} className={styles.svgCanvas} width={width} height={height}>
       <rect width={width} height={height} fill="white" />
       {layouts.map((layout, i) => (
-        <LinePair key={i} layout={layout} i={i} />
+        <LinePair key={i} layout={layout} i={i} total={layouts.length} />
       ))}
     </svg>
   );
