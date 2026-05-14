@@ -384,7 +384,7 @@ export const pct = (n: number, total: number): string => {
   return total ? `${((n / total) * 100).toFixed(1)}%` : "0%";
 };
 
-export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void => {
+const serializeSvg = (svgEl: SVGSVGElement): Blob => {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -393,10 +393,41 @@ export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void 
     "@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');";
   defs.appendChild(style);
   clone.insertBefore(defs, clone.firstChild);
-  const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+  return new Blob([new XMLSerializer().serializeToString(clone)], {
     type: "image/svg+xml;charset=utf-8",
   });
+};
+
+const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob);
   Object.assign(document.createElement("a"), { href: url, download: filename }).click();
   URL.revokeObjectURL(url);
+};
+
+export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void => {
+  triggerDownload(serializeSvg(svgEl), filename);
+};
+
+export const exportPng = async (svgEl: SVGSVGElement, filename = "synteny.png", scale = 2): Promise<void> => {
+  const w = svgEl.width.baseVal.value || svgEl.clientWidth;
+  const h = svgEl.height.baseVal.value || svgEl.clientHeight;
+  const svgUrl = URL.createObjectURL(serializeSvg(svgEl));
+  try {
+    const img = new Image();
+    img.src = svgUrl;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.drawImage(img, 0, 0);
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (blob) triggerDownload(blob, filename);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
 };

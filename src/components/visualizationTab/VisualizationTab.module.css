@@ -100,7 +100,19 @@
   font-weight: 600;
 }
 
-/* ── Export button ── */
+/* ── Export buttons ── */
+.exportGroup {
+  display: flex;
+  gap: 6px;
+}
+
+.rightCluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
 .exportBtn {
   display: flex;
   align-items: center;
@@ -116,7 +128,6 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
-  margin-left: auto;
 }
 
 .exportBtn:hover {

@@ -2,7 +2,7 @@ import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { CHUNK_COLOR, ChunkEvent, COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
-import { exportSvg } from "@/src/components/visualizationTab/utils";
+import { exportPng, exportSvg } from "@/src/components/visualizationTab/utils";
 import { useAppStore } from "@/src/store/useAppStore";
 
 interface ControlsProps {
@@ -37,12 +37,16 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const svgW = useVisualizationStore((s) => s.svgW);
+  const fontSize = useVisualizationStore((s) => s.fontSize);
   const setGapBp = useVisualizationStore((s) => s.setGapBp);
   const setHiddenThreshold = useVisualizationStore((s) => s.setHiddenThreshold);
   const setOthersMode = useVisualizationStore((s) => s.setOthersMode);
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
+  const setSvgW = useVisualizationStore((s) => s.setSvgW);
+  const setFontSize = useVisualizationStore((s) => s.setFontSize);
 
   const toggleOthersMode = () =>
     setOthersMode((v) => OTHERS_CYCLE[(OTHERS_CYCLE.indexOf(v) + 1) % OTHERS_CYCLE.length]);
@@ -107,14 +111,49 @@ export const Controls = ({ svgRef }: ControlsProps) => {
         ))}
       </div>
 
-      {/* Export */}
-      <button
-        className={styles.exportBtn}
-        onClick={() => svgRef.current && exportSvg(svgRef.current, `${selectedChr.toLowerCase()}.svg`)}
-        type="button"
-      >
-        ↓ SVG
-      </button>
+      {/* Render + export cluster (right-aligned) */}
+      <div className={styles.rightCluster}>
+        <div className={styles.controlGroup}>
+          <span className={styles.controlLabel}>Font</span>
+          <input
+            className={styles.controlInput}
+            type="number"
+            min={6}
+            step={1}
+            value={fontSize}
+            onChange={(e) => setFontSize(parseInt(e.target.value) || 11)}
+            style={{ width: 45 }}
+          />
+        </div>
+        <div className={styles.controlGroup}>
+          <span className={styles.controlLabel}>Width</span>
+          <input
+            className={styles.controlInput}
+            type="number"
+            min={400}
+            step={50}
+            value={svgW}
+            onChange={(e) => setSvgW(parseInt(e.target.value) || 900)}
+            style={{ width: 60 }}
+          />
+        </div>
+        <div className={styles.exportGroup}>
+          <button
+            className={styles.exportBtn}
+            onClick={() => svgRef.current && exportSvg(svgRef.current, `${selectedChr.toLowerCase()}.svg`)}
+            type="button"
+          >
+            ↓ SVG
+          </button>
+          <button
+            className={styles.exportBtn}
+            onClick={() => svgRef.current && exportPng(svgRef.current, `${selectedChr.toLowerCase()}.png`)}
+            type="button"
+          >
+            ↓ PNG
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

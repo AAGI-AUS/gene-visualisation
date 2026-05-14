@@ -182,8 +182,6 @@ export const useVisualizationLayout = (
 
       const queryRow = buildQueryRow(specs, pair.queryLabel, trackW);
 
-      if (p > 0) baseRow.y = -2;
-
       const ribbons = computeRibbons(cleanChunksPerPair[p], baseRow, queryRow, othersMode);
       const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
       const y2top = queryRow.y - RIBBON_GAP;

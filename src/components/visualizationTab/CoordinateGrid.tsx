@@ -8,6 +8,7 @@ interface CoordinateGridProps {
   lineBottom: number;
   labelTopY: number | null;
   labelBottomY: number | null;
+  fontSize: number;
 }
 
 interface Tick {
@@ -36,16 +37,17 @@ interface TickLabelProps {
   ticks: Tick[];
   y: number;
   keyPrefix: string;
+  fontSize: number;
 }
 
-const TickLabels = ({ ticks, y, keyPrefix }: TickLabelProps) => (
+const TickLabels = ({ ticks, y, keyPrefix, fontSize }: TickLabelProps) => (
   <>
     {ticks.map((t) => (
       <text
         key={`${keyPrefix}-${t.key}`}
         x={t.x}
         y={y}
-        fontSize={10}
+        fontSize={fontSize}
         fontFamily={FONT}
         fill="grey"
         textAnchor="middle"
@@ -56,7 +58,14 @@ const TickLabels = ({ ticks, y, keyPrefix }: TickLabelProps) => (
   </>
 );
 
-export const CoordinateGrid = ({ bars, lineTop, lineBottom, labelTopY, labelBottomY }: CoordinateGridProps) => {
+export const CoordinateGrid = ({
+  bars,
+  lineTop,
+  lineBottom,
+  labelTopY,
+  labelBottomY,
+  fontSize,
+}: CoordinateGridProps) => {
   const ticks = collectTicks(bars);
   if (!ticks.length) return null;
   return (
@@ -73,8 +82,8 @@ export const CoordinateGrid = ({ bars, lineTop, lineBottom, labelTopY, labelBott
           strokeDasharray="5 3"
         />
       ))}
-      {labelTopY !== null && <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" />}
-      {labelBottomY !== null && <TickLabels ticks={ticks} y={labelBottomY} keyPrefix="tb" />}
+      {labelTopY !== null && <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" fontSize={fontSize} />}
+      {labelBottomY !== null && <TickLabels ticks={ticks} y={labelBottomY} keyPrefix="tb" fontSize={fontSize} />}
     </g>
   );
 };

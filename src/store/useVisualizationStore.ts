@@ -10,6 +10,7 @@ interface VisualizationState {
   denoise: boolean;
   sharedAxis: boolean;
   svgW: number;
+  fontSize: number;
   hoverChunk: string | null;
   tooltip: TooltipInfo | null;
 }
@@ -22,6 +23,7 @@ interface VisualizationActions {
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSvgW: (w: number) => void;
+  setFontSize: (v: number) => void;
   setHoverChunk: (id: string | null) => void;
   setTooltip: (t: TooltipInfo | null) => void;
   clearHover: () => void;
@@ -35,6 +37,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   denoise: true,
   sharedAxis: true,
   svgW: 900,
+  fontSize: 11,
   hoverChunk: null,
   tooltip: null,
 
@@ -45,6 +48,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
+  setFontSize: (v) => set({ fontSize: Math.max(6, v) }),
   setHoverChunk: (id) => set({ hoverChunk: id }),
   setTooltip: (t) => set({ tooltip: t }),
   clearHover: () => set({ hoverChunk: null, tooltip: null }),
