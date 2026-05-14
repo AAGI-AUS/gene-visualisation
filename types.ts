@@ -44,6 +44,8 @@ export interface ChrBar {
   pw: number;
   bpLen: number;
   p1: number;
+  /** Original bp extent before any stretch applied to fill the row. Defaults to bpLen. */
+  dataBpLen?: number;
 }
 
 export interface OthersBar {

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { CHROM_THICKNESS, OthersMode, RIBBON_GAP } from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, OthersMode, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
 import {
   buildBaseRow,
@@ -154,10 +154,54 @@ export const useVisualizationLayout = (
     return { chrMin, chrMax, chrOrder, needsOthersStub };
   }, [tracks]);
 
+  // Shared-axis variant of a track: per-line chr list where the first chr extends its left
+  // edge to the unified chrMin and the last chr extends its right edge to the unified
+  // chrMax. Middle chrs stay per-track (truncated both sides).
+  const axisForShared = useMemo(() => {
+    return (t: Track) => {
+      const chrOrder = t.chrOrder;
+      if (!chrOrder.length) return t;
+      const chrMin = new Map(t.chrMin);
+      const chrMax = new Map(t.chrMax);
+      const first = chrOrder[0];
+      const last = chrOrder[chrOrder.length - 1];
+      const uMinFirst = unifiedAxis.chrMin.get(first);
+      const uMaxLast = unifiedAxis.chrMax.get(last);
+      if (uMinFirst !== undefined) chrMin.set(first, uMinFirst);
+      if (uMaxLast !== undefined) chrMax.set(last, uMaxLast);
+      return { chrMin, chrMax, chrOrder, needsOthersStub: t.needsOthersStub };
+    };
+  }, [unifiedAxis]);
+
+  // Per-chr global px/bp: each chromosome's scale equals the smallest per-row ratio across
+  // the shared-axis rows it appears in, so the chr always fits in its most-crowded row and
+  // its bp coordinates align across rows.
+  const perChrPxPerBp = useMemo(() => {
+    if (!sharedAxis) return undefined;
+    const out = new Map<string, number>();
+    for (const t of tracks) {
+      const axis = axisForShared(t);
+      const n = axis.chrOrder.length;
+      if (!n) continue;
+      let totalBp = 0;
+      for (const chr of axis.chrOrder) {
+        totalBp += (axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0);
+      }
+      if (totalBp <= 0) continue;
+      const gap = (n - 1) * CHR_GAP_PX;
+      const rowPxPerBp = (trackW - gap) / totalBp;
+      for (const chr of axis.chrOrder) {
+        const cur = out.get(chr);
+        if (cur === undefined || rowPxPerBp < cur) out.set(chr, rowPxPerBp);
+      }
+    }
+    return out.size ? out : undefined;
+  }, [sharedAxis, tracks, axisForShared, trackW]);
+
   return useMemo<VisualizationLayout[]>(() => {
     return pairs.map((pair, p) => {
-      const baseAxis = sharedAxis ? unifiedAxis : tracks[p];
-      const queryAxis = sharedAxis ? unifiedAxis : tracks[p + 1];
+      const baseAxis = sharedAxis ? axisForShared(tracks[p]) : tracks[p];
+      const queryAxis = sharedAxis ? axisForShared(tracks[p + 1]) : tracks[p + 1];
 
       const baseRow = buildBaseRow(
         baseAxis.chrMax,
@@ -165,7 +209,8 @@ export const useVisualizationLayout = (
         baseAxis.chrOrder,
         p === 0 ? baseLabel : "",
         trackW,
-        othersMode
+        othersMode,
+        perChrPxPerBp
       );
 
       const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
@@ -180,7 +225,7 @@ export const useVisualizationLayout = (
       specs.push(...chrSpecs);
       if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
-      const queryRow = buildQueryRow(specs, pair.queryLabel, trackW);
+      const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, perChrPxPerBp);
 
       const ribbons = computeRibbons(cleanChunksPerPair[p], baseRow, queryRow, othersMode);
       const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
@@ -188,5 +233,5 @@ export const useVisualizationLayout = (
 
       return { baseRow, queryRow, ribbons, y1bot, y2top };
     });
-  }, [pairs, tracks, unifiedAxis, sharedAxis, cleanChunksPerPair, baseLabel, trackW, othersMode]);
+  }, [pairs, tracks, axisForShared, sharedAxis, perChrPxPerBp, cleanChunksPerPair, baseLabel, trackW, othersMode]);
 };

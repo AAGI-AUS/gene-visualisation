@@ -45,7 +45,8 @@ export const LinePair = ({ layout, i, total }: LinePairProps) => {
       <QueryRowLayer row={queryRow} palette={palette} fontSize={fontSize} />
       {sharedAxis && (
         <CoordinateGrid
-          bars={baseRow.bars}
+          baseBars={baseRow.bars}
+          queryBars={queryRow.slots.filter((s) => s.kind === "chr")}
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
           labelTopY={isFirst ? baseRow.y - 6 : null}

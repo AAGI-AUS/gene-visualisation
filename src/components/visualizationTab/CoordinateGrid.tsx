@@ -3,7 +3,8 @@ import type { ChrBar } from "@/types";
 import { bpToPx } from "@/src/components/visualizationTab/utils";
 
 interface CoordinateGridProps {
-  bars: ChrBar[];
+  baseBars: ChrBar[];
+  queryBars: ChrBar[];
   lineTop: number;
   lineBottom: number;
   labelTopY: number | null;
@@ -12,21 +13,31 @@ interface CoordinateGridProps {
 }
 
 interface Tick {
-  x: number;
+  xTop: number;
+  xBottom: number;
   label: string;
   key: string;
 }
 
-const collectTicks = (bars: ChrBar[]): Tick[] => {
+const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
+  const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
+  const sharedBars = baseBars.filter((b) => queryByChr.has(b.chr));
+  if (!sharedBars.length) return [];
+
   const out: Tick[] = [];
-  for (const bar of bars) {
-    const endBp = bar.p1 + bar.bpLen;
-    const startTickBp = Math.ceil(bar.p1 / TICK_INTERVAL_BP) * TICK_INTERVAL_BP;
-    for (let bp = startTickBp; bp <= endBp; bp += TICK_INTERVAL_BP) {
+
+  for (const baseBar of sharedBars) {
+    const queryBar = queryByChr.get(baseBar.chr)!;
+    const baseExtent = baseBar.dataBpLen ?? baseBar.bpLen;
+    const queryExtent = queryBar.dataBpLen ?? queryBar.bpLen;
+    const startBp = Math.ceil(Math.max(baseBar.p1, queryBar.p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP;
+    const endBp = Math.min(baseBar.p1 + baseExtent, queryBar.p1 + queryExtent);
+    for (let bp = startBp; bp <= endBp; bp += TICK_INTERVAL_BP) {
       out.push({
-        x: bpToPx(bar, bp),
+        xTop: bpToPx(baseBar, bp),
+        xBottom: bpToPx(queryBar, bp),
         label: `${bp / 1_000_000}M`,
-        key: `${bar.chr}-${bp}`,
+        key: `${baseBar.chr}-${bp}`,
       });
     }
   }
@@ -38,14 +49,15 @@ interface TickLabelProps {
   y: number;
   keyPrefix: string;
   fontSize: number;
+  side: "top" | "bottom";
 }
 
-const TickLabels = ({ ticks, y, keyPrefix, fontSize }: TickLabelProps) => (
+const TickLabels = ({ ticks, y, keyPrefix, fontSize, side }: TickLabelProps) => (
   <>
     {ticks.map((t) => (
       <text
         key={`${keyPrefix}-${t.key}`}
-        x={t.x}
+        x={side === "top" ? t.xTop : t.xBottom}
         y={y}
         fontSize={fontSize}
         fontFamily={FONT}
@@ -59,22 +71,23 @@ const TickLabels = ({ ticks, y, keyPrefix, fontSize }: TickLabelProps) => (
 );
 
 export const CoordinateGrid = ({
-  bars,
+  baseBars,
+  queryBars,
   lineTop,
   lineBottom,
   labelTopY,
   labelBottomY,
   fontSize,
 }: CoordinateGridProps) => {
-  const ticks = collectTicks(bars);
+  const ticks = collectTicks(baseBars, queryBars);
   if (!ticks.length) return null;
   return (
     <g>
       {ticks.map((t) => (
         <line
           key={`l-${t.key}`}
-          x1={t.x}
-          x2={t.x}
+          x1={t.xTop}
+          x2={t.xBottom}
           y1={lineTop}
           y2={lineBottom}
           stroke="grey"
@@ -82,8 +95,12 @@ export const CoordinateGrid = ({
           strokeDasharray="5 3"
         />
       ))}
-      {labelTopY !== null && <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" fontSize={fontSize} />}
-      {labelBottomY !== null && <TickLabels ticks={ticks} y={labelBottomY} keyPrefix="tb" fontSize={fontSize} />}
+      {labelTopY !== null && (
+        <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" fontSize={fontSize} side="top" />
+      )}
+      {labelBottomY !== null && (
+        <TickLabels ticks={ticks} y={labelBottomY} keyPrefix="tb" fontSize={fontSize} side="bottom" />
+      )}
     </g>
   );
 };
