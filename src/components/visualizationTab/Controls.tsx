@@ -2,8 +2,9 @@ import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { CHUNK_COLOR, ChunkEvent, COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
-import { exportPng, exportSvg } from "@/src/components/visualizationTab/utils";
 import { useAppStore } from "@/src/store/useAppStore";
+import { NumberControl } from "@/src/components/visualizationTab/NumberControl";
+import { ExportButtons } from "@/src/components/visualizationTab/ExportButtons";
 
 interface ControlsProps {
   svgRef: RefObject<SVGSVGElement | null>;
@@ -37,6 +38,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
   const fontSize = useVisualizationStore((s) => s.fontSize);
   const setGapBp = useVisualizationStore((s) => s.setGapBp);
@@ -45,6 +47,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
+  const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const setFontSize = useVisualizationStore((s) => s.setFontSize);
 
@@ -53,35 +56,27 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
   return (
     <div className={styles.controls}>
-      {/* Gap threshold */}
-      <div className={styles.controlGroup}>
-        <span className={styles.controlLabel}>Gap (bp)</span>
-        <input
-          className={styles.controlInput}
-          type="number"
-          min={0}
-          step={10000}
-          value={gapBp}
-          onChange={(e) => setGapBp(parseInt(e.target.value) || 10000)}
-          style={{ width: 71 }}
-        />
-      </div>
+      <NumberControl
+        label="Gap (bp)"
+        value={gapBp}
+        onChange={setGapBp}
+        min={0}
+        step={10000}
+        fallback={10000}
+        width={71}
+      />
 
       <div className={styles.sep} />
 
-      {/* hidden threshold */}
-      <div className={styles.controlGroup}>
-        <span className={styles.controlLabel}>Hidden threshold (genes)</span>
-        <input
-          className={styles.controlInput}
-          type="number"
-          min={0}
-          step={1}
-          value={hiddenThreshold}
-          onChange={(e) => setHiddenThreshold(parseInt(e.target.value) || 0)}
-          style={{ width: 55 }}
-        />
-      </div>
+      <NumberControl
+        label="Hidden threshold (genes)"
+        value={hiddenThreshold}
+        onChange={setHiddenThreshold}
+        min={0}
+        step={1}
+        fallback={0}
+        width={55}
+      />
 
       <div className={styles.sep} />
 
@@ -101,6 +96,16 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       {/* Shared axis toggle */}
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
 
+      <NumberControl
+        label="Strip blank (Mbp)"
+        value={stripBlankMbp}
+        onChange={setStripBlankMbp}
+        min={0}
+        step={10}
+        fallback={0}
+        width={55}
+      />
+
       {/* Legend */}
       <div className={styles.legend}>
         {EVENTS.map(({ key, short }) => (
@@ -113,46 +118,25 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
       {/* Render + export cluster (right-aligned) */}
       <div className={styles.rightCluster}>
-        <div className={styles.controlGroup}>
-          <span className={styles.controlLabel}>Font</span>
-          <input
-            className={styles.controlInput}
-            type="number"
-            min={6}
-            step={1}
-            value={fontSize}
-            onChange={(e) => setFontSize(parseInt(e.target.value) || 11)}
-            style={{ width: 45 }}
-          />
-        </div>
-        <div className={styles.controlGroup}>
-          <span className={styles.controlLabel}>Width</span>
-          <input
-            className={styles.controlInput}
-            type="number"
-            min={400}
-            step={50}
-            value={svgW}
-            onChange={(e) => setSvgW(parseInt(e.target.value) || 900)}
-            style={{ width: 60 }}
-          />
-        </div>
-        <div className={styles.exportGroup}>
-          <button
-            className={styles.exportBtn}
-            onClick={() => svgRef.current && exportSvg(svgRef.current, `${selectedChr.toLowerCase()}.svg`)}
-            type="button"
-          >
-            ↓ SVG
-          </button>
-          <button
-            className={styles.exportBtn}
-            onClick={() => svgRef.current && exportPng(svgRef.current, `${selectedChr.toLowerCase()}.png`)}
-            type="button"
-          >
-            ↓ PNG
-          </button>
-        </div>
+        <NumberControl
+          label="Font"
+          value={fontSize}
+          onChange={setFontSize}
+          min={6}
+          step={1}
+          fallback={11}
+          width={45}
+        />
+        <NumberControl
+          label="Width"
+          value={svgW}
+          onChange={setSvgW}
+          min={400}
+          step={50}
+          fallback={900}
+          width={60}
+        />
+        <ExportButtons svgRef={svgRef} filenameBase={selectedChr.toLowerCase()} />
       </div>
     </div>
   );

@@ -17,7 +17,10 @@ interface Tick {
   xBottom: number;
   label: string;
   key: string;
+  drawLine: boolean;
 }
+
+const MAX_TICK_OFFSET_FRAC = 0.1;
 
 const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
   const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
@@ -32,12 +35,17 @@ const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
     const queryExtent = queryBar.dataBpLen ?? queryBar.bpLen;
     const startBp = Math.ceil(Math.max(baseBar.p1, queryBar.p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP;
     const endBp = Math.min(baseBar.p1 + baseExtent, queryBar.p1 + queryExtent);
+    const refPw = Math.min(baseBar.pw, queryBar.pw);
     for (let bp = startBp; bp <= endBp; bp += TICK_INTERVAL_BP) {
+      const xTop = bpToPx(baseBar, bp);
+      const xBottom = bpToPx(queryBar, bp);
+      const drawLine = refPw <= 0 || Math.abs(xTop - xBottom) / refPw <= MAX_TICK_OFFSET_FRAC;
       out.push({
-        xTop: bpToPx(baseBar, bp),
-        xBottom: bpToPx(queryBar, bp),
+        xTop,
+        xBottom,
         label: `${bp / 1_000_000}M`,
         key: `${baseBar.chr}-${bp}`,
+        drawLine,
       });
     }
   }
@@ -83,18 +91,20 @@ export const CoordinateGrid = ({
   if (!ticks.length) return null;
   return (
     <g>
-      {ticks.map((t) => (
-        <line
-          key={`l-${t.key}`}
-          x1={t.xTop}
-          x2={t.xBottom}
-          y1={lineTop}
-          y2={lineBottom}
-          stroke="grey"
-          strokeWidth={0.5}
-          strokeDasharray="5 3"
-        />
-      ))}
+      {ticks.map((t) =>
+        t.drawLine ? (
+          <line
+            key={`l-${t.key}`}
+            x1={t.xTop}
+            x2={t.xBottom}
+            y1={lineTop}
+            y2={lineBottom}
+            stroke="grey"
+            strokeWidth={0.5}
+            strokeDasharray="5 3"
+          />
+        ) : null
+      )}
       {labelTopY !== null && (
         <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" fontSize={fontSize} side="top" />
       )}
