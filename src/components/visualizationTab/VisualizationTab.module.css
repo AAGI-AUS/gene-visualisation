@@ -239,12 +239,28 @@
   color: #94a3b8;
 }
 
-.tooltipCoord {
-  display: flex;
-  gap: 8px;
+.tooltipCoordGrid {
+  display: inline-grid;
+  grid-template-columns: 34px auto auto auto auto;
+  column-gap: 6px;
+  row-gap: 2px;
+  align-items: baseline;
   font-size: 10.5px;
   color: #475569;
   line-height: 1.7;
+}
+
+.tooltipBp {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipDash {
+  color: #94a3b8;
+}
+
+.tooltipOthers {
+  grid-column: 2 / -1;
 }
 
 .tooltipGenome {
@@ -252,9 +268,6 @@
   text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.08em;
-  width: 34px;
-  flex-shrink: 0;
-  padding-top: 1px;
 }
 
 .tooltipSubHeader {

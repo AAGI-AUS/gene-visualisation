@@ -78,26 +78,30 @@ export const ChunkTooltip = ({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipP
         </div>
 
         {/* Coordinates */}
-        <div className={styles.tooltipCoord}>
+        <div className={styles.tooltipCoordGrid}>
           <span className={styles.tooltipGenome}>base</span>
-          <span>
-            {chrBase}:{bp1Base.toLocaleString()}–{bp2Base.toLocaleString()}
-          </span>
-        </div>
+          <span>{chrBase}:</span>
+          <span className={styles.tooltipBp}>{bp1Base.toLocaleString()}</span>
+          <span className={styles.tooltipDash}>-</span>
+          <span className={styles.tooltipBp}>{bp2Base.toLocaleString()}</span>
 
-        {isOthers ? (
-          <div className={styles.tooltipCoord}>
-            <span className={styles.tooltipGenome}>query</span>
-            <span style={{ color: OTHERS_COL }}>grouped → others</span>
-          </div>
-        ) : chrQuery ? (
-          <div className={styles.tooltipCoord}>
-            <span className={styles.tooltipGenome}>query</span>
-            <span>
-              {chrQuery}:{bp1Query.toLocaleString()}–{bp2Query.toLocaleString()}
-            </span>
-          </div>
-        ) : null}
+          {isOthers ? (
+            <>
+              <span className={styles.tooltipGenome}>query</span>
+              <span className={styles.tooltipOthers} style={{ color: OTHERS_COL }}>
+                grouped → others
+              </span>
+            </>
+          ) : chrQuery ? (
+            <>
+              <span className={styles.tooltipGenome}>query</span>
+              <span>{chrQuery}:</span>
+              <span className={styles.tooltipBp}>{bp1Query.toLocaleString()}</span>
+              <span className={styles.tooltipDash}>-</span>
+              <span className={styles.tooltipBp}>{bp2Query.toLocaleString()}</span>
+            </>
+          ) : null}
+        </div>
 
         {/* Event distribution */}
         <div className={styles.tooltipDivider} />
