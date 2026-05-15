@@ -1,5 +1,5 @@
 import { useCallback, type MouseEvent } from "react";
-import { CHROM_THICKNESS, PAD, SVG_H } from "@/src/constants";
+import { CHROM_THICKNESS, PAD, ROW_GAP, SVG_H } from "@/src/constants";
 import type { Chunk, ChunkRibbon } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { RibbonLayer } from "@/src/components/visualizationTab/RibbonLayer";
@@ -13,13 +13,16 @@ interface LinePairProps {
   layout: VisualizationLayout;
   i: number;
   total: number;
+  nextLayout?: VisualizationLayout;
 }
 
-export const LinePair = ({ layout, i, total }: LinePairProps) => {
+export const LinePair = ({ layout, i, total, nextLayout }: LinePairProps) => {
   const hoverChunk = useVisualizationStore((s) => s.hoverChunk);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
   const setHoverChunk = useVisualizationStore((s) => s.setHoverChunk);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
+  const fontSize = useVisualizationStore((s) => s.fontSize);
   const palette = useAppStore((s) => s.palette);
 
   const { baseRow, queryRow, ribbons, y1bot, y2top } = layout;
@@ -27,7 +30,7 @@ export const LinePair = ({ layout, i, total }: LinePairProps) => {
   const onMove = useCallback(
     (_e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => {
       const ribbonMidX = PAD.left + (rib.bxs + rib.bxe) / 2;
-      const topY = (i + 1) * SVG_H - i * PAD.top + 13;
+      const topY = SVG_H + i * (CHROM_THICKNESS + ROW_GAP) + 13;
       setTooltip({ ribbonMidX, chunk, topY });
       setHoverChunk(chunk.id);
     },
@@ -38,17 +41,23 @@ export const LinePair = ({ layout, i, total }: LinePairProps) => {
   const isLast = i === total - 1;
 
   return (
-    <Group left={PAD.left} top={i * (SVG_H - PAD.top)}>
+    <Group left={PAD.left} top={i * (CHROM_THICKNESS + ROW_GAP)}>
       <RibbonLayer hoverChunk={hoverChunk} onMove={onMove} ribbons={ribbons} y1bot={y1bot} y2top={y2top} />
-      <BaseRowLayer row={baseRow} noLine={i > 0} palette={palette} />
-      <QueryRowLayer row={queryRow} palette={palette} />
+      <BaseRowLayer row={baseRow} noLine={i > 0} palette={palette} fontSize={fontSize} />
+      <QueryRowLayer row={queryRow} palette={palette} fontSize={fontSize} />
       {sharedAxis && (
         <CoordinateGrid
-          bars={baseRow.bars}
+          baseBars={baseRow.bars}
+          queryBars={queryRow.slots.filter((s) => s.kind === "chr")}
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
           labelTopY={isFirst ? baseRow.y - 6 : null}
-          labelBottomY={isLast ? queryRow.y + CHROM_THICKNESS + 13 : null}
+          labelBottomY={isLast || boundaryLabels ? queryRow.y + CHROM_THICKNESS + 13 : null}
+          nextBaseBars={isLast || !boundaryLabels ? undefined : nextLayout?.baseRow.bars}
+          nextQueryBars={
+            isLast || !boundaryLabels ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
+          }
+          fontSize={fontSize - 1}
         />
       )}
     </Group>

@@ -203,7 +203,8 @@ export const buildBaseRow = (
   chrOrder: string[],
   label: string,
   availW: number,
-  othersMode: OthersMode
+  othersMode: OthersMode,
+  perChrPxPerBp?: Map<string, number>
 ): BaseRow => {
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
@@ -214,18 +215,32 @@ export const buildBaseRow = (
   );
   const gapBudget = (n - 1) * CHR_GAP_PX;
 
-  let cursor = othersMode === "group" ? OTHERS_W + CHR_GAP_PX : 0;
-  const pxPerBp = Math.max(availW - gapBudget - 2 * cursor, n) / Math.max(totalBp, 1);
+  const startCursor = othersMode === "group" ? OTHERS_W + CHR_GAP_PX : 0;
+  const rowPxPerBp = Math.max(availW - gapBudget - 2 * startCursor, n) / Math.max(totalBp, 1);
 
+  let cursor = startCursor;
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const p1 = chrMinBp.get(chr) ?? 0;
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
+    const pxPerBp = perChrPxPerBp?.get(chr) ?? rowPxPerBp;
     const pw = bpLen * pxPerBp;
 
     const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1 };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
   });
+
+  if (perChrPxPerBp) {
+    const last = bars[bars.length - 1];
+    const targetRight = availW - startCursor;
+    const deficit = targetRight - (last.px + last.pw);
+    if (deficit > 0) {
+      const pxPerBp = perChrPxPerBp.get(last.chr) ?? rowPxPerBp;
+      last.dataBpLen = last.bpLen;
+      last.pw += deficit;
+      last.bpLen += deficit / pxPerBp;
+    }
+  }
 
   return { label, bars, y: PAD.top };
 };
@@ -234,7 +249,12 @@ export type SlotSpec =
   | { kind: "chr"; chr: string; bpLen: number; p1: number }
   | { kind: "others"; baseChr: string; side: "left" | "right" };
 
-export const buildQueryRow = (slotSpecs: SlotSpec[], label: string, availW: number): QueryRow => {
+export const buildQueryRow = (
+  slotSpecs: SlotSpec[],
+  label: string,
+  availW: number,
+  perChrPxPerBp?: Map<string, number>
+): QueryRow => {
   const y = PAD.top + CHROM_THICKNESS + ROW_GAP;
   const n = slotSpecs.length;
   if (n === 0) return { label, slots: [], y };
@@ -252,12 +272,13 @@ export const buildQueryRow = (slotSpecs: SlotSpec[], label: string, availW: numb
   }
   const gapPx = (n - 1) * CHR_GAP_PX;
   const chrBudget = Math.max(availW - nOthers * OTHERS_W - gapPx, nChrs * 2);
-  const pxPerBp = totalBpForChr > 0 ? chrBudget / totalBpForChr : 1;
+  const rowPxPerBp = totalBpForChr > 0 ? chrBudget / totalBpForChr : 1;
 
   let cursor = 0;
   const slots: QuerySlot[] = slotSpecs.map((spec, i) => {
     let slot: QuerySlot;
     if (spec.kind === "chr") {
+      const pxPerBp = perChrPxPerBp?.get(spec.chr) ?? rowPxPerBp;
       const pw = spec.bpLen * pxPerBp;
       slot = { ...spec, px: cursor, pw };
       cursor += pw;
@@ -275,6 +296,36 @@ export const buildQueryRow = (slotSpecs: SlotSpec[], label: string, availW: numb
     if (i < n - 1) cursor += CHR_GAP_PX;
     return slot;
   });
+
+  if (perChrPxPerBp) {
+    let lastChrIdx = -1;
+    for (let i = slots.length - 1; i >= 0; i--) {
+      if (slots[i].kind === "chr") {
+        lastChrIdx = i;
+        break;
+      }
+    }
+    if (lastChrIdx >= 0) {
+      const trailing = slots.slice(lastChrIdx + 1);
+      const trailingGap = trailing.length * CHR_GAP_PX;
+      const trailingW = trailing.reduce((sum, s) => sum + s.pw, 0);
+      const last = slots[lastChrIdx] as ChrBar;
+      const targetRight = availW - trailingGap - trailingW;
+      const deficit = targetRight - (last.px + last.pw);
+      if (deficit > 0) {
+        const pxPerBp = perChrPxPerBp.get(last.chr) ?? rowPxPerBp;
+        last.dataBpLen = last.bpLen;
+        last.pw += deficit;
+        last.bpLen += deficit / pxPerBp;
+        for (let j = lastChrIdx + 1; j < slots.length; j++) {
+          slots[j].px += deficit;
+          if (slots[j].kind === "others") {
+            (slots[j] as { targetX: number }).targetX += deficit;
+          }
+        }
+      }
+    }
+  }
 
   return { label, slots, y };
 };
@@ -384,7 +435,7 @@ export const pct = (n: number, total: number): string => {
   return total ? `${((n / total) * 100).toFixed(1)}%` : "0%";
 };
 
-export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void => {
+const serializeSvg = (svgEl: SVGSVGElement): Blob => {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -393,10 +444,41 @@ export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void 
     "@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');";
   defs.appendChild(style);
   clone.insertBefore(defs, clone.firstChild);
-  const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+  return new Blob([new XMLSerializer().serializeToString(clone)], {
     type: "image/svg+xml;charset=utf-8",
   });
+};
+
+const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob);
   Object.assign(document.createElement("a"), { href: url, download: filename }).click();
   URL.revokeObjectURL(url);
+};
+
+export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void => {
+  triggerDownload(serializeSvg(svgEl), filename);
+};
+
+export const exportPng = async (svgEl: SVGSVGElement, filename = "synteny.png", scale = 2): Promise<void> => {
+  const w = svgEl.width.baseVal.value || svgEl.clientWidth;
+  const h = svgEl.height.baseVal.value || svgEl.clientHeight;
+  const svgUrl = URL.createObjectURL(serializeSvg(svgEl));
+  try {
+    const img = new Image();
+    img.src = svgUrl;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.drawImage(img, 0, 0);
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (blob) triggerDownload(blob, filename);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
 };

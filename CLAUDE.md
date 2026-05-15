@@ -65,6 +65,18 @@ Keep parsing/analysis in `useAppStore` and hover/sizing/tooltip in `useVisualiza
 - Default to no comments; identifiers are descriptive. CSS lives in colocated `*.module.css` files.
 - No tests exist. Jest/RTL ship from CRA but nothing is wired up — don't claim test coverage you didn't add.
 
+## Shared-axis tick lines
+
+When `sharedAxis` is on, `CoordinateGrid` draws ribbon-style polylines, not straight verticals — one segment per pair, each segment computed with the same `bpToPx` logic ribbons use:
+
+- `xTop = bpToPx(baseBar_chr, bp)` against the pair's **base** bar.
+- `xBottom = bpToPx(queryBar_chr, bp)` against the pair's **query** bar.
+- Segment slants inside a pair when base/query bar positions differ; pair P's `xBottom` and pair P+1's `xTop` share the same track data, so segments meet at pair boundaries.
+- Ticks step in **absolute bp** (`Math.ceil(max(p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP …`), not offsets — label `"100M"` always means absolute bp 100M.
+- A chr renders ticks only when it's in both `baseBars` and `queryBars` of the pair; tick range is bounded by `min(base+baseExtent, query+queryExtent)` so neither endpoint clamps.
+
+Per-pair bars are placed with a running cursor in `buildBaseRow` / `buildQueryRow` (utils.ts), so the same chr's `bar.px` can differ between rows if preceding chrs differ in width. That's why ticks sometimes need to slant rather than being strictly vertical.
+
 ## Build pipeline notes
 
 `build-one` is the unusual path: CRA build → `touch-up.py` (post-processes the build output) → `webpack.config.js` runs `HtmlBundlerPlugin` to inline everything into one `dist/index.html`. If a change breaks the single-file build but works in `yarn dev`, suspect the inlining step (asset URLs, dynamic imports, web workers).

@@ -100,7 +100,19 @@
   font-weight: 600;
 }
 
-/* ── Export button ── */
+/* ── Export buttons ── */
+.exportGroup {
+  display: flex;
+  gap: 6px;
+}
+
+.rightCluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
 .exportBtn {
   display: flex;
   align-items: center;
@@ -116,7 +128,6 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   white-space: nowrap;
-  margin-left: auto;
 }
 
 .exportBtn:hover {
@@ -228,12 +239,28 @@
   color: #94a3b8;
 }
 
-.tooltipCoord {
-  display: flex;
-  gap: 8px;
+.tooltipCoordGrid {
+  display: inline-grid;
+  grid-template-columns: 34px auto auto auto auto;
+  column-gap: 6px;
+  row-gap: 2px;
+  align-items: baseline;
   font-size: 10.5px;
   color: #475569;
   line-height: 1.7;
+}
+
+.tooltipBp {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipDash {
+  color: #94a3b8;
+}
+
+.tooltipOthers {
+  grid-column: 2 / -1;
 }
 
 .tooltipGenome {
@@ -241,9 +268,6 @@
   text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.08em;
-  width: 34px;
-  flex-shrink: 0;
-  padding-top: 1px;
 }
 
 .tooltipSubHeader {

@@ -1,4 +1,4 @@
-import { CHR_PALETTE, CHROM_THICKNESS, FONT, OTHERS_COL } from "@/src/constants";
+import { CHROM_THICKNESS, FONT, OTHERS_COL } from "@/src/constants";
 import type { BaseRow, QueryRow } from "@/types";
 
 type SVGTextProps = React.SVGTextElementAttributes<SVGTextElement>;
@@ -11,7 +11,7 @@ const SVGText = ({ children, ...props }: SVGTextProps) => (
 type LineLabelProps = SVGTextProps & { y: number; text: string };
 
 const LineLabel = ({ y, text, ...props }: LineLabelProps) => (
-  <SVGText x={-10} y={y + CHROM_THICKNESS / 2 + 4} textAnchor="end" fontSize={11} fill="#64748b" {...props}>
+  <SVGText x={-10} y={y + CHROM_THICKNESS / 2 + 4} textAnchor="end" fill="dimgrey" {...props}>
     {text}
   </SVGText>
 );
@@ -19,7 +19,7 @@ const LineLabel = ({ y, text, ...props }: LineLabelProps) => (
 const ChromLabel = ({ y, text, ...props }: LineLabelProps) => {
   const yCalc = y + CHROM_THICKNESS / 2 + 3;
   return (
-    <SVGText y={yCalc} fontSize={11} stroke="white" strokeWidth={3} paintOrder="stroke" {...props}>
+    <SVGText y={yCalc} stroke="white" strokeWidth={3} paintOrder="stroke" {...props}>
       {text}
     </SVGText>
   );
@@ -41,15 +41,18 @@ interface BaseRowLayerProps {
   row: BaseRow;
   noLine?: boolean;
   palette: Record<string, string>;
+  fontSize: number;
 }
 
-export const BaseRowLayer = ({ row, noLine, palette }: BaseRowLayerProps) => (
+export const BaseRowLayer = ({ row, noLine, palette, fontSize }: BaseRowLayerProps) => (
   <g>
-    <LineLabel y={row.y} text={row.label} />
+    <LineLabel y={row.y} text={row.label} fontSize={fontSize + 2} />
     {row.bars.map((bar) => (
       <g key={bar.chr}>
         {!noLine && <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={palette[bar.chr]} />}
-        {bar.pw > 24 && <ChromLabel x={bar.px + bar.pw / 2} y={row.y} fill={palette[bar.chr]} text={bar.chr} />}
+        {bar.pw > 24 && (
+          <ChromLabel x={bar.px + bar.pw / 2} y={row.y} fill={palette[bar.chr]} text={bar.chr} fontSize={fontSize} />
+        )}
       </g>
     ))}
   </g>
@@ -58,11 +61,12 @@ export const BaseRowLayer = ({ row, noLine, palette }: BaseRowLayerProps) => (
 interface QueryRowLayerProps {
   row: QueryRow;
   palette: Record<string, string>;
+  fontSize: number;
 }
 
-export const QueryRowLayer = ({ row, palette }: QueryRowLayerProps) => (
+export const QueryRowLayer = ({ row, palette, fontSize }: QueryRowLayerProps) => (
   <g>
-    <LineLabel y={row.y} text={row.label} />
+    <LineLabel y={row.y} text={row.label} fontSize={fontSize + 2} />
     {row.slots.map((slot, si) => {
       let key: string;
       let col: string;
@@ -84,7 +88,7 @@ export const QueryRowLayer = ({ row, palette }: QueryRowLayerProps) => (
         <g key={key}>
           <HorizontalLine x={slot.px} width={slot.pw} y={row.y} stroke={col} strokeDasharray={dash} />
           {(slot.pw > 24 || slot.kind === "others") && (
-            <ChromLabel x={slot.px + slot.pw / 2} y={row.y} fill={col} text={label} />
+            <ChromLabel x={slot.px + slot.pw / 2} y={row.y} fill={col} text={label} fontSize={fontSize} />
           )}
         </g>
       );

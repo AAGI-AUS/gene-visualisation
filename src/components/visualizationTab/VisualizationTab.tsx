@@ -3,7 +3,7 @@ import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { Controls } from "@/src/components/visualizationTab/Controls";
 import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
-import { PAD, SVG_H, TOOLTIP_SPACING } from "@/src/constants";
+import { CHROM_THICKNESS, ROW_GAP, SVG_H, TOOLTIP_SPACING } from "@/src/constants";
 import { ChunkTooltip } from "@/src/components/visualizationTab/ChunkTooltip";
 import { Result } from "@/src/store/useAppStore";
 
@@ -42,7 +42,7 @@ export const VisualizationTab = ({ data }: VisualizationTabProps) => {
     );
   }
 
-  const svgH = data.length * SVG_H - (data.length - 1) * PAD.top;
+  const svgH = SVG_H + (data.length - 1) * (CHROM_THICKNESS + ROW_GAP);
   const height = `${svgH + TOOLTIP_SPACING}px`;
   return (
     <div className={styles.container}>

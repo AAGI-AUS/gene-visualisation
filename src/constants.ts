@@ -31,7 +31,7 @@ export const OTHERS_COL = "#94a3b8";
 
 export const CHROM_THICKNESS = 2;
 export const RIBBON_GAP = 0;
-export const ROW_GAP = 150;
+export const ROW_GAP = 55;
 export const PAD = { top: 18, bottom: 18, left: 90, right: 13 } as const;
 export const FONT = "IBM Plex Mono, monospace";
 export const CHR_GAP_PX = 3;

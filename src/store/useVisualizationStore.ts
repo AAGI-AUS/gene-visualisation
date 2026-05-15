@@ -9,7 +9,10 @@ interface VisualizationState {
   commonOnly: boolean;
   denoise: boolean;
   sharedAxis: boolean;
+  boundaryLabels: boolean;
+  stripBlankMbp: number;
   svgW: number;
+  fontSize: number;
   hoverChunk: string | null;
   tooltip: TooltipInfo | null;
 }
@@ -21,7 +24,10 @@ interface VisualizationActions {
   setCommonOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setBoundaryLabels: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
+  setFontSize: (v: number) => void;
   setHoverChunk: (id: string | null) => void;
   setTooltip: (t: TooltipInfo | null) => void;
   clearHover: () => void;
@@ -29,12 +35,15 @@ interface VisualizationActions {
 
 export const useVisualizationStore = create<VisualizationState & VisualizationActions>((set) => ({
   gapBp: 100000,
-  hiddenThreshold: 20,
+  hiddenThreshold: 10,
   othersMode: OTHERS_CYCLE[0],
   commonOnly: true,
   denoise: true,
   sharedAxis: true,
+  boundaryLabels: true,
+  stripBlankMbp: 300,
   svgW: 900,
+  fontSize: 11,
   hoverChunk: null,
   tooltip: null,
 
@@ -44,7 +53,10 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setCommonOnly: (v) => set((s) => ({ commonOnly: typeof v === "function" ? v(s.commonOnly) : v })),
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
+  setBoundaryLabels: (v) => set((s) => ({ boundaryLabels: typeof v === "function" ? v(s.boundaryLabels) : v })),
+  setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
+  setFontSize: (v) => set({ fontSize: Math.max(6, v) }),
   setHoverChunk: (id) => set({ hoverChunk: id }),
   setTooltip: (t) => set({ tooltip: t }),
   clearHover: () => set({ hoverChunk: null, tooltip: null }),
