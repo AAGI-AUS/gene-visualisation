@@ -10,6 +10,8 @@ interface CoordinateGridProps {
   labelTopY: number | null;
   labelBottomY: number | null;
   fontSize: number;
+  nextBaseBars?: ChrBar[];
+  nextQueryBars?: ChrBar[];
 }
 
 interface Tick {
@@ -18,6 +20,7 @@ interface Tick {
   label: string;
   key: string;
   drawLine: boolean;
+  pw: number;
 }
 
 const MAX_TICK_OFFSET_FRAC = 0.1;
@@ -46,10 +49,23 @@ const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
         label: `${bp / 1_000_000}M`,
         key: `${baseBar.chr}-${bp}`,
         drawLine,
+        pw: refPw,
       });
     }
   }
   return out;
+};
+
+const bottomLabelTicks = (ticks: Tick[], nextTicks: Tick[] | null): Tick[] => {
+  if (!nextTicks) return ticks;
+  const nextByKey = new Map(nextTicks.map((t) => [t.key, t]));
+  return ticks.filter((t) => {
+    const nt = nextByKey.get(t.key);
+    if (!nt || !nt.drawLine) return true;
+    const ref = Math.min(t.pw, nt.pw);
+    if (ref <= 0) return false;
+    return Math.abs(nt.xTop - t.xBottom) / ref > MAX_TICK_OFFSET_FRAC;
+  });
 };
 
 interface TickLabelProps {
@@ -86,9 +102,13 @@ export const CoordinateGrid = ({
   labelTopY,
   labelBottomY,
   fontSize,
+  nextBaseBars,
+  nextQueryBars,
 }: CoordinateGridProps) => {
   const ticks = collectTicks(baseBars, queryBars);
   if (!ticks.length) return null;
+  const nextTicks = nextBaseBars && nextQueryBars ? collectTicks(nextBaseBars, nextQueryBars) : null;
+  const bottomTicks = labelBottomY !== null ? bottomLabelTicks(ticks, nextTicks) : [];
   return (
     <g>
       {ticks.map((t) =>
@@ -108,8 +128,8 @@ export const CoordinateGrid = ({
       {labelTopY !== null && (
         <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" fontSize={fontSize} side="top" />
       )}
-      {labelBottomY !== null && (
-        <TickLabels ticks={ticks} y={labelBottomY} keyPrefix="tb" fontSize={fontSize} side="bottom" />
+      {labelBottomY !== null && bottomTicks.length > 0 && (
+        <TickLabels ticks={bottomTicks} y={labelBottomY} keyPrefix="tb" fontSize={fontSize} side="bottom" />
       )}
     </g>
   );

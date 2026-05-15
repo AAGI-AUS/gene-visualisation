@@ -13,13 +13,15 @@ interface LinePairProps {
   layout: VisualizationLayout;
   i: number;
   total: number;
+  nextLayout?: VisualizationLayout;
 }
 
-export const LinePair = ({ layout, i, total }: LinePairProps) => {
+export const LinePair = ({ layout, i, total, nextLayout }: LinePairProps) => {
   const hoverChunk = useVisualizationStore((s) => s.hoverChunk);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
   const setHoverChunk = useVisualizationStore((s) => s.setHoverChunk);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
   const fontSize = useVisualizationStore((s) => s.fontSize);
   const palette = useAppStore((s) => s.palette);
 
@@ -50,7 +52,11 @@ export const LinePair = ({ layout, i, total }: LinePairProps) => {
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
           labelTopY={isFirst ? baseRow.y - 6 : null}
-          labelBottomY={isLast ? queryRow.y + CHROM_THICKNESS + 13 : null}
+          labelBottomY={isLast || boundaryLabels ? queryRow.y + CHROM_THICKNESS + 13 : null}
+          nextBaseBars={isLast || !boundaryLabels ? undefined : nextLayout?.baseRow.bars}
+          nextQueryBars={
+            isLast || !boundaryLabels ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
+          }
           fontSize={fontSize - 1}
         />
       )}

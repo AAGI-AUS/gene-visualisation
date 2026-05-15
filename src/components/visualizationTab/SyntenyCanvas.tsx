@@ -48,7 +48,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     <svg ref={svgRef} className={styles.svgCanvas} width={width} height={height}>
       <rect width={width} height={height} fill="white" />
       {layouts.map((layout, i) => (
-        <LinePair key={i} layout={layout} i={i} total={layouts.length} />
+        <LinePair key={i} layout={layout} i={i} total={layouts.length} nextLayout={layouts[i + 1]} />
       ))}
     </svg>
   );

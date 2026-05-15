@@ -9,11 +9,12 @@ interface NumberControlProps
   width: number;
 }
 
-export const NumberControl = ({ label, onChange, fallback, width, ...rest }: NumberControlProps) => (
+export const NumberControl = ({ label, onChange, fallback, width, min = 0, ...rest }: NumberControlProps) => (
   <div className={styles.controlGroup}>
     <span className={styles.controlLabel}>{label}</span>
     <input
       {...rest}
+      min={min}
       className={styles.controlInput}
       type="number"
       onChange={(e) => onChange(parseInt(e.target.value) || fallback)}

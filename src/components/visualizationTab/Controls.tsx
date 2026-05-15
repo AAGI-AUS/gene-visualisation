@@ -38,6 +38,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
   const fontSize = useVisualizationStore((s) => s.fontSize);
@@ -47,12 +48,14 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
+  const setBoundaryLabels = useVisualizationStore((s) => s.setBoundaryLabels);
   const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const setFontSize = useVisualizationStore((s) => s.setFontSize);
 
   const toggleOthersMode = () =>
     setOthersMode((v) => OTHERS_CYCLE[(OTHERS_CYCLE.indexOf(v) + 1) % OTHERS_CYCLE.length]);
+  const commonText = `Common ≥${Math.round(COMMON_CHR_THRESHOLD * 100)}%`;
 
   return (
     <div className={styles.controls}>
@@ -60,7 +63,6 @@ export const Controls = ({ svgRef }: ControlsProps) => {
         label="Gap (bp)"
         value={gapBp}
         onChange={setGapBp}
-        min={0}
         step={10000}
         fallback={10000}
         width={71}
@@ -72,7 +74,6 @@ export const Controls = ({ svgRef }: ControlsProps) => {
         label="Hidden threshold (genes)"
         value={hiddenThreshold}
         onChange={setHiddenThreshold}
-        min={0}
         step={1}
         fallback={0}
         width={55}
@@ -80,33 +81,23 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
       <div className={styles.sep} />
 
-      {/* Others mode toggle */}
+      {/* toggles */}
       <ToggleButton active={othersMode !== "hide"} onClick={toggleOthersMode} text={OTHERS_LABEL[othersMode]} />
-
-      {/* Common-only toggle */}
-      <ToggleButton
-        active={commonOnly}
-        onClick={() => setCommonOnly((v) => !v)}
-        text={`Common ≥${Math.round(COMMON_CHR_THRESHOLD * 100)}%`}
-      />
-
-      {/* Denoise toggle */}
+      <ToggleButton active={commonOnly} onClick={() => setCommonOnly((v) => !v)} text={commonText} />
       <ToggleButton active={denoise} onClick={() => setDenoise((v) => !v)} text="Denoise" />
-
-      {/* Shared axis toggle */}
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
+      <ToggleButton active={boundaryLabels} onClick={() => setBoundaryLabels((v) => !v)} text="Intra labels" />
 
       <NumberControl
         label="Strip blank (Mbp)"
         value={stripBlankMbp}
         onChange={setStripBlankMbp}
-        min={0}
-        step={10}
+        step={50}
         fallback={0}
         width={55}
       />
 
-      {/* Legend */}
+      {/* legend */}
       <div className={styles.legend}>
         {EVENTS.map(({ key, short }) => (
           <div className={styles.legendItem} key={key}>
