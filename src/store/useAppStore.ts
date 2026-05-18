@@ -31,8 +31,8 @@ interface AppActions {
   clearQuery: (i: number) => void;
   reorderQuery: (from: number, to: number) => void;
   swapBaseWithQuery: (i: number) => Promise<void>;
-  runAnalysis: () => void;
-  autoSort: () => void;
+  runAnalysis: () => Promise<void>;
+  autoSort: () => Promise<void>;
 }
 
 export type AppStore = AppState & AppActions;

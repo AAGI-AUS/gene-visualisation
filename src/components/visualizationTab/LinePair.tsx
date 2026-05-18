@@ -21,7 +21,7 @@ export const LinePair = ({ layout, i, total, nextLayout }: LinePairProps) => {
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
   const setHoverChunk = useVisualizationStore((s) => s.setHoverChunk);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
-  const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
+  const boundaryTicks = useVisualizationStore((s) => s.boundaryTicks);
   const fontSize = useVisualizationStore((s) => s.fontSize);
   const palette = useAppStore((s) => s.palette);
 
@@ -52,10 +52,10 @@ export const LinePair = ({ layout, i, total, nextLayout }: LinePairProps) => {
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
           labelTopY={isFirst ? baseRow.y - 6 : null}
-          labelBottomY={isLast || boundaryLabels ? queryRow.y + CHROM_THICKNESS + 13 : null}
-          nextBaseBars={isLast || !boundaryLabels ? undefined : nextLayout?.baseRow.bars}
+          labelBottomY={isLast || boundaryTicks ? queryRow.y + CHROM_THICKNESS + 13 : null}
+          nextBaseBars={isLast || !boundaryTicks ? undefined : nextLayout?.baseRow.bars}
           nextQueryBars={
-            isLast || !boundaryLabels ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
+            isLast || !boundaryTicks ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
           }
           fontSize={fontSize - 1}
         />

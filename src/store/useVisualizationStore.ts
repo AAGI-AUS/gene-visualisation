@@ -10,7 +10,7 @@ interface VisualizationState {
   denoise: boolean;
   sharedAxis: boolean;
   relabelIntra: boolean;
-  boundaryLabels: boolean;
+  boundaryTicks: boolean;
   stripBlankMbp: number;
   svgW: number;
   fontSize: number;
@@ -26,7 +26,7 @@ interface VisualizationActions {
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
   setRelabelIntra: (v: boolean | ((prev: boolean) => boolean)) => void;
-  setBoundaryLabels: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
   setFontSize: (v: number) => void;
@@ -42,8 +42,8 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   commonOnly: true,
   denoise: true,
   sharedAxis: true,
-  relabelIntra: false,
-  boundaryLabels: false,
+  relabelIntra: true,
+  boundaryTicks: false,
   stripBlankMbp: 300,
   svgW: 900,
   fontSize: 11,
@@ -57,7 +57,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
   setRelabelIntra: (v) => set((s) => ({ relabelIntra: typeof v === "function" ? v(s.relabelIntra) : v })),
-  setBoundaryLabels: (v) => set((s) => ({ boundaryLabels: typeof v === "function" ? v(s.boundaryLabels) : v })),
+  setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setFontSize: (v) => set({ fontSize: Math.max(6, v) }),

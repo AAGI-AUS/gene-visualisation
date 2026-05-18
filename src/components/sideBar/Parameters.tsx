@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
+import { batchExportAll } from "@/src/components/visualizationTab/batchExport";
 
 const ChrSelect = () => {
   // Unique chromosomes in order of first appearance
@@ -30,13 +32,26 @@ const ChrSelect = () => {
 export const Parameters = () => {
   const base = useAppStore((s) => s.base);
   const queryFiles = useAppStore((s) => s.queryFiles);
+  const chromosomes = useAppStore((s) => s.chromosomes);
   const groupThreshold = useAppStore((s) => s.groupThreshold);
   const setAppState = useAppStore((s) => s.setAppState);
   const runAnalysis = useAppStore((s) => s.runAnalysis);
   const running = useAppStore((s) => s.running);
   const autoSort = useAppStore((s) => s.autoSort);
+  const [batching, setBatching] = useState(false);
 
   const canRun = Boolean(base && queryFiles?.[0]);
+  const canBatch = canRun && chromosomes.length > 0;
+
+  const handleBatch = async () => {
+    setBatching(true);
+    try {
+      await batchExportAll();
+    } finally {
+      setBatching(false);
+    }
+  };
+
   return (
     <div className={styles.panel}>
       <div className={styles.panelHeader}>Parameters</div>
@@ -59,8 +74,16 @@ export const Parameters = () => {
         <button className={styles.runBtn} disabled={!canRun || running} onClick={runAnalysis} type="button">
           {running ? "RUNNING..." : "▶ RUN"}
         </button>
-        <button className={styles.runBtn} disabled={!canRun || running} onClick={autoSort} type="button">
+        <button className={styles.runBtn} disabled={!canRun || running || batching} onClick={autoSort} type="button">
           {running ? "RUNNING..." : "▶ AUTOSORT"}
+        </button>
+        <button
+          className={styles.runBtn}
+          disabled={!canBatch || running || batching}
+          onClick={handleBatch}
+          type="button"
+        >
+          {batching ? "EXPORTING..." : "↓ ALL CHR (ZIP)"}
         </button>
       </div>
     </div>

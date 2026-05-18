@@ -39,7 +39,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
   const relabelIntra = useVisualizationStore((s) => s.relabelIntra);
-  const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
+  const boundaryTicks = useVisualizationStore((s) => s.boundaryTicks);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
   const fontSize = useVisualizationStore((s) => s.fontSize);
@@ -50,7 +50,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
   const setRelabelIntra = useVisualizationStore((s) => s.setRelabelIntra);
-  const setBoundaryLabels = useVisualizationStore((s) => s.setBoundaryLabels);
+  const setBoundaryTicks = useVisualizationStore((s) => s.setBoundaryTicks);
   const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const setFontSize = useVisualizationStore((s) => s.setFontSize);
@@ -89,7 +89,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       <ToggleButton active={denoise} onClick={() => setDenoise((v) => !v)} text="Denoise" />
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
       <ToggleButton active={relabelIntra} onClick={() => setRelabelIntra((v) => !v)} text="Intra relabel" />
-      <ToggleButton active={boundaryLabels} onClick={() => setBoundaryLabels((v) => !v)} text="Intra labels" />
+      <ToggleButton active={boundaryTicks} onClick={() => setBoundaryTicks((v) => !v)} text="Intra ticks" />
 
       <NumberControl
         label="Strip blank (Mbp)"
