@@ -23,6 +23,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const relabelIntra = useVisualizationStore((s) => s.relabelIntra);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
 
   const pairs = useMemo<PairInput[]>(
@@ -41,7 +42,8 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     commonOnly,
     denoise,
     sharedAxis,
-    stripBlankMbp
+    stripBlankMbp,
+    relabelIntra
   );
 
   return (

@@ -38,6 +38,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const relabelIntra = useVisualizationStore((s) => s.relabelIntra);
   const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
@@ -48,6 +49,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
+  const setRelabelIntra = useVisualizationStore((s) => s.setRelabelIntra);
   const setBoundaryLabels = useVisualizationStore((s) => s.setBoundaryLabels);
   const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
@@ -86,6 +88,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       <ToggleButton active={commonOnly} onClick={() => setCommonOnly((v) => !v)} text={commonText} />
       <ToggleButton active={denoise} onClick={() => setDenoise((v) => !v)} text="Denoise" />
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
+      <ToggleButton active={relabelIntra} onClick={() => setRelabelIntra((v) => !v)} text="Intra relabel" />
       <ToggleButton active={boundaryLabels} onClick={() => setBoundaryLabels((v) => !v)} text="Intra labels" />
 
       <NumberControl
