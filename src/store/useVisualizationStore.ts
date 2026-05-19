@@ -2,6 +2,14 @@ import { OTHERS_CYCLE, OthersMode } from "@/src/constants";
 import { TooltipInfo } from "@/types";
 import { create } from "zustand";
 
+export const INTRA_RELABEL_CYCLE = ["score", "minor", "off"] as const;
+export type IntraRelabelMode = (typeof INTRA_RELABEL_CYCLE)[number];
+export const INTRA_RELABEL_LABEL: Record<IntraRelabelMode, string> = {
+  off: "Intra: off",
+  minor: "Intra: minor",
+  score: "Intra: score",
+};
+
 interface VisualizationState {
   gapBp: number;
   hiddenThreshold: number;
@@ -9,7 +17,11 @@ interface VisualizationState {
   commonOnly: boolean;
   denoise: boolean;
   sharedAxis: boolean;
-  relabelIntra: boolean;
+  intraRelabel: IntraRelabelMode;
+  intraWindowMbp: number;
+  intraMinBackbones: number;
+  intraGapStopRatio: number;
+  intraDriftPctOff: number;
   boundaryTicks: boolean;
   stripBlankMbp: number;
   svgW: number;
@@ -25,7 +37,11 @@ interface VisualizationActions {
   setCommonOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
-  setRelabelIntra: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setIntraRelabel: (v: IntraRelabelMode | ((prev: IntraRelabelMode) => IntraRelabelMode)) => void;
+  setIntraWindowMbp: (v: number) => void;
+  setIntraMinBackbones: (v: number) => void;
+  setIntraGapStopRatio: (v: number) => void;
+  setIntraDriftPctOff: (v: number) => void;
   setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
@@ -36,13 +52,17 @@ interface VisualizationActions {
 }
 
 export const useVisualizationStore = create<VisualizationState & VisualizationActions>((set) => ({
-  gapBp: 100000,
+  gapBp: 100,
   hiddenThreshold: 10,
   othersMode: OTHERS_CYCLE[0],
   commonOnly: true,
   denoise: true,
   sharedAxis: true,
-  relabelIntra: true,
+  intraRelabel: INTRA_RELABEL_CYCLE[0],
+  intraWindowMbp: 100,
+  intraMinBackbones: 10,
+  intraGapStopRatio: 3,
+  intraDriftPctOff: 0.2,
   boundaryTicks: false,
   stripBlankMbp: 300,
   svgW: 900,
@@ -50,13 +70,17 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   hoverChunk: null,
   tooltip: null,
 
-  setGapBp: (v) => set({ gapBp: Math.max(1000, v) }),
+  setGapBp: (v) => set({ gapBp: Math.max(100, v) }),
   setHiddenThreshold: (v) => set({ hiddenThreshold: Math.max(0, v) }),
   setOthersMode: (v) => set((s) => ({ othersMode: typeof v === "function" ? v(s.othersMode) : v })),
   setCommonOnly: (v) => set((s) => ({ commonOnly: typeof v === "function" ? v(s.commonOnly) : v })),
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
-  setRelabelIntra: (v) => set((s) => ({ relabelIntra: typeof v === "function" ? v(s.relabelIntra) : v })),
+  setIntraRelabel: (v) => set((s) => ({ intraRelabel: typeof v === "function" ? v(s.intraRelabel) : v })),
+  setIntraWindowMbp: (v) => set({ intraWindowMbp: Math.max(0, v) }),
+  setIntraMinBackbones: (v) => set({ intraMinBackbones: Math.max(1, v) }),
+  setIntraGapStopRatio: (v) => set({ intraGapStopRatio: Math.max(1, v) }),
+  setIntraDriftPctOff: (v) => set({ intraDriftPctOff: Math.max(0, v) }),
   setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),

@@ -29,10 +29,11 @@ export const parseBED = (text: string): BedRow[] => {
     .trim()
     .split("\n")
     .filter((line) => line && !line.startsWith("#"))
-    .reduce<BedRow[]>((rows, line, id) => {
-      const [chromosome = "", p1Raw = "0", p2Raw = "0", sign = "+"] = line.split("\t");
+    .reduce<BedRow[]>((rows, line, idx) => {
+      const [chromosome = "", p1Raw = "0", p2Raw = "0", sign = "+", idRaw] = line.split("\t");
       const p1 = Number(p1Raw) || 0;
       const p2 = Number(p2Raw) || 0;
+      const id = Number(idRaw) || idx;
       if (validChromosomes(chromosome) && p1 < p2) {
         rows.push({ id, chromosome, p1, p2, sign: sign as "+" | "-" });
       }

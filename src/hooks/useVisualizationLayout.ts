@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { CHR_GAP_PX, CHROM_THICKNESS, ChunkEvent, OthersMode, RIBBON_GAP } from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, OthersMode, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
 import {
   buildBaseRow,
@@ -10,6 +10,11 @@ import {
   computeRibbons,
   SlotSpec,
 } from "@/src/components/visualizationTab/utils";
+import {
+  relabelIntraChunks,
+  type IntraRelabelMode,
+  type IntraScoreConfig,
+} from "@/src/components/visualizationTab/relabel";
 
 export interface VisualizationLayout {
   baseRow: BaseRow;
@@ -133,189 +138,6 @@ const applyGlobalExtension = (
     return cmin;
   });
 
-/**
- * Relabel chunks within each `chrBase === chrQuery` group to surface
- * intra-chromosomal translocations that `chunkRows` alone can't see.
- * Mutates only `chunk.dominant`; row-level fields and `eventCounts` are
- * untouched.
- *
- * Per group (sorted by base order, with query rank `q`):
- *
- * 1. **Backbone** - forward chunks at `q[k] === k`. Never relabeled.
- *    Inverted chunks at positional matches are excluded; they are
- *    coincidences inside inversion blocks (e.g. the middle of an
- *    odd-length inversion).
- *
- * 2. **Regions** - maximal non-backbone runs. Forward-major runs become
- *    one region. Inversion-major runs are refined:
- *    - The inverted body is cut wherever an inverted chunk's `q` jumps
- *      strictly above the running max `q` in the current sub-region;
- *      forward chunks inside the body ride along without anchoring or
- *      updating the max.
- *    - After the last inverted chunk, only the maximal suffix of forward
- *      chunks whose `q` is **outside** the last sub-region's q range is
- *      peeled off as a trailing-forward region. Intercepting forwards
- *      (q inside that range) stay with the last sub-region.
- *
- * 3. **Labeling** per region:
- *    - All-inverted region: skipped wholesale (every chunk keeps
- *      `inversion`).
- *    - Inversion-major region (mixed): **inverted chunks always keep
- *      `inversion`** - they are never relabeled in an inversion-major
- *      region. Forwards are decided as:
- *      * `invEvents >= fwdEvents` (flip-forwards on): all forwards
- *        relabeled to `translocation` regardless of offset.
- *      * `invEvents < fwdEvents`: forwards take part in the offset
- *        majority under `-q-b`; minority-offset forwards become
- *        `translocation`.
- *    - Forward-major region: every chunk votes on the offset majority
- *      under `q-b`. Minority-offset chunks are relabeled by `isInvert` -
- *      forwards to `translocation`, inverteds to
- *      `translocation+inversion`.
- *    - Majority offset is chosen by total `eventCounts.total`, then by
- *      chunk count, then by earliest-in-base-order.
- *
- * See `relabel.md` for definitions, worked examples, and rationale.
- */
-const relabelIntraChunks = (chunks: Chunk[]): Chunk[] => {
-  type Item = { idx: number; chunk: Chunk };
-  const groups = new Map<string, Item[]>();
-  chunks.forEach((chunk, idx) => {
-    if (!chunk.chrBase || chunk.chrBase !== chunk.chrQuery) return;
-    let arr = groups.get(chunk.chrBase);
-    if (!arr) {
-      arr = [];
-      groups.set(chunk.chrBase, arr);
-    }
-    arr.push({ idx, chunk });
-  });
-
-  const relabel = new Map<number, ChunkEvent>();
-  for (const group of groups.values()) {
-    if (group.length < 2) continue;
-
-    const baseOrder = [...group].sort((a, b) => a.chunk.bp1Base - b.chunk.bp1Base || a.idx - b.idx);
-    const queryRank = new Map<number, number>();
-    [...baseOrder]
-      .sort((a, b) => a.chunk.bp1Query - b.chunk.bp1Query || a.idx - b.idx)
-      .forEach((item, rank) => queryRank.set(item.idx, rank));
-    const q = baseOrder.map((item) => queryRank.get(item.idx) ?? 0);
-    const n = baseOrder.length;
-    const invertAt = (k: number) => baseOrder[k].chunk.isInvert;
-    const isBackbone = (k: number) => q[k] === k && !invertAt(k);
-
-    // Regions: maximal non-backbone runs. Inversion-major runs are split on
-    // q jumps, with the trailing tail of non-intercepting forwards (q outside
-    // the last sub-region's q range) peeled off as its own region.
-    const regions: [number, number][] = [];
-    let runStart = 0;
-    while (runStart < n) {
-      if (isBackbone(runStart)) {
-        runStart++;
-        continue;
-      }
-      let runEnd = runStart + 1;
-      while (runEnd < n && !isBackbone(runEnd)) runEnd++;
-
-      let invertedCount = 0;
-      for (let k = runStart; k < runEnd; k++) if (invertAt(k)) invertedCount++;
-
-      if (invertedCount * 2 <= runEnd - runStart) {
-        regions.push([runStart, runEnd]);
-      } else {
-        let lastInverted = runEnd - 1;
-        while (!invertAt(lastInverted)) lastInverted--;
-        const bodyEnd = lastInverted + 1;
-
-        let subStart = runStart;
-        let subMaxQ = -Infinity;
-        for (let k = runStart; k < bodyEnd; k++) {
-          if (!invertAt(k)) continue;
-          if (subMaxQ === -Infinity) {
-            subMaxQ = q[k];
-          } else if (q[k] > subMaxQ) {
-            regions.push([subStart, k]);
-            subStart = k;
-            subMaxQ = q[k];
-          }
-        }
-
-        // Trailing forwards whose q intercepts the last sub-region's q range
-        // are not truly trailing - they sit inside the inversion in query
-        // space and stay with the last sub-region. The trailing tail is the
-        // maximal suffix of forwards with q strictly outside [subMinQ, subMaxQ].
-        let trailStart = runEnd;
-        while (trailStart > bodyEnd && q[trailStart - 1] > subMaxQ) {
-          trailStart--;
-        }
-        regions.push([subStart, trailStart]);
-        if (trailStart < runEnd) regions.push([trailStart, runEnd]);
-      }
-      runStart = runEnd;
-    }
-
-    for (const [s, e] of regions) {
-      let invCount = 0;
-      let invEvents = 0;
-      let fwdEvents = 0;
-      for (let k = s; k < e; k++) {
-        const ev = baseOrder[k].chunk.eventCounts.total;
-        if (invertAt(k)) {
-          invCount++;
-          invEvents += ev;
-        } else fwdEvents += ev;
-      }
-      if (invCount === e - s) continue;
-
-      const inverted = invCount * 2 > e - s;
-      // Flip-forwards: in inverted regions where invEvents >= fwdEvents,
-      // forwards become translocations by orientation and are dropped from
-      // the offset majority. See relabel.md.
-      const flipForwards = inverted && fwdEvents <= invEvents;
-      const offsetAt = (k: number) => (inverted ? -q[k] - k : q[k] - k);
-
-      const counts = new Map<number, number>();
-      const events = new Map<number, number>();
-      for (let k = s; k < e; k++) {
-        if (flipForwards && !invertAt(k)) continue;
-        const o = offsetAt(k);
-        counts.set(o, (counts.get(o) ?? 0) + 1);
-        events.set(o, (events.get(o) ?? 0) + baseOrder[k].chunk.eventCounts.total);
-      }
-
-      // Majority offset: events first, count tiebreak, base order last
-      // (Map iteration order + strict `>`).
-      let majorityOff = NaN;
-      let majCount = 0;
-      let majEvents = 0;
-      counts.forEach((cnt, o) => {
-        const ev = events.get(o) ?? 0;
-        if (ev > majEvents || (ev === majEvents && cnt > majCount)) {
-          majCount = cnt;
-          majEvents = ev;
-          majorityOff = o;
-        }
-      });
-
-      for (let k = s; k < e; k++) {
-        const item = baseOrder[k];
-        const isForward = !item.chunk.isInvert;
-        if (inverted && !isForward) continue; // inversion-major: inverteds always stay
-        const flip = flipForwards && isForward;
-        if (!flip && offsetAt(k) === majorityOff) continue;
-        const newLabel: ChunkEvent = isForward ? "translocation" : "translocation+inversion";
-        if (item.chunk.dominant !== newLabel) relabel.set(item.idx, newLabel);
-      }
-    }
-  }
-
-  if (!relabel.size) return chunks;
-  return chunks.map((c, i) => {
-    const lab = relabel.get(i);
-    return lab ? { ...c, dominant: lab } : c;
-  });
-};
-
 export const useVisualizationLayout = (
   pairs: PairInput[],
   baseLabel: string,
@@ -328,7 +150,8 @@ export const useVisualizationLayout = (
   denoise: boolean,
   sharedAxis: boolean,
   stripBlankMbp: number,
-  relabelIntra: boolean
+  intraRelabel: IntraRelabelMode,
+  intraScoreConfig: IntraScoreConfig
 ): VisualizationLayout[] => {
   const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1_000_000 : 0;
   const filteredData = useMemo<ResultRow[][]>(() => {
@@ -383,10 +206,13 @@ export const useVisualizationLayout = (
     [chunksPerPair, othersMode]
   );
 
-  const relabeledChunksPerPair = useMemo<Chunk[][]>(
-    () => (relabelIntra ? cleanChunksPerPair.map((cs) => relabelIntraChunks(cs)) : cleanChunksPerPair),
-    [cleanChunksPerPair, relabelIntra]
-  );
+  const { windowMbp, minBackbones, gapStopRatio, driftPctOff } = intraScoreConfig;
+  const relabeledChunksPerPair = useMemo<Chunk[][]>(() => {
+    if (intraRelabel === "off") return cleanChunksPerPair;
+    return cleanChunksPerPair.map((cs) =>
+      relabelIntraChunks(cs, intraRelabel, { windowMbp, minBackbones, gapStopRatio, driftPctOff })
+    );
+  }, [cleanChunksPerPair, intraRelabel, windowMbp, minBackbones, gapStopRatio, driftPctOff]);
 
   const tracks = useMemo<Track[]>(
     () => buildTracks(cleanChunksPerPair, pairs.length, othersMode),
