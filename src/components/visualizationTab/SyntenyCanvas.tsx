@@ -28,7 +28,8 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const intraWindowMbp = useVisualizationStore((s) => s.intraWindowMbp);
   const intraMinBackbones = useVisualizationStore((s) => s.intraMinBackbones);
   const intraGapStopRatio = useVisualizationStore((s) => s.intraGapStopRatio);
-  const intraDriftPctOff = useVisualizationStore((s) => s.intraDriftPctOff);
+  const intraGroupCount = useVisualizationStore((s) => s.intraGroupCount);
+  const intraMarkPercentile = useVisualizationStore((s) => s.intraMarkPercentile);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
 
   const pairs = useMemo<PairInput[]>(
@@ -53,7 +54,8 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
       windowMbp: intraWindowMbp,
       minBackbones: intraMinBackbones,
       gapStopRatio: intraGapStopRatio,
-      driftPctOff: intraDriftPctOff,
+      groupCount: intraGroupCount,
+      markPercentile: intraMarkPercentile,
     }
   );
 

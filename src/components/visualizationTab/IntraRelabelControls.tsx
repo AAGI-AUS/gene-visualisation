@@ -12,12 +12,14 @@ export const IntraRelabelControls = () => {
   const intraWindowMbp = useVisualizationStore((s) => s.intraWindowMbp);
   const intraMinBackbones = useVisualizationStore((s) => s.intraMinBackbones);
   const intraGapStopRatio = useVisualizationStore((s) => s.intraGapStopRatio);
-  const intraDriftPctOff = useVisualizationStore((s) => s.intraDriftPctOff);
+  const intraGroupCount = useVisualizationStore((s) => s.intraGroupCount);
+  const intraMarkPercentile = useVisualizationStore((s) => s.intraMarkPercentile);
   const setIntraRelabel = useVisualizationStore((s) => s.setIntraRelabel);
   const setIntraWindowMbp = useVisualizationStore((s) => s.setIntraWindowMbp);
   const setIntraMinBackbones = useVisualizationStore((s) => s.setIntraMinBackbones);
   const setIntraGapStopRatio = useVisualizationStore((s) => s.setIntraGapStopRatio);
-  const setIntraDriftPctOff = useVisualizationStore((s) => s.setIntraDriftPctOff);
+  const setIntraGroupCount = useVisualizationStore((s) => s.setIntraGroupCount);
+  const setIntraMarkPercentile = useVisualizationStore((s) => s.setIntraMarkPercentile);
 
   const cycleIntraRelabel = () =>
     setIntraRelabel(
@@ -57,12 +59,21 @@ export const IntraRelabelControls = () => {
       />
       <div className={styles.sep} />
       <NumberControl
-        label="Drift cutoff"
-        unit="× bb-drift"
-        value={intraDriftPctOff}
-        onChange={setIntraDriftPctOff}
+        label="Groups"
+        unit="per region"
+        value={intraGroupCount}
+        onChange={setIntraGroupCount}
+        min={2}
+      />
+      <div className={styles.sep} />
+      <NumberControl
+        label="Mark top"
+        unit="fraction"
+        value={intraMarkPercentile}
+        onChange={setIntraMarkPercentile}
         min={0}
-        step={0.1}
+        max={1}
+        step={0.05}
       />
     </>
   );

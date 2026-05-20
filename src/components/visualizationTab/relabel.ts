@@ -9,7 +9,10 @@ export interface IntraScoreConfig {
   minBackbones: number;
   /** Window stops propagating where same-side gap >= this multiple of the opposite side's median gap. */
   gapStopRatio: number;
-  driftPctOff: number;
+  /** Number of drift-clusters per region. Candidates are sorted by drift then split at the largest `groupCount - 1` gaps. Clamped to [2, candidate count]. */
+  groupCount: number;
+  /** Fraction of groups (highest-drift first) marked as translocations. Decimal in [0, 1]; clamped per region so >=1 group stays unchanged and >=1 gets marked. */
+  markPercentile: number;
 }
 
 type IntraItem = { idx: number; chunk: Chunk };
@@ -81,17 +84,43 @@ const clusterEnvelopeCenter = (cluster: IntraItem[]): { centerB: number; centerQ
 };
 
 /**
- * First index in drift-ascending `candidates` whose drift exceeds `cutoff`.
- * Starts at 1 (never marks the smallest) and falls back to n-1 (always marks
- * at least the largest), so a multi-candidate region keeps >=1 unchanged and
- * >=1 marked regardless of how the cutoff lands.
+ * Split index that marks the top `percentile` fraction of `n` ordered units.
+ * Mark count is clamped to [1, n-1], so multi-unit input always keeps >=1
+ * unchanged and >=1 marked.
  */
-const cutoffSplitIndex = (candidates: Candidate[], cutoff: number): number => {
-  const n = candidates.length;
-  for (let i = 1; i < n; i++) {
-    if (candidates[i].drift > cutoff) return i;
+const percentileSplitIndex = (n: number, percentile: number): number => {
+  const markCount = Math.max(1, Math.min(n - 1, Math.round(n * percentile)));
+  return n - markCount;
+};
+
+/**
+ * Partition `sorted` (drift-ascending) into `groupCount` consecutive groups
+ * by splitting at the `groupCount - 1` largest drift gaps. Group count is
+ * clamped to [1, sorted.length]; groups stay in drift-ascending order.
+ */
+const groupByLargestGaps = (sorted: Candidate[], groupCount: number): Candidate[][] => {
+  const n = sorted.length;
+  const G = Math.max(1, Math.min(n, groupCount));
+  if (G === 1) return [sorted];
+
+  const gaps: { after: number; size: number }[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    gaps.push({ after: i + 1, size: sorted[i + 1].drift - sorted[i].drift });
   }
-  return n - 1;
+  gaps.sort((a, b) => b.size - a.size);
+  const splits = gaps
+    .slice(0, G - 1)
+    .map((g) => g.after)
+    .sort((a, b) => a - b);
+
+  const out: Candidate[][] = [];
+  let prev = 0;
+  for (const idx of splits) {
+    out.push(sorted.slice(prev, idx));
+    prev = idx;
+  }
+  out.push(sorted.slice(prev));
+  return out;
 };
 
 const computeQ = (items: IntraItem[]): number[] => {
@@ -285,12 +314,13 @@ const labelMinorOffset: IntraLabeler = (groups) => {
  * pivot X). One region-specific baseline from backbones in the region's
  * window; each candidate's drift is `|offset / regionBaseline - 1|`, the
  * relative deviation of its query-vs-base offset from the regional
- * baseline. A candidate is marked translocation when drift exceeds
- * `driftPctOff`. Invariants per multi-candidate region: >=1 marked, >=1
- * unchanged.
+ * baseline. Candidates are sorted by drift, partitioned into `groupCount`
+ * groups at the largest gaps, then the top `markPercentile` fraction of
+ * groups gets marked translocation. Invariants per multi-candidate
+ * region: >=1 group marked, >=1 unchanged.
  */
 const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<number, ChunkEvent> => {
-  const { windowMbp, minBackbones, gapStopRatio, driftPctOff } = config;
+  const { windowMbp, minBackbones, gapStopRatio, groupCount, markPercentile } = config;
   const W_BP = windowMbp * 1_000_000;
   const relabel = new Map<number, ChunkEvent>();
 
@@ -361,10 +391,7 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
 
     for (const [s, e] of regions) {
       // Region-specific reference: one window/baseline for the whole region.
-      // `localBackboneDrift` is the backbones' own scatter around it; each
-      // candidate's drift is stored RELATIVE to that scatter, so the cutoff
-      // `driftPctOff` is a direct dimensionless threshold (e.g. 0.2 = mark
-      // if candidate's drift is at least 20% larger than backbones' drift).
+      // `markPercentile` then picks the top fraction by drift to mark.
       const chunkCenters: number[] = [];
       for (let k = s; k < e; k++) chunkCenters.push(baseCenter(k));
       const regionCenter = median(chunkCenters);
@@ -400,12 +427,16 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
       candidates.sort((a, b) => a.drift - b.drift);
       if (candidates[n - 1].drift === 0) continue;
 
-      const firstSplit = cutoffSplitIndex(candidates, driftPctOff);
-      for (let i = firstSplit; i < n; i++) {
-        const cand = candidates[i];
-        const newLabel: ChunkEvent = cand.isInvert ? "translocation+inversion" : "translocation";
-        for (const item of cand.items) {
-          if (item.chunk.dominant !== newLabel) relabel.set(item.idx, newLabel);
+      const candGroups = groupByLargestGaps(candidates, groupCount);
+      const G = candGroups.length;
+      if (G < 2) continue;
+      const firstMarked = percentileSplitIndex(G, markPercentile);
+      for (let g = firstMarked; g < G; g++) {
+        for (const cand of candGroups[g]) {
+          const newLabel: ChunkEvent = cand.isInvert ? "translocation+inversion" : "translocation";
+          for (const item of cand.items) {
+            if (item.chunk.dominant !== newLabel) relabel.set(item.idx, newLabel);
+          }
         }
       }
     }
@@ -413,7 +444,7 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
   return relabel;
 };
 
-/** Score-pass labeler: region-relative drift vs `driftPctOff`. */
+/** Score-pass labeler: top `markPercentile` of drift groups per region. */
 const relabelByScore = (chunks: Chunk[], config: IntraScoreConfig) => {
   const { groups, strays } = buildIntraRegions(chunks);
   const relabel = runScorePass(groups, config);

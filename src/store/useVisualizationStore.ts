@@ -21,7 +21,8 @@ interface VisualizationState {
   intraWindowMbp: number;
   intraMinBackbones: number;
   intraGapStopRatio: number;
-  intraDriftPctOff: number;
+  intraGroupCount: number;
+  intraMarkPercentile: number;
   boundaryTicks: boolean;
   stripBlankMbp: number;
   svgW: number;
@@ -41,7 +42,8 @@ interface VisualizationActions {
   setIntraWindowMbp: (v: number) => void;
   setIntraMinBackbones: (v: number) => void;
   setIntraGapStopRatio: (v: number) => void;
-  setIntraDriftPctOff: (v: number) => void;
+  setIntraGroupCount: (v: number) => void;
+  setIntraMarkPercentile: (v: number) => void;
   setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
@@ -62,7 +64,8 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   intraWindowMbp: 100,
   intraMinBackbones: 10,
   intraGapStopRatio: 3,
-  intraDriftPctOff: 0.2,
+  intraGroupCount: 2,
+  intraMarkPercentile: 0.2,
   boundaryTicks: false,
   stripBlankMbp: 300,
   svgW: 900,
@@ -80,7 +83,8 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setIntraWindowMbp: (v) => set({ intraWindowMbp: Math.max(0, v) }),
   setIntraMinBackbones: (v) => set({ intraMinBackbones: Math.max(1, v) }),
   setIntraGapStopRatio: (v) => set({ intraGapStopRatio: Math.max(1, v) }),
-  setIntraDriftPctOff: (v) => set({ intraDriftPctOff: Math.max(0, v) }),
+  setIntraGroupCount: (v) => set({ intraGroupCount: Math.max(2, Math.round(v)) }),
+  setIntraMarkPercentile: (v) => set({ intraMarkPercentile: Math.min(1, Math.max(0, v)) }),
   setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
