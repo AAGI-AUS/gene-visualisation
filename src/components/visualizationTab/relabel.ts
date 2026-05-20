@@ -9,7 +9,6 @@ export interface IntraScoreConfig {
   minBackbones: number;
   /** Window stops propagating where same-side gap >= this multiple of the opposite side's median gap. */
   gapStopRatio: number;
-  /** Cutoff on relative drift (candidate drift / backbones' own drift). Decimal, e.g. 0.2 = mark when candidate is 20%+ above backbones' scatter. */
   driftPctOff: number;
 }
 
@@ -45,6 +44,56 @@ const pivotX = (c: Chunk): number => {
   return denom > 0 ? (dQ * c.bp1Base + dB * c.bp2Query) / denom : c.bp1Base;
 };
 
+// Two inverteds within this relative pivot-X distance are treated as one event.
+const PIVOT_CLUSTER_THRESHOLD = 0.07;
+
+/**
+ * Group inverteds whose pivot-X positions are close enough to share an event.
+ * Sorts by pivot ascending, then single-linkage joins adjacent items that
+ * fall within `PIVOT_CLUSTER_THRESHOLD` relative distance.
+ */
+const clusterInvertedsByPivot = (items: IntraItem[]): IntraItem[][] => {
+  const sorted = [...items].sort((a, b) => pivotX(a.chunk) - pivotX(b.chunk));
+  const clusters: IntraItem[][] = [];
+  for (const item of sorted) {
+    const last = clusters[clusters.length - 1];
+    const near =
+      last && withinThreshold(pivotX(item.chunk), pivotX(last[last.length - 1].chunk), PIVOT_CLUSTER_THRESHOLD);
+    if (near) last.push(item);
+    else clusters.push([item]);
+  }
+  return clusters;
+};
+
+/** Center of the bounding box of a cluster's chunks, in base and query space. */
+const clusterEnvelopeCenter = (cluster: IntraItem[]): { centerB: number; centerQ: number } => {
+  let minB = Infinity;
+  let maxB = -Infinity;
+  let minQ = Infinity;
+  let maxQ = -Infinity;
+  for (const { chunk: c } of cluster) {
+    if (c.bp1Base < minB) minB = c.bp1Base;
+    if (c.bp2Base > maxB) maxB = c.bp2Base;
+    if (c.bp1Query < minQ) minQ = c.bp1Query;
+    if (c.bp2Query > maxQ) maxQ = c.bp2Query;
+  }
+  return { centerB: (minB + maxB) / 2, centerQ: (minQ + maxQ) / 2 };
+};
+
+/**
+ * First index in drift-ascending `candidates` whose drift exceeds `cutoff`.
+ * Starts at 1 (never marks the smallest) and falls back to n-1 (always marks
+ * at least the largest), so a multi-candidate region keeps >=1 unchanged and
+ * >=1 marked regardless of how the cutoff lands.
+ */
+const cutoffSplitIndex = (candidates: Candidate[], cutoff: number): number => {
+  const n = candidates.length;
+  for (let i = 1; i < n; i++) {
+    if (candidates[i].drift > cutoff) return i;
+  }
+  return n - 1;
+};
+
 const computeQ = (items: IntraItem[]): number[] => {
   const rank = new Map<number, number>();
   [...items]
@@ -65,6 +114,47 @@ const applyMap = (chunks: Chunk[], relabel: Map<number, ChunkEvent>): Chunk[] =>
 // Small non-backbone chunks sandwiched between two backbones are noise:
 // drop them from regions and hard-label translocation (or t+inv).
 const STRAY_MAX_EVENTS = 50;
+
+/**
+ * Iteratively split a non-backbone run into regions. Per iteration:
+ * minQ (fixed, from the unsplit prefix) anchors all chunks at or before
+ * its owner. Past the owner, we close at the first chunk whose q breaks
+ * a dense [minQ, maxQ] (range fully covered) and isn't an adjacent up
+ * extension. Adjacent up keeps forward chains intact.
+ */
+const splitRun = (q: number[], runStart: number, runEnd: number, regions: [number, number][]) => {
+  let start = runStart;
+  while (start < runEnd) {
+    let minQ = Infinity;
+    let kMinQ = start;
+    for (let k = start; k < runEnd; k++) {
+      if (q[k] < minQ) {
+        minQ = q[k];
+        kMinQ = k;
+      }
+    }
+
+    let maxQ = -Infinity;
+    let coverSize = 0;
+    for (let k = start; k <= kMinQ; k++) {
+      if (q[k] > maxQ) maxQ = q[k];
+      coverSize++;
+    }
+
+    let splitEnd = runEnd;
+    for (let k = kMinQ + 1; k < runEnd; k++) {
+      if (coverSize === maxQ - minQ + 1 && q[k] !== maxQ + 1) {
+        splitEnd = k;
+        break;
+      }
+      if (q[k] > maxQ) maxQ = q[k];
+      coverSize++;
+    }
+
+    regions.push([start, splitEnd]);
+    start = splitEnd;
+  }
+};
 
 /**
  * Per-chr regions cut by backbone runs. Strays are returned separately
@@ -122,53 +212,13 @@ const buildIntraRegions = (chunks: Chunk[], skip?: Set<number>): BuildIntraResul
       let runEnd = runStart + 1;
       while (runEnd < n && !isBackbone(runEnd)) runEnd++;
 
-      let invertedCount = 0;
-      for (let k = runStart; k < runEnd; k++) if (invertAt(k)) invertedCount++;
-
-      // if (baseOrder[runStart]?.chunk.id === "jagger-3A-203") {
-      //   console.log(
-      //     baseOrder.slice(runStart, runEnd).map((c) => {
-      //       const { id, ids, ...rest } = c.chunk;
-      //       return rest;
-      //     })
-      //   );
-      // }
-
-      if (invertedCount === 0) {
-        regions.push([runStart, runEnd]);
-      } else {
-        let lastInverted = runEnd - 1;
-        while (!invertAt(lastInverted)) lastInverted--;
-        const bodyEnd = lastInverted + 1;
-
-        // Forward whose q clears the body's running subMaxQ has no
-        // q-intercept and starts the next region. Inverted q-ascents stay
-        // in-event (an outlier inverted can sit high without indicating
-        // a new event). subMaxQ resets after a split.
-        let subStart = runStart;
-        let subMaxQ = -Infinity;
-        for (let k = runStart; k < bodyEnd; k++) {
-          if (invertAt(k)) {
-            if (q[k] > subMaxQ) subMaxQ = q[k];
-          } else if (subMaxQ !== -Infinity && q[k] > subMaxQ) {
-            regions.push([subStart, k]);
-            subStart = k;
-            subMaxQ = -Infinity;
-          }
-        }
-
-        let trailStart = runEnd;
-        while (trailStart > bodyEnd && q[trailStart - 1] > subMaxQ) {
-          trailStart--;
-        }
-        regions.push([subStart, trailStart]);
-        if (trailStart < runEnd) regions.push([trailStart, runEnd]);
-      }
+      splitRun(q, runStart, runEnd, regions);
       runStart = runEnd;
     }
 
     out.push({ baseOrder, q, regions });
   }
+
   return { groups: out, strays };
 };
 
@@ -226,15 +276,16 @@ const labelMinorOffset: IntraLabeler = (groups) => {
       }
     }
   }
+
   return relabel;
 };
 
 /**
  * Per region: candidates = each forward + clusters of inverteds (shared
  * pivot X). One region-specific baseline from backbones in the region's
- * window; each candidate's drift is `|offset - regionBaseline|` normalized
- * by the backbones' own scatter, so it's a dimensionless ratio. A
- * candidate is marked translocation when its relative drift exceeds
+ * window; each candidate's drift is `|offset / regionBaseline - 1|`, the
+ * relative deviation of its query-vs-base offset from the regional
+ * baseline. A candidate is marked translocation when drift exceeds
  * `driftPctOff`. Invariants per multi-candidate region: >=1 marked, >=1
  * unchanged.
  */
@@ -323,81 +374,33 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
       const regionBaseline = localOffsets.length >= minBackbones ? median(localOffsets) : globalMedian;
 
       const relDrift = (centerB: number, centerQ: number): number => {
-        return regionBaseline !== 0 ? Math.abs(Math.abs((centerQ - centerB) / regionBaseline) - 1) : Infinity;
+        return regionBaseline !== 0 ? Math.abs((centerQ - centerB) / regionBaseline - 1) : Infinity;
       };
 
       const candidates: Candidate[] = [];
-
-      // Cluster inverteds by pivot proximity - shared pivot = same event.
-      const invSorted: IntraItem[] = [];
-      for (let k = s; k < e; k++) if (invertAt(k)) invSorted.push(baseOrder[k]);
-      invSorted.sort((a, b) => pivotX(a.chunk) - pivotX(b.chunk));
-
-      const clusters: IntraItem[][] = [];
-      for (const item of invSorted) {
-        const last = clusters[clusters.length - 1];
-        if (!last) {
-          clusters.push([item]);
-          continue;
-        }
-
-        const prev = last[last.length - 1];
-        if (withinThreshold(pivotX(item.chunk), pivotX(prev.chunk), 0.07)) last.push(item);
-        else clusters.push([item]);
-      }
-
-      for (const cluster of clusters) {
-        let minB = Infinity;
-        let maxB = -Infinity;
-        let minQ = Infinity;
-        let maxQ = -Infinity;
-        for (const { chunk: c } of cluster) {
-          if (c.bp1Base < minB) minB = c.bp1Base;
-          if (c.bp2Base > maxB) maxB = c.bp2Base;
-          if (c.bp1Query < minQ) minQ = c.bp1Query;
-          if (c.bp2Query > maxQ) maxQ = c.bp2Query;
-        }
-        candidates.push({
-          drift: relDrift((minB + maxB) / 2, (minQ + maxQ) / 2),
-          isInvert: true,
-          items: cluster,
-        });
-      }
+      const inverteds: IntraItem[] = [];
       for (let k = s; k < e; k++) {
-        if (invertAt(k)) continue;
-        candidates.push({
-          drift: relDrift(baseCenter(k), queryCenter(k)),
-          isInvert: false,
-          items: [baseOrder[k]],
-        });
+        if (invertAt(k)) {
+          inverteds.push(baseOrder[k]);
+        } else {
+          candidates.push({
+            drift: relDrift(baseCenter(k), queryCenter(k)),
+            isInvert: false,
+            items: [baseOrder[k]],
+          });
+        }
+      }
+      for (const cluster of clusterInvertedsByPivot(inverteds)) {
+        const { centerB, centerQ } = clusterEnvelopeCenter(cluster);
+        candidates.push({ drift: relDrift(centerB, centerQ), isInvert: true, items: cluster });
       }
 
       const n = candidates.length;
       if (n < 2) continue;
-
       candidates.sort((a, b) => a.drift - b.drift);
       if (candidates[n - 1].drift === 0) continue;
 
-      // if (baseOrder[s]?.chunk.id === "jagger-3A-203") {
-      // if (baseOrder[s]?.chunk.id === "spelt-3A-209") {
-      //   console.log("debug");
-      //
-      //   console.log(candidates);
-      //   console.log(regionBaseline);
-      // }
-
-      // Each candidate is judged on its own: drift_rel > driftPctOff marks
-      // it. Default firstSplit = n-1 keeps the largest marked even when
-      // nothing else clears the cutoff; clamp to [1, n-1] keeps >=1
-      // unchanged.
-      let firstSplit = n - 1;
-      for (let i = 0; i < n; i++) {
-        if (candidates[i].drift > driftPctOff) {
-          firstSplit = i;
-          break;
-        }
-      }
-      firstSplit = Math.max(1, Math.min(n - 1, firstSplit));
+      const firstSplit = cutoffSplitIndex(candidates, driftPctOff);
       for (let i = firstSplit; i < n; i++) {
         const cand = candidates[i];
         const newLabel: ChunkEvent = cand.isInvert ? "translocation+inversion" : "translocation";
@@ -411,23 +414,22 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
 };
 
 /** Score-pass labeler: region-relative drift vs `driftPctOff`. */
-const relabelByScore = (chunks: Chunk[], config: IntraScoreConfig): Map<number, ChunkEvent> => {
+const relabelByScore = (chunks: Chunk[], config: IntraScoreConfig) => {
   const { groups, strays } = buildIntraRegions(chunks);
   const relabel = runScorePass(groups, config);
   for (const [idx, lab] of strays) relabel.set(idx, lab);
+
   return relabel;
 };
 
 /** Public entry. Dispatches to the chosen labeler; `off` returns input ref. */
-export const relabelIntraChunks = (
-  chunks: Chunk[],
-  mode: IntraRelabelMode,
-  scoreConfig: IntraScoreConfig
-): Chunk[] => {
+export const relabelIntraChunks = (chunks: Chunk[], mode: IntraRelabelMode, scoreConfig: IntraScoreConfig) => {
   if (mode === "off") return chunks;
   if (mode === "score") return applyMap(chunks, relabelByScore(chunks, scoreConfig));
+
   const { groups, strays } = buildIntraRegions(chunks);
   const relabel = labelMinorOffset(groups);
   for (const [idx, lab] of strays) relabel.set(idx, lab);
+
   return applyMap(chunks, relabel);
 };
