@@ -48,7 +48,7 @@ const pivotX = (c: Chunk): number => {
 };
 
 // Two inverteds within this relative pivot-X distance are treated as one event.
-const PIVOT_CLUSTER_THRESHOLD = 1_000;
+const PIVOT_CLUSTER_THRESHOLD = 500_000;
 
 /**
  * Group inverteds whose pivot-X positions are close enough to share an event.
