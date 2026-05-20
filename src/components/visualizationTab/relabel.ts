@@ -213,14 +213,16 @@ const buildIntraRegions = (chunks: Chunk[], skip?: Set<number>): BuildIntraResul
     const isBb = (k: number) => Math.abs(q[k] - k) <= 1 && !baseOrder[k].chunk.isInvert;
     const drop = new Set<number>();
     for (let k = 1; k < baseOrder.length - 1; k++) {
-      if (isBb(k)) continue;
-      if (baseOrder[k].chunk.eventCounts.total >= STRAY_MAX_EVENTS) continue;
-      if (!isBb(k - 1) || !isBb(k + 1)) continue;
-      drop.add(k);
+      if (isBb(k) || !isBb(k - 1) || !isBb(k + 1)) continue;
+
       const item = baseOrder[k];
+      if (item.chunk.eventCounts.total >= STRAY_MAX_EVENTS) continue;
+
+      drop.add(k);
       const strayLabel: ChunkEvent = item.chunk.isInvert ? "translocation+inversion" : "translocation";
       if (item.chunk.dominant !== strayLabel) strays.set(item.idx, strayLabel);
     }
+
     if (drop.size) {
       baseOrder = baseOrder.filter((_, k) => !drop.has(k));
       q = computeQ(baseOrder);
@@ -241,7 +243,29 @@ const buildIntraRegions = (chunks: Chunk[], skip?: Set<number>): BuildIntraResul
       let runEnd = runStart + 1;
       while (runEnd < n && !isBackbone(runEnd)) runEnd++;
 
+      let print = false;
+      if (baseOrder[runStart].chunk.id === "paragon-4D-109") {
+        print = true;
+        console.log(
+          baseOrder.slice(runStart, runEnd).map((c) => {
+            const { id, ids, ...rest } = c.chunk;
+            return rest;
+          })
+        );
+      }
+
       splitRun(q, runStart, runEnd, regions);
+      if (print) {
+        print = false;
+        console.log("after");
+
+        console.log(
+          baseOrder.slice(runStart, runEnd).map((c) => {
+            const { id, ids, ...rest } = c.chunk;
+            return rest;
+          })
+        );
+      }
       runStart = runEnd;
     }
 

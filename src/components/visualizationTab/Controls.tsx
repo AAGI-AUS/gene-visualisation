@@ -73,16 +73,6 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
       <ToggleButton active={boundaryTicks} onClick={() => setBoundaryTicks((v) => !v)} text="Intra ticks" />
 
-      {/* legend */}
-      <div className={styles.legend}>
-        {EVENTS.map(({ key, short }) => (
-          <div className={styles.legendItem} key={key}>
-            <div className={styles.legendSwatch} style={{ background: CHUNK_COLOR[key] }} />
-            {short}
-          </div>
-        ))}
-      </div>
-
       {/* Render + export cluster (right-aligned) */}
       <div className={styles.rightCluster}>
         <NumberControl label="Font" value={fontSize} onChange={setFontSize} min={6} />
@@ -92,6 +82,16 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
       <div className={styles.rowBreak} />
       <IntraRelabelControls />
+
+      {/* legend */}
+      <div className={styles.legend}>
+        {EVENTS.map(({ key, short }) => (
+          <div className={styles.legendItem} key={key}>
+            <div className={styles.legendSwatch} style={{ background: CHUNK_COLOR[key] }} />
+            {short}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
