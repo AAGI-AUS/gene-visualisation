@@ -8,36 +8,32 @@ import { NumberControl } from "@/src/components/visualizationTab/NumberControl";
 import { ToggleButton } from "@/src/components/visualizationTab/ToggleButton";
 
 export const IntraRelabelControls = () => {
-  const intraRelabel = useVisualizationStore((s) => s.intraRelabel);
-  const intraWindowMbp = useVisualizationStore((s) => s.intraWindowMbp);
-  const intraMinBackbones = useVisualizationStore((s) => s.intraMinBackbones);
-  const intraGapStopRatio = useVisualizationStore((s) => s.intraGapStopRatio);
-  const intraGroupCount = useVisualizationStore((s) => s.intraGroupCount);
-  const intraMarkPercentile = useVisualizationStore((s) => s.intraMarkPercentile);
-  const setIntraRelabel = useVisualizationStore((s) => s.setIntraRelabel);
-  const setIntraWindowMbp = useVisualizationStore((s) => s.setIntraWindowMbp);
-  const setIntraMinBackbones = useVisualizationStore((s) => s.setIntraMinBackbones);
-  const setIntraGapStopRatio = useVisualizationStore((s) => s.setIntraGapStopRatio);
-  const setIntraGroupCount = useVisualizationStore((s) => s.setIntraGroupCount);
-  const setIntraMarkPercentile = useVisualizationStore((s) => s.setIntraMarkPercentile);
+  const intra = useVisualizationStore((s) => s.intra);
+  const setIntra = useVisualizationStore((s) => s.setIntra);
 
   const cycleIntraRelabel = () =>
-    setIntraRelabel(
-      (v) => INTRA_RELABEL_CYCLE[(INTRA_RELABEL_CYCLE.indexOf(v) + 1) % INTRA_RELABEL_CYCLE.length]
-    );
+    setIntra((prev) => ({
+      relabel:
+        INTRA_RELABEL_CYCLE[(INTRA_RELABEL_CYCLE.indexOf(prev.relabel) + 1) % INTRA_RELABEL_CYCLE.length],
+    }));
+  const setWindowMbp = (v: number) => setIntra({ windowMbp: v });
+  const setMinBackbones = (v: number) => setIntra({ minBackbones: v });
+  const setGapStopMbp = (v: number) => setIntra({ gapStopMbp: v });
+  const setDriftK = (v: number) => setIntra({ driftK: v });
+  const setComplexMin = (v: number) => setIntra({ complexMin: v });
 
   return (
     <>
       <ToggleButton
-        active={intraRelabel !== "off"}
+        active={intra.relabel !== "off"}
         onClick={cycleIntraRelabel}
-        text={INTRA_RELABEL_LABEL[intraRelabel]}
+        text={INTRA_RELABEL_LABEL[intra.relabel]}
       />
       <NumberControl
         label="Window"
         unit="Mbp"
-        value={intraWindowMbp}
-        onChange={setIntraWindowMbp}
+        value={intra.windowMbp}
+        onChange={setWindowMbp}
         min={10}
         step={10}
       />
@@ -45,35 +41,21 @@ export const IntraRelabelControls = () => {
       <NumberControl
         label="Min backbones"
         unit="chunks"
-        value={intraMinBackbones}
-        onChange={setIntraMinBackbones}
+        value={intra.minBackbones}
+        onChange={setMinBackbones}
         min={1}
       />
       <div className={styles.sep} />
+      <NumberControl label="Gap stop" unit="Mbp" value={intra.gapStopMbp} onChange={setGapStopMbp} />
+      <div className={styles.sep} />
+      <NumberControl label="Drift cutoff" value={intra.driftK} onChange={setDriftK} step={0.01} max={1} />
+      <div className={styles.sep} />
       <NumberControl
-        label="Win stop"
-        unit="times"
-        value={intraGapStopRatio}
-        onChange={setIntraGapStopRatio}
+        label="Complex min"
+        unit="items"
+        value={intra.complexMin}
+        onChange={setComplexMin}
         min={1}
-      />
-      <div className={styles.sep} />
-      <NumberControl
-        label="Groups"
-        unit="per region"
-        value={intraGroupCount}
-        onChange={setIntraGroupCount}
-        min={2}
-      />
-      <div className={styles.sep} />
-      <NumberControl
-        label="Mark top"
-        unit="fraction"
-        value={intraMarkPercentile}
-        onChange={setIntraMarkPercentile}
-        min={0}
-        max={1}
-        step={0.05}
       />
     </>
   );

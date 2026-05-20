@@ -206,19 +206,13 @@ export const useVisualizationLayout = (
     [chunksPerPair, othersMode]
   );
 
-  const { windowMbp, minBackbones, gapStopRatio, groupCount, markPercentile } = intraScoreConfig;
+  const { windowMbp, minBackbones, gapStopMbp, driftK, complexMin } = intraScoreConfig;
   const relabeledChunksPerPair = useMemo<Chunk[][]>(() => {
     if (intraRelabel === "off") return cleanChunksPerPair;
     return cleanChunksPerPair.map((cs) =>
-      relabelIntraChunks(cs, intraRelabel, {
-        windowMbp,
-        minBackbones,
-        gapStopRatio,
-        groupCount,
-        markPercentile,
-      })
+      relabelIntraChunks(cs, intraRelabel, { windowMbp, minBackbones, gapStopMbp, driftK, complexMin })
     );
-  }, [cleanChunksPerPair, intraRelabel, windowMbp, minBackbones, gapStopRatio, groupCount, markPercentile]);
+  }, [cleanChunksPerPair, intraRelabel, windowMbp, minBackbones, gapStopMbp, driftK, complexMin]);
 
   const tracks = useMemo<Track[]>(
     () => buildTracks(cleanChunksPerPair, pairs.length, othersMode),

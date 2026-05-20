@@ -7,16 +7,16 @@ export type IntraRelabelMode = "off" | "minor" | "score";
 export interface IntraScoreConfig {
   windowMbp: number;
   minBackbones: number;
-  /** Window stops propagating where same-side gap >= this multiple of the opposite side's median gap. */
-  gapStopRatio: number;
-  /** Number of drift-clusters per region. Candidates are sorted by drift then split at the largest `groupCount - 1` gaps. Clamped to [2, candidate count]. */
-  groupCount: number;
-  /** Fraction of groups (highest-drift first) marked as translocations. Decimal in [0, 1]; clamped per region so >=1 group stays unchanged and >=1 gets marked. */
-  markPercentile: number;
+  /** Window stops propagating in a direction at the first base-side gap >= this many Mbp (gap = distance between adjacent chunk centers, or between the region center and its nearest chunk on that side). Stops the baseline from leaking across a structural break. */
+  gapStopMbp: number;
+  /** Drift cutoff: per-candidate gate. Score = |offset / localBaseline - 1| is min-max normalized to [0, 1] per region; candidates whose normalized score > driftK are marked. driftK applies uniformly regardless of local scale. */
+  driftK: number;
+  /** Complex-region threshold: chrs whose intra group has >= complexMin items get a second score pass with pass-1 marks excluded, so the per-region normalization re-evaluates without the already-flagged outliers dominating the scale. */
+  complexMin: number;
 }
 
 type IntraItem = { idx: number; chunk: Chunk };
-type Candidate = { drift: number; isInvert: boolean; items: IntraItem[] };
+type Candidate = { score: number; isInvert: boolean; items: IntraItem[] };
 
 interface IntraGroup {
   baseOrder: IntraItem[];
@@ -48,20 +48,20 @@ const pivotX = (c: Chunk): number => {
 };
 
 // Two inverteds within this relative pivot-X distance are treated as one event.
-const PIVOT_CLUSTER_THRESHOLD = 0.07;
+const PIVOT_CLUSTER_THRESHOLD = 1_000;
 
 /**
  * Group inverteds whose pivot-X positions are close enough to share an event.
  * Sorts by pivot ascending, then single-linkage joins adjacent items that
  * fall within `PIVOT_CLUSTER_THRESHOLD` relative distance.
  */
-const clusterInvertedsByPivot = (items: IntraItem[]): IntraItem[][] => {
+const clusterInverteds = (items: IntraItem[]): IntraItem[][] => {
   const sorted = [...items].sort((a, b) => pivotX(a.chunk) - pivotX(b.chunk));
   const clusters: IntraItem[][] = [];
   for (const item of sorted) {
     const last = clusters[clusters.length - 1];
     const near =
-      last && withinThreshold(pivotX(item.chunk), pivotX(last[last.length - 1].chunk), PIVOT_CLUSTER_THRESHOLD);
+      last && Math.abs(pivotX(item.chunk) - pivotX(last[last.length - 1].chunk)) <= PIVOT_CLUSTER_THRESHOLD;
     if (near) last.push(item);
     else clusters.push([item]);
   }
@@ -69,7 +69,7 @@ const clusterInvertedsByPivot = (items: IntraItem[]): IntraItem[][] => {
 };
 
 /** Center of the bounding box of a cluster's chunks, in base and query space. */
-const clusterEnvelopeCenter = (cluster: IntraItem[]): { centerB: number; centerQ: number } => {
+const clusterEnvelopeCenter = (cluster: IntraItem[]) => {
   let minB = Infinity;
   let maxB = -Infinity;
   let minQ = Infinity;
@@ -81,46 +81,6 @@ const clusterEnvelopeCenter = (cluster: IntraItem[]): { centerB: number; centerQ
     if (c.bp2Query > maxQ) maxQ = c.bp2Query;
   }
   return { centerB: (minB + maxB) / 2, centerQ: (minQ + maxQ) / 2 };
-};
-
-/**
- * Split index that marks the top `percentile` fraction of `n` ordered units.
- * Mark count is clamped to [1, n-1], so multi-unit input always keeps >=1
- * unchanged and >=1 marked.
- */
-const percentileSplitIndex = (n: number, percentile: number): number => {
-  const markCount = Math.max(1, Math.min(n - 1, Math.round(n * percentile)));
-  return n - markCount;
-};
-
-/**
- * Partition `sorted` (drift-ascending) into `groupCount` consecutive groups
- * by splitting at the `groupCount - 1` largest drift gaps. Group count is
- * clamped to [1, sorted.length]; groups stay in drift-ascending order.
- */
-const groupByLargestGaps = (sorted: Candidate[], groupCount: number): Candidate[][] => {
-  const n = sorted.length;
-  const G = Math.max(1, Math.min(n, groupCount));
-  if (G === 1) return [sorted];
-
-  const gaps: { after: number; size: number }[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    gaps.push({ after: i + 1, size: sorted[i + 1].drift - sorted[i].drift });
-  }
-  gaps.sort((a, b) => b.size - a.size);
-  const splits = gaps
-    .slice(0, G - 1)
-    .map((g) => g.after)
-    .sort((a, b) => a - b);
-
-  const out: Candidate[][] = [];
-  let prev = 0;
-  for (const idx of splits) {
-    out.push(sorted.slice(prev, idx));
-    prev = idx;
-  }
-  out.push(sorted.slice(prev));
-  return out;
 };
 
 const computeQ = (items: IntraItem[]): number[] => {
@@ -146,10 +106,10 @@ const STRAY_MAX_EVENTS = 50;
 
 /**
  * Iteratively split a non-backbone run into regions. Per iteration:
- * minQ (fixed, from the unsplit prefix) anchors all chunks at or before
- * its owner. Past the owner, we close at the first chunk whose q breaks
- * a dense [minQ, maxQ] (range fully covered) and isn't an adjacent up
- * extension. Adjacent up keeps forward chains intact.
+ * find minQ across the remaining run. The prefix walk includes every
+ * chunk up to and through the minQ owner, raising maxQ as needed. Past
+ * the owner, keep including chunks (still raising maxQ) until the dense
+ * [minQ, maxQ] range is fully covered, then cut at the next chunk.
  */
 const splitRun = (q: number[], runStart: number, runEnd: number, regions: [number, number][]) => {
   let start = runStart;
@@ -172,7 +132,7 @@ const splitRun = (q: number[], runStart: number, runEnd: number, regions: [numbe
 
     let splitEnd = runEnd;
     for (let k = kMinQ + 1; k < runEnd; k++) {
-      if (coverSize === maxQ - minQ + 1 && q[k] !== maxQ + 1) {
+      if (coverSize === maxQ - minQ + 1) {
         splitEnd = k;
         break;
       }
@@ -243,29 +203,7 @@ const buildIntraRegions = (chunks: Chunk[], skip?: Set<number>): BuildIntraResul
       let runEnd = runStart + 1;
       while (runEnd < n && !isBackbone(runEnd)) runEnd++;
 
-      let print = false;
-      if (baseOrder[runStart].chunk.id === "paragon-4D-109") {
-        print = true;
-        console.log(
-          baseOrder.slice(runStart, runEnd).map((c) => {
-            const { id, ids, ...rest } = c.chunk;
-            return rest;
-          })
-        );
-      }
-
       splitRun(q, runStart, runEnd, regions);
-      if (print) {
-        print = false;
-        console.log("after");
-
-        console.log(
-          baseOrder.slice(runStart, runEnd).map((c) => {
-            const { id, ids, ...rest } = c.chunk;
-            return rest;
-          })
-        );
-      }
       runStart = runEnd;
     }
 
@@ -335,17 +273,20 @@ const labelMinorOffset: IntraLabeler = (groups) => {
 
 /**
  * Per region: candidates = each forward + clusters of inverteds (shared
- * pivot X). One region-specific baseline from backbones in the region's
- * window; each candidate's drift is `|offset / regionBaseline - 1|`, the
- * relative deviation of its query-vs-base offset from the regional
- * baseline. Candidates are sorted by drift, partitioned into `groupCount`
- * groups at the largest gaps, then the top `markPercentile` fraction of
- * groups gets marked translocation. Invariants per multi-candidate
- * region: >=1 group marked, >=1 unchanged.
+ * pivot X). Local backbone offsets (within ±windowMbp of the region
+ * center, stopped at any same-side gap >= gapStopMbp) give a median +
+ * MAD; if fewer than `minBackbones` land in the window, fall back to
+ * group-global. Each candidate scores `|offset - median| / max(MAD,
+ * MAD_FLOOR_BP)`.
+ *
+ * Scores are sorted and min-max normalized to [0, 1] per region so the
+ * driftK gate applies uniformly regardless of local scale. Candidates
+ * whose normalized score exceeds driftK are marked.
  */
 const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<number, ChunkEvent> => {
-  const { windowMbp, minBackbones, gapStopRatio, groupCount, markPercentile } = config;
-  const W_BP = windowMbp * 1_000_000;
+  const { windowMbp, minBackbones, gapStopMbp, driftK } = config;
+  const windowBp = windowMbp * 1_000_000;
+  const gapStopBp = gapStopMbp * 1_000_000;
   const relabel = new Map<number, ChunkEvent>();
 
   for (const { baseOrder, q, regions } of groups) {
@@ -362,71 +303,56 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
         backbones.push({ base, offset: queryCenter(k) - base });
       }
     }
-    allBaseCenters.sort((a, b) => a - b);
     if (!backbones.length) continue;
-    const globalMedian = median(backbones.map((b) => b.offset));
+    allBaseCenters.sort((a, b) => a - b);
+    const globalOffsets = backbones.map((b) => b.offset);
+    const globalMed = median(globalOffsets);
 
-    // Per-side gap-aware: window stops where same-side gap >= gapStopRatio
-    // * opposite-side median gap, so the baseline doesn't leak across a
-    // structural break that only one side has.
+    // Walk outward from `centerB`, stopping in each direction at the first chunk-side gap >= GAP_STOP_BP (and never past ±W_BP).
     const windowBounds = (centerB: number): [number, number] => {
-      const leftBases: number[] = [];
-      const rightBases: number[] = [];
-      for (const b of allBaseCenters) {
-        if (b < centerB && centerB - b <= W_BP) leftBases.push(b);
-        else if (b > centerB && b - centerB <= W_BP) rightBases.push(b);
-      }
-      leftBases.sort((a, b) => b - a);
-      rightBases.sort((a, b) => a - b);
-
-      const leftGaps: number[] = [];
-      if (leftBases.length) leftGaps.push(centerB - leftBases[0]);
-      for (let i = 1; i < leftBases.length; i++) leftGaps.push(leftBases[i - 1] - leftBases[i]);
-
-      const rightGaps: number[] = [];
-      if (rightBases.length) rightGaps.push(rightBases[0] - centerB);
-      for (let i = 1; i < rightBases.length; i++) rightGaps.push(rightBases[i] - rightBases[i - 1]);
-
-      const leftRef = leftGaps.length ? median(leftGaps) : 0;
-      const rightRef = rightGaps.length ? median(rightGaps) : 0;
-
-      let leftCap = centerB - W_BP;
-      let pos = centerB;
-      for (let i = 0; i < leftBases.length; i++) {
-        if (rightRef > 0 && leftGaps[i] >= gapStopRatio * rightRef) {
-          leftCap = pos;
+      let leftCap = centerB - windowBp;
+      let prev = centerB;
+      for (let i = allBaseCenters.length - 1; i >= 0; i--) {
+        const b = allBaseCenters[i];
+        if (b >= centerB) continue;
+        if (b < leftCap) break;
+        if (gapStopBp > 0 && prev - b >= gapStopBp) {
+          leftCap = prev;
           break;
         }
-        pos = leftBases[i];
+        prev = b;
       }
 
-      let rightCap = centerB + W_BP;
-      pos = centerB;
-      for (let i = 0; i < rightBases.length; i++) {
-        if (leftRef > 0 && rightGaps[i] >= gapStopRatio * leftRef) {
-          rightCap = pos;
+      let rightCap = centerB + windowBp;
+      prev = centerB;
+      for (let i = 0; i < allBaseCenters.length; i++) {
+        const b = allBaseCenters[i];
+        if (b <= centerB) continue;
+        if (b > rightCap) break;
+        if (gapStopBp > 0 && b - prev >= gapStopBp) {
+          rightCap = prev;
           break;
         }
-        pos = rightBases[i];
+        prev = b;
       }
 
       return [leftCap, rightCap];
     };
 
     for (const [s, e] of regions) {
-      // Region-specific reference: one window/baseline for the whole region.
-      // `markPercentile` then picks the top fraction by drift to mark.
       const chunkCenters: number[] = [];
       for (let k = s; k < e; k++) chunkCenters.push(baseCenter(k));
       const regionCenter = median(chunkCenters);
       const [winLo, winHi] = windowBounds(regionCenter);
+
       const localOffsets: number[] = [];
       for (const bb of backbones) if (bb.base >= winLo && bb.base <= winHi) localOffsets.push(bb.offset);
-      const regionBaseline = localOffsets.length >= minBackbones ? median(localOffsets) : globalMedian;
 
-      const relDrift = (centerB: number, centerQ: number): number => {
-        return regionBaseline !== 0 ? Math.abs((centerQ - centerB) / regionBaseline - 1) : Infinity;
-      };
+      let med: number;
+      if (localOffsets.length >= minBackbones) med = median(localOffsets);
+      else med = globalMed;
+
+      const scoreOf = (centerB: number, centerQ: number) => Math.abs((centerQ - centerB) / med - 1);
 
       const candidates: Candidate[] = [];
       const inverteds: IntraItem[] = [];
@@ -435,44 +361,80 @@ const runScorePass = (groups: IntraGroup[], config: IntraScoreConfig): Map<numbe
           inverteds.push(baseOrder[k]);
         } else {
           candidates.push({
-            drift: relDrift(baseCenter(k), queryCenter(k)),
+            score: scoreOf(baseCenter(k), queryCenter(k)),
             isInvert: false,
             items: [baseOrder[k]],
           });
         }
       }
-      for (const cluster of clusterInvertedsByPivot(inverteds)) {
+
+      for (const cluster of clusterInverteds(inverteds)) {
         const { centerB, centerQ } = clusterEnvelopeCenter(cluster);
-        candidates.push({ drift: relDrift(centerB, centerQ), isInvert: true, items: cluster });
+        candidates.push({ score: scoreOf(centerB, centerQ), isInvert: true, items: cluster });
       }
 
-      const n = candidates.length;
-      if (n < 2) continue;
-      candidates.sort((a, b) => a.drift - b.drift);
-      if (candidates[n - 1].drift === 0) continue;
+      if (!candidates.length || candidates.length === 1) continue;
 
-      const candGroups = groupByLargestGaps(candidates, groupCount);
-      const G = candGroups.length;
-      if (G < 2) continue;
-      const firstMarked = percentileSplitIndex(G, markPercentile);
-      for (let g = firstMarked; g < G; g++) {
-        for (const cand of candGroups[g]) {
-          const newLabel: ChunkEvent = cand.isInvert ? "translocation+inversion" : "translocation";
-          for (const item of cand.items) {
-            if (item.chunk.dominant !== newLabel) relabel.set(item.idx, newLabel);
-          }
+      const markCand = (cand: Candidate) => {
+        const newLabel: ChunkEvent = cand.isInvert ? "translocation+inversion" : "translocation";
+        for (const item of cand.items) {
+          if (item.chunk.dominant !== newLabel) relabel.set(item.idx, newLabel);
         }
+      };
+
+      candidates.sort((a, b) => a.score - b.score);
+      // Min-max normalize per region so scores live in [0, 1] regardless of
+      // the local backbone scale; driftK then applies uniformly.
+      const minScore = candidates[0].score;
+      const maxScore = candidates[candidates.length - 1].score;
+      const range = maxScore - minScore;
+      for (const c of candidates) c.score = range > 0 ? (c.score - minScore) / range : 0;
+
+      if (candidates.length === 2) {
+        markCand(candidates[1]);
+        continue;
+      }
+
+      // Gap analysis. Bottom-half median of gaps gives a noise-robust scale
+      // that isn't inflated by the very outlier-gaps we want to detect.
+      // const gaps: number[] = [];
+      // for (let i = 0; i < candidates.length - 1; i++) gaps.push(candidates[i + 1].score - candidates[i].score);
+
+      for (let i = 0; i < candidates.length; i++) {
+        if (candidates[i].score > driftK) markCand(candidates[i]);
       }
     }
   }
   return relabel;
 };
 
-/** Score-pass labeler: top `markPercentile` of drift groups per region. */
+/**
+ * Score-pass labeler. Pass 1 runs the normal pipeline. Pass 2 rebuilds
+ * regions with pass-1 marks excluded and re-scores, but only for chrs
+ * whose pass-1 intra-group size was >= complexMin — letting the per-region
+ * min-max see a fresh score scale without the already-flagged outliers
+ * dominating it. Smaller chrs stop at one pass.
+ */
 const relabelByScore = (chunks: Chunk[], config: IntraScoreConfig) => {
-  const { groups, strays } = buildIntraRegions(chunks);
-  const relabel = runScorePass(groups, config);
-  for (const [idx, lab] of strays) relabel.set(idx, lab);
+  const pass1 = buildIntraRegions(chunks);
+  const relabel = runScorePass(pass1.groups, config);
+  for (const [idx, lab] of pass1.strays) relabel.set(idx, lab);
+
+  const complexChrs = new Set<string>();
+  for (const g of pass1.groups) {
+    if (g.baseOrder.length >= config.complexMin) complexChrs.add(g.baseOrder[0].chunk.chrBase);
+  }
+  if (!complexChrs.size) return relabel;
+
+  const pass2 = buildIntraRegions(chunks, new Set(relabel.keys()));
+  const complexGroups = pass2.groups.filter(
+    (g) => g.baseOrder.length > 0 && complexChrs.has(g.baseOrder[0].chunk.chrBase)
+  );
+  const relabel2 = runScorePass(complexGroups, config);
+  for (const [idx, lab] of relabel2) relabel.set(idx, lab);
+  for (const [idx, lab] of pass2.strays) {
+    if (complexChrs.has(chunks[idx].chrBase)) relabel.set(idx, lab);
+  }
 
   return relabel;
 };

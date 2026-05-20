@@ -10,6 +10,25 @@ export const INTRA_RELABEL_LABEL: Record<IntraRelabelMode, string> = {
   score: "Intra: score",
 };
 
+export interface IntraState {
+  relabel: IntraRelabelMode;
+  windowMbp: number;
+  minBackbones: number;
+  gapStopMbp: number;
+  driftK: number;
+  complexMin: number;
+}
+
+const clampIntra = (patch: Partial<IntraState>): Partial<IntraState> => {
+  const out: Partial<IntraState> = { ...patch };
+  if (out.windowMbp !== undefined) out.windowMbp = Math.max(0, out.windowMbp);
+  if (out.minBackbones !== undefined) out.minBackbones = Math.max(1, out.minBackbones);
+  if (out.gapStopMbp !== undefined) out.gapStopMbp = Math.max(0, out.gapStopMbp);
+  if (out.driftK !== undefined) out.driftK = Math.max(0, out.driftK);
+  if (out.complexMin !== undefined) out.complexMin = Math.max(1, Math.round(out.complexMin));
+  return out;
+};
+
 interface VisualizationState {
   gapBp: number;
   hiddenThreshold: number;
@@ -17,12 +36,7 @@ interface VisualizationState {
   commonOnly: boolean;
   denoise: boolean;
   sharedAxis: boolean;
-  intraRelabel: IntraRelabelMode;
-  intraWindowMbp: number;
-  intraMinBackbones: number;
-  intraGapStopRatio: number;
-  intraGroupCount: number;
-  intraMarkPercentile: number;
+  intra: IntraState;
   boundaryTicks: boolean;
   stripBlankMbp: number;
   svgW: number;
@@ -38,12 +52,7 @@ interface VisualizationActions {
   setCommonOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
-  setIntraRelabel: (v: IntraRelabelMode | ((prev: IntraRelabelMode) => IntraRelabelMode)) => void;
-  setIntraWindowMbp: (v: number) => void;
-  setIntraMinBackbones: (v: number) => void;
-  setIntraGapStopRatio: (v: number) => void;
-  setIntraGroupCount: (v: number) => void;
-  setIntraMarkPercentile: (v: number) => void;
+  setIntra: (patch: Partial<IntraState> | ((prev: IntraState) => Partial<IntraState>)) => void;
   setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
@@ -60,12 +69,14 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   commonOnly: true,
   denoise: true,
   sharedAxis: true,
-  intraRelabel: INTRA_RELABEL_CYCLE[0],
-  intraWindowMbp: 100,
-  intraMinBackbones: 10,
-  intraGapStopRatio: 3,
-  intraGroupCount: 2,
-  intraMarkPercentile: 0.2,
+  intra: {
+    relabel: INTRA_RELABEL_CYCLE[0],
+    windowMbp: 100,
+    minBackbones: 10,
+    gapStopMbp: 10,
+    driftK: 0.5,
+    complexMin: 10,
+  },
   boundaryTicks: false,
   stripBlankMbp: 300,
   svgW: 900,
@@ -79,12 +90,11 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setCommonOnly: (v) => set((s) => ({ commonOnly: typeof v === "function" ? v(s.commonOnly) : v })),
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
-  setIntraRelabel: (v) => set((s) => ({ intraRelabel: typeof v === "function" ? v(s.intraRelabel) : v })),
-  setIntraWindowMbp: (v) => set({ intraWindowMbp: Math.max(0, v) }),
-  setIntraMinBackbones: (v) => set({ intraMinBackbones: Math.max(1, v) }),
-  setIntraGapStopRatio: (v) => set({ intraGapStopRatio: Math.max(1, v) }),
-  setIntraGroupCount: (v) => set({ intraGroupCount: Math.max(2, Math.round(v)) }),
-  setIntraMarkPercentile: (v) => set({ intraMarkPercentile: Math.min(1, Math.max(0, v)) }),
+  setIntra: (patch) =>
+    set((s) => {
+      const next = typeof patch === "function" ? patch(s.intra) : patch;
+      return { intra: { ...s.intra, ...clampIntra(next) } };
+    }),
   setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
