@@ -2,18 +2,9 @@ import { OTHERS_CYCLE, OthersMode } from "@/src/constants";
 import { TooltipInfo } from "@/types";
 import { create } from "zustand";
 
-export const INTRA_RELABEL_CYCLE = ["score", "minor", "off"] as const;
-export type IntraRelabelMode = (typeof INTRA_RELABEL_CYCLE)[number];
-export const INTRA_RELABEL_LABEL: Record<IntraRelabelMode, string> = {
-  off: "Intra: off",
-  minor: "Intra: minor",
-  score: "Intra: score",
-};
-
 export interface IntraState {
-  relabel: IntraRelabelMode;
-  windowMbp: number;
-  minBackbones: number;
+  relabel: boolean;
+  minLocalEvents: number;
   gapStopMbp: number;
   driftK: number;
   complexMin: number;
@@ -21,8 +12,7 @@ export interface IntraState {
 
 const clampIntra = (patch: Partial<IntraState>): Partial<IntraState> => {
   const out: Partial<IntraState> = { ...patch };
-  if (out.windowMbp !== undefined) out.windowMbp = Math.max(0, out.windowMbp);
-  if (out.minBackbones !== undefined) out.minBackbones = Math.max(1, out.minBackbones);
+  if (out.minLocalEvents !== undefined) out.minLocalEvents = Math.max(100, Math.round(out.minLocalEvents));
   if (out.gapStopMbp !== undefined) out.gapStopMbp = Math.max(0, out.gapStopMbp);
   if (out.driftK !== undefined) out.driftK = Math.max(0, out.driftK);
   if (out.complexMin !== undefined) out.complexMin = Math.max(1, Math.round(out.complexMin));
@@ -70,12 +60,11 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   denoise: true,
   sharedAxis: true,
   intra: {
-    relabel: INTRA_RELABEL_CYCLE[0],
-    windowMbp: 100,
-    minBackbones: 10,
+    relabel: true,
+    minLocalEvents: 500,
     gapStopMbp: 10,
     driftK: 0.5,
-    complexMin: 10,
+    complexMin: 5,
   },
   boundaryTicks: false,
   stripBlankMbp: 300,

@@ -10,11 +10,7 @@ import {
   computeRibbons,
   SlotSpec,
 } from "@/src/components/visualizationTab/utils";
-import {
-  relabelIntraChunks,
-  type IntraRelabelMode,
-  type IntraScoreConfig,
-} from "@/src/components/visualizationTab/relabel";
+import { relabelIntraChunks, type IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
 
 export interface VisualizationLayout {
   baseRow: BaseRow;
@@ -150,7 +146,7 @@ export const useVisualizationLayout = (
   denoise: boolean,
   sharedAxis: boolean,
   stripBlankMbp: number,
-  intraRelabel: IntraRelabelMode,
+  intraRelabel: boolean,
   intraScoreConfig: IntraScoreConfig
 ): VisualizationLayout[] => {
   const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1_000_000 : 0;
@@ -206,13 +202,13 @@ export const useVisualizationLayout = (
     [chunksPerPair, othersMode]
   );
 
-  const { windowMbp, minBackbones, gapStopMbp, driftK, complexMin } = intraScoreConfig;
+  const { minLocalEvents, gapStopMbp, driftK, complexMin } = intraScoreConfig;
   const relabeledChunksPerPair = useMemo<Chunk[][]>(() => {
-    if (intraRelabel === "off") return cleanChunksPerPair;
+    if (!intraRelabel) return cleanChunksPerPair;
     return cleanChunksPerPair.map((cs) =>
-      relabelIntraChunks(cs, intraRelabel, { windowMbp, minBackbones, gapStopMbp, driftK, complexMin })
+      relabelIntraChunks(cs, intraRelabel, { minLocalEvents, gapStopMbp, driftK, complexMin })
     );
-  }, [cleanChunksPerPair, intraRelabel, windowMbp, minBackbones, gapStopMbp, driftK, complexMin]);
+  }, [cleanChunksPerPair, intraRelabel, minLocalEvents, gapStopMbp, driftK, complexMin]);
 
   const tracks = useMemo<Track[]>(
     () => buildTracks(cleanChunksPerPair, pairs.length, othersMode),

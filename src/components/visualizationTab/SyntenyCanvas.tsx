@@ -46,8 +46,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     stripBlankMbp,
     intra.relabel,
     {
-      windowMbp: intra.windowMbp,
-      minBackbones: intra.minBackbones,
+      minLocalEvents: intra.minLocalEvents,
       gapStopMbp: intra.gapStopMbp,
       driftK: intra.driftK,
       complexMin: intra.complexMin,
