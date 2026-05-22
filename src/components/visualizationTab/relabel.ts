@@ -63,7 +63,7 @@ const pivotX = (c: Chunk): number => {
 
 // Two inverteds within this relative pivot-X distance are treated as one event.
 // const PIVOT_CLUSTER_THRESHOLD = 500_000;
-const PIVOT_CLUSTER_THRESHOLD = 3_000_000;
+const PIVOT_CLUSTER_THRESHOLD = 1_000_000;
 
 // Pre-normalize, candidates whose sorted scores are within this tolerance
 // collapse into one event-weighted group score so a cluster of near-equal
@@ -78,18 +78,26 @@ const SCORE_DIFF_TOL = 0.03;
  * of barely-close items from drifting one cluster across a wide span.
  */
 const clusterInverteds = (items: IntraItem[]): IntraItem[][] => {
-  const sorted = [...items].sort((a, b) => pivotX(a.chunk) - pivotX(b.chunk));
+  const n = items.length;
+  const order = new Array<number>(n);
+  const pivots = new Array<number>(n);
+  for (let i = 0; i < n; i++) {
+    order[i] = i;
+    pivots[i] = pivotX(items[i].chunk);
+  }
+  order.sort((a, b) => pivots[a] - pivots[b]);
+
   const clusters: IntraItem[][] = [];
   const centers: number[] = [];
-  for (const item of sorted) {
-    const p = pivotX(item.chunk);
-    const i = clusters.length - 1;
-    if (i >= 0 && Math.abs(p - centers[i]) <= PIVOT_CLUSTER_THRESHOLD) {
-      const n = clusters[i].length;
-      centers[i] = (centers[i] * n + p) / (n + 1);
-      clusters[i].push(item);
+  for (const i of order) {
+    const p = pivots[i];
+    const ci = clusters.length - 1;
+    if (ci >= 0 && Math.abs(p - centers[ci]) <= PIVOT_CLUSTER_THRESHOLD) {
+      const k = clusters[ci].length;
+      centers[ci] = (centers[ci] * k + p) / (k + 1);
+      clusters[ci].push(items[i]);
     } else {
-      clusters.push([item]);
+      clusters.push([items[i]]);
       centers.push(p);
     }
   }
@@ -115,11 +123,13 @@ const clusterEnvelopeCenter = (cluster: IntraItem[]) => {
 const makeIsBackbone = (q: number[]) => (k: number) => q[k] === k;
 
 const computeQ = (items: IntraItem[]): number[] => {
-  const rank = new Map<number, number>();
-  [...items]
-    .sort((a, b) => a.chunk.bp1Query - b.chunk.bp1Query || a.idx - b.idx)
-    .forEach((item, r) => rank.set(item.idx, r));
-  return items.map((item) => rank.get(item.idx) ?? 0);
+  const n = items.length;
+  const order = new Array<number>(n);
+  for (let i = 0; i < n; i++) order[i] = i;
+  order.sort((a, b) => items[a].chunk.bp1Query - items[b].chunk.bp1Query || items[a].idx - items[b].idx);
+  const q = new Array<number>(n);
+  for (let r = 0; r < n; r++) q[order[r]] = r;
+  return q;
 };
 
 // Empty map returns the input ref so downstream memoization short-circuits.
@@ -139,11 +149,11 @@ const STRAY_MAX_EVENTS = 50;
  * Build per-chr regions by cutting at the smallest closed permutation window: a run from `runStart` extends
  * until `set(q[runStart..runEnd)) === {runStart..runEnd-1}`.
  */
-const buildIntraRegions = (chunks: Chunk[], skip?: Set<number>): BuildIntraResult => {
+const buildRegions = (chunks: Chunk[], skip?: Set<number>): BuildIntraResult => {
   const groups = new Map<string, IntraItem[]>();
   chunks.forEach((chunk, idx) => {
     if (skip?.has(idx)) return;
-    if (!chunk.chrBase || chunk.chrBase !== chunk.chrQuery) return;
+    if (chunk.chrBase !== chunk.chrQuery) return;
     let arr = groups.get(chunk.chrBase);
     if (!arr) {
       arr = [];
@@ -391,7 +401,7 @@ const runScorePass = (
   for (const group of groups) {
     const geom = makeGeometry(group);
     const { baseOrder, baseCenter, isBackbone, backboneSample } = geom;
-    const chrBase = baseOrder[0]?.chunk.chrBase;
+    const chrBase = baseOrder[0].chunk.chrBase;
 
     const globalSamples: { value: number; weight: number }[] = [];
     for (let k = 0; k < baseOrder.length; k++) {
@@ -424,7 +434,7 @@ const runScorePass = (
 
       const distinctScores = new Set<number>();
       for (const c of candidates) distinctScores.add(c.score);
-      if (chrBase && distinctScores.size >= complexMin) complexChrs.add(chrBase);
+      if (distinctScores.size >= complexMin) complexChrs.add(chrBase);
 
       if (candidates.length === 2) {
         if (candidates[0].score !== candidates[1].score) markCand(candidates[1]);
@@ -445,25 +455,29 @@ const runScorePass = (
 };
 
 /**
- * Score labeler. Pass 1 runs the normal pipeline and flags chromosomes that contain at least one region with >=
- * `complexMin` merged score groups. Pass 2 rebuilds regions with pass-1 translocations excluded and re-scores
- * flagged chromosomes.
+ * Score labeler. Iteratively rebuilds regions with already-relabeled chunks excluded, then rescores. First
+ * iteration covers all chromosomes; each subsequent iteration narrows to chrs the previous pass flagged
+ * complex (>= `complexMin` merged score groups in any region). Stops when nothing is flagged complex or
+ * an iteration produces no new labels.
  */
 const relabelByScore = (chunks: Chunk[], config: IntraScoreConfig) => {
-  const pass1 = buildIntraRegions(chunks);
-  const { relabel, complexChrs } = runScorePass(pass1.groups, config);
-  for (const [idx, lab] of pass1.strays) relabel.set(idx, lab);
+  const relabel = new Map<number, ChunkEvent>();
+  let restrictTo: Set<string> | null = null;
 
-  if (!complexChrs.size) return relabel;
-
-  const pass2 = buildIntraRegions(chunks, new Set(relabel.keys()));
-  const complexGroups = pass2.groups.filter(
-    (g) => g.baseOrder.length > 0 && complexChrs.has(g.baseOrder[0].chunk.chrBase)
-  );
-  const { relabel: relabel2 } = runScorePass(complexGroups, config);
-  for (const [idx, lab] of relabel2) relabel.set(idx, lab);
-  for (const [idx, lab] of pass2.strays) {
-    if (complexChrs.has(chunks[idx].chrBase)) relabel.set(idx, lab);
+  while (true) {
+    const pass = buildRegions(chunks, new Set(relabel.keys()));
+    const chrFilter = restrictTo;
+    const groups = chrFilter
+      ? pass.groups.filter((g) => chrFilter.has(g.baseOrder[0].chunk.chrBase))
+      : pass.groups;
+    const sizeBefore = relabel.size;
+    const { relabel: passRelabel, complexChrs } = runScorePass(groups, config);
+    for (const [idx, lab] of passRelabel) relabel.set(idx, lab);
+    for (const [idx, lab] of pass.strays) {
+      if (!chrFilter || chrFilter.has(chunks[idx].chrBase)) relabel.set(idx, lab);
+    }
+    if (!complexChrs.size || relabel.size === sizeBefore) break;
+    restrictTo = complexChrs;
   }
 
   return relabel;
