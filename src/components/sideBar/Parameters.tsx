@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
-import { batchExportAll } from "@/src/components/visualizationTab/batchExport";
+import { abortBatchExport, batchExportAll } from "@/src/components/visualizationTab/batchExport";
 
 const ChrSelect = () => {
   // Unique chromosomes in order of first appearance
@@ -29,28 +28,43 @@ const ChrSelect = () => {
   );
 };
 
-export const Parameters = () => {
+const RunActions = () => {
   const base = useAppStore((s) => s.base);
   const queryFiles = useAppStore((s) => s.queryFiles);
   const chromosomes = useAppStore((s) => s.chromosomes);
-  const groupThreshold = useAppStore((s) => s.groupThreshold);
-  const setAppState = useAppStore((s) => s.setAppState);
-  const runAnalysis = useAppStore((s) => s.runAnalysis);
   const running = useAppStore((s) => s.running);
+  const batching = useAppStore((s) => s.batching);
+  const runAnalysis = useAppStore((s) => s.runAnalysis);
   const autoSort = useAppStore((s) => s.autoSort);
-  const [batching, setBatching] = useState(false);
 
-  const canRun = Boolean(base && queryFiles?.[0]);
+  const canRun = Boolean(base && queryFiles?.[0]) && !running;
   const canBatch = canRun && chromosomes.length > 0;
 
-  const handleBatch = async () => {
-    setBatching(true);
-    try {
-      await batchExportAll();
-    } finally {
-      setBatching(false);
-    }
+  const batchClass = `${styles.runBtn} ${batching ? styles.abortBtn : ""}`;
+
+  const handleBatch = () => {
+    if (batching) abortBatchExport();
+    else void batchExportAll();
   };
+
+  return (
+    <>
+      <button className={styles.runBtn} disabled={!canRun || batching} onClick={runAnalysis} type="button">
+        {running ? "RUNNING..." : "▶ RUN"}
+      </button>
+      <button className={styles.runBtn} disabled={!canRun || batching} onClick={autoSort} type="button">
+        {running ? "RUNNING..." : "▶ AUTOSORT"}
+      </button>
+      <button className={batchClass} disabled={!batching && !canBatch} onClick={handleBatch} type="button">
+        {batching ? "✕ ABORT" : "↓ ALL CHR (ZIP)"}
+      </button>
+    </>
+  );
+};
+
+export const Parameters = () => {
+  const groupThreshold = useAppStore((s) => s.groupThreshold);
+  const setAppState = useAppStore((s) => s.setAppState);
 
   return (
     <div className={styles.panel}>
@@ -71,20 +85,7 @@ export const Parameters = () => {
           />
         </div>
 
-        <button className={styles.runBtn} disabled={!canRun || running} onClick={runAnalysis} type="button">
-          {running ? "RUNNING..." : "▶ RUN"}
-        </button>
-        <button className={styles.runBtn} disabled={!canRun || running || batching} onClick={autoSort} type="button">
-          {running ? "RUNNING..." : "▶ AUTOSORT"}
-        </button>
-        <button
-          className={styles.runBtn}
-          disabled={!canBatch || running || batching}
-          onClick={handleBatch}
-          type="button"
-        >
-          {batching ? "EXPORTING..." : "↓ ALL CHR (ZIP)"}
-        </button>
+        <RunActions />
       </div>
     </div>
   );

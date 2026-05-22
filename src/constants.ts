@@ -52,3 +52,17 @@ export const OTHERS_LABEL: Record<OthersMode, string> = {
   group: "Group others",
   show: "Show all",
 };
+
+export const LINE_MAPPING = {
+  "Chinese Spring (dataset 1)a": "cs",
+  "Chinese Spring (dataset 2)a": "cs",
+  ArinaLrFor: "arina",
+  Jagger: "jagger",
+  Julius: "julius",
+  "LongReach Lancer": "lancer",
+  "CDC Landmark": "landmark",
+  Mace: "mace",
+  "SY Mattis": "mattis",
+  "Norin 61": "norin61",
+  "CDC Stanley": "stanley",
+};

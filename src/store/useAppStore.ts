@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { BedFile, FilesHandler, ResultRow } from "@/types";
-import { getChromosomes, parseBED, queryGene, fileToText } from "@/src/utils";
+import { BedFile, CentromereData, FilesHandler, ResultRow } from "@/types";
+import { getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
 
 export type Result = {
@@ -19,7 +19,10 @@ interface AppState {
   commonIds: Set<number>;
   error: string | null;
   running: boolean;
+  batching: boolean;
   palette: Record<string, string>;
+  centromereName: string | null;
+  centromere: CentromereData;
 }
 
 interface AppActions {
@@ -31,6 +34,8 @@ interface AppActions {
   clearQuery: (i: number) => void;
   reorderQuery: (from: number, to: number) => void;
   swapBaseWithQuery: (i: number) => Promise<void>;
+  setCentromere: FilesHandler;
+  clearCentromere: () => void;
   runAnalysis: () => Promise<void>;
   autoSort: () => Promise<void>;
 }
@@ -49,7 +54,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   commonIds: new Set(),
   error: null,
   running: false,
+  batching: false,
   palette: {},
+  centromereName: null,
+  centromere: new Map(),
 
   // ── actions ────────────────────────────────────────────────────────────
   setBase: async (files) => {
@@ -79,6 +87,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
       next.splice(to, 0, moved);
       return { queryFiles: next, error: null };
     }),
+  setCentromere: async (files) => {
+    const file = files?.[0];
+    if (!file) return set({ centromereName: null, centromere: new Map() });
+    const text = await fileToText(file);
+    set({ centromereName: file.name, centromere: parseCentromere(text) });
+  },
+  clearCentromere: () => set({ centromereName: null, centromere: new Map() }),
   swapBaseWithQuery: async (i) => {
     const { baseFile, queryFiles } = get();
     const incoming = queryFiles[i];

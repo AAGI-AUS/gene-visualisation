@@ -51,7 +51,7 @@ export const BaseRowLayer = ({ row, noLine, palette, fontSize }: BaseRowLayerPro
       <g key={bar.chr}>
         {!noLine && <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={palette[bar.chr]} />}
         {bar.pw > 24 && (
-          <ChromLabel x={bar.px + bar.pw / 2} y={row.y} fill={palette[bar.chr]} text={bar.chr} fontSize={fontSize} />
+          <ChromLabel x={bar.px + 11} y={row.y} fill={palette[bar.chr]} text={bar.chr} fontSize={fontSize} />
         )}
       </g>
     ))}
@@ -88,7 +88,7 @@ export const QueryRowLayer = ({ row, palette, fontSize }: QueryRowLayerProps) =>
         <g key={key}>
           <HorizontalLine x={slot.px} width={slot.pw} y={row.y} stroke={col} strokeDasharray={dash} />
           {(slot.pw > 24 || slot.kind === "others") && (
-            <ChromLabel x={slot.px + slot.pw / 2} y={row.y} fill={col} text={label} fontSize={fontSize} />
+            <ChromLabel x={slot.px + 11} y={row.y} fill={col} text={label} fontSize={fontSize} />
           )}
         </g>
       );
