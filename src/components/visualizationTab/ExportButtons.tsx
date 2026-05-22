@@ -1,11 +1,17 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
-import { exportPng, exportSvg } from "@/src/components/visualizationTab/utils";
+import { exportPng, exportSvg, triggerDownload } from "@/src/components/visualizationTab/utils";
+import { buildNotableEventsCsv } from "@/src/components/visualizationTab/batchExport";
 
 interface ExportButtonsProps {
   svgRef: RefObject<SVGSVGElement | null>;
   filenameBase: string;
 }
+
+const exportNotableEventsCsv = (filename: string): void => {
+  const csv = buildNotableEventsCsv();
+  triggerDownload(new Blob([csv], { type: "text/csv" }), filename);
+};
 
 export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => (
   <div className={styles.exportGroup}>
@@ -22,6 +28,13 @@ export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => (
       type="button"
     >
       ↓ PNG
+    </button>
+    <button
+      className={styles.exportBtn}
+      onClick={() => exportNotableEventsCsv(`${filenameBase}.csv`)}
+      type="button"
+    >
+      ↓ CSV
     </button>
   </div>
 );

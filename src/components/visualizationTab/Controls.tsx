@@ -5,23 +5,12 @@ import { CHUNK_COLOR, ChunkEvent, COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LAB
 import { useAppStore } from "@/src/store/useAppStore";
 import { NumberControl } from "@/src/components/visualizationTab/NumberControl";
 import { ExportButtons } from "@/src/components/visualizationTab/ExportButtons";
+import { ToggleButton } from "@/src/components/visualizationTab/ToggleButton";
+import { IntraRelabelControls } from "@/src/components/visualizationTab/IntraRelabelControls";
 
 interface ControlsProps {
   svgRef: RefObject<SVGSVGElement | null>;
 }
-
-interface ToggleButtonProps {
-  active: boolean;
-  onClick: () => void;
-  text: string;
-}
-
-const ToggleButton = ({ active, onClick, text }: ToggleButtonProps) => (
-  <button className={`${styles.toggleBtn} ${active ? styles.toggleBtnOn : ""}`} onClick={onClick} type="button">
-    <span className={styles.toggleDot} />
-    {text}
-  </button>
-);
 
 const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
   { key: "synteny", short: "synt" },
@@ -38,7 +27,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
-  const boundaryLabels = useVisualizationStore((s) => s.boundaryLabels);
+  const boundaryTicks = useVisualizationStore((s) => s.boundaryTicks);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
   const fontSize = useVisualizationStore((s) => s.fontSize);
@@ -48,7 +37,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
-  const setBoundaryLabels = useVisualizationStore((s) => s.setBoundaryLabels);
+  const setBoundaryTicks = useVisualizationStore((s) => s.setBoundaryTicks);
   const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const setFontSize = useVisualizationStore((s) => s.setFontSize);
@@ -59,26 +48,22 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
   return (
     <div className={styles.controls}>
-      <NumberControl
-        label="Gap (bp)"
-        value={gapBp}
-        onChange={setGapBp}
-        step={10000}
-        fallback={10000}
-        width={71}
-      />
-
+      <NumberControl label="Gap" unit="kbp" value={gapBp} onChange={setGapBp} step={10} min={10} width={55} />
       <div className={styles.sep} />
-
       <NumberControl
-        label="Hidden threshold (genes)"
+        label="Hidden threshold"
+        unit="genes"
         value={hiddenThreshold}
         onChange={setHiddenThreshold}
-        step={1}
-        fallback={0}
-        width={55}
       />
-
+      <div className={styles.sep} />
+      <NumberControl
+        label="Strip blank"
+        unit="Mbp"
+        value={stripBlankMbp}
+        onChange={setStripBlankMbp}
+        step={50}
+      />
       <div className={styles.sep} />
 
       {/* toggles */}
@@ -86,16 +71,17 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       <ToggleButton active={commonOnly} onClick={() => setCommonOnly((v) => !v)} text={commonText} />
       <ToggleButton active={denoise} onClick={() => setDenoise((v) => !v)} text="Denoise" />
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
-      <ToggleButton active={boundaryLabels} onClick={() => setBoundaryLabels((v) => !v)} text="Intra labels" />
+      <ToggleButton active={boundaryTicks} onClick={() => setBoundaryTicks((v) => !v)} text="Intra ticks" />
 
-      <NumberControl
-        label="Strip blank (Mbp)"
-        value={stripBlankMbp}
-        onChange={setStripBlankMbp}
-        step={50}
-        fallback={0}
-        width={55}
-      />
+      {/* Render + export cluster (right-aligned) */}
+      <div className={styles.rightCluster}>
+        <NumberControl label="Font" value={fontSize} onChange={setFontSize} min={6} />
+        <NumberControl label="Width" value={svgW} onChange={setSvgW} min={400} step={50} width={60} />
+        <ExportButtons svgRef={svgRef} filenameBase={selectedChr.toLowerCase()} />
+      </div>
+
+      <div className={styles.rowBreak} />
+      <IntraRelabelControls />
 
       {/* legend */}
       <div className={styles.legend}>
@@ -105,29 +91,6 @@ export const Controls = ({ svgRef }: ControlsProps) => {
             {short}
           </div>
         ))}
-      </div>
-
-      {/* Render + export cluster (right-aligned) */}
-      <div className={styles.rightCluster}>
-        <NumberControl
-          label="Font"
-          value={fontSize}
-          onChange={setFontSize}
-          min={6}
-          step={1}
-          fallback={11}
-          width={45}
-        />
-        <NumberControl
-          label="Width"
-          value={svgW}
-          onChange={setSvgW}
-          min={400}
-          step={50}
-          fallback={900}
-          width={60}
-        />
-        <ExportButtons svgRef={svgRef} filenameBase={selectedChr.toLowerCase()} />
       </div>
     </div>
   );

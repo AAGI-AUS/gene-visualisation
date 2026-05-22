@@ -6,6 +6,7 @@ import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
 import { CHROM_THICKNESS, ROW_GAP, SVG_H, TOOLTIP_SPACING } from "@/src/constants";
 import { ChunkTooltip } from "@/src/components/visualizationTab/ChunkTooltip";
 import { Result } from "@/src/store/useAppStore";
+import { registerSvgEl } from "@/src/components/visualizationTab/batchExport";
 
 interface VisualizationTabProps {
   data: Result;
@@ -31,6 +32,11 @@ export const VisualizationTab = ({ data }: VisualizationTabProps) => {
     ro.observe(el);
     return () => ro.disconnect();
   }, [setSvgW]);
+
+  useEffect(() => {
+    registerSvgEl(svgRef.current);
+    return () => registerSvgEl(null);
+  });
 
   if (!data.length) {
     return (

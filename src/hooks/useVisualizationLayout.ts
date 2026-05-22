@@ -10,6 +10,7 @@ import {
   computeRibbons,
   SlotSpec,
 } from "@/src/components/visualizationTab/utils";
+import { relabelIntraChunks, type IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
 
 export interface VisualizationLayout {
   baseRow: BaseRow;
@@ -31,6 +32,108 @@ interface Track {
   needsOthersStub: boolean;
 }
 
+// Tracks: 0..N. Track i is the row shared by pair (i-1)'s query side and pair i's base side.
+// Each pair p contributes chrBase to track p and chrQuery to track p+1 in a single pass.
+// The pair-major order ensures track p's chrQuery side (from pair p-1) is populated before
+// pair p's chrBase contribution checks the restrict set.
+const buildTracks = (cleanChunksPerPair: Chunk[][], pairCount: number, othersMode: OthersMode): Track[] => {
+  const out: Track[] = [];
+  for (let i = 0; i < pairCount + 1; i++) {
+    out.push({ chrMax: new Map(), chrMin: new Map(), chrOrder: [], needsOthersStub: false });
+  }
+
+  for (let p = 0; p < pairCount; p++) {
+    const baseTrack = out[p];
+    const queryTrack = out[p + 1];
+    const restrictBase = p > 0;
+
+    for (const c of cleanChunksPerPair[p]) {
+      const isHidden = othersMode !== "show" && c.isOthers;
+
+      if (!isHidden && (!restrictBase || baseTrack.chrMin.has(c.chrBase))) {
+        const minCur = baseTrack.chrMin.get(c.chrBase);
+        if (minCur === undefined || c.bp1Base < minCur) baseTrack.chrMin.set(c.chrBase, c.bp1Base);
+        const maxCur = baseTrack.chrMax.get(c.chrBase);
+        if (maxCur === undefined || c.bp2Base > maxCur) baseTrack.chrMax.set(c.chrBase, c.bp2Base);
+      }
+
+      if (othersMode === "group" && c.isOthers) {
+        queryTrack.needsOthersStub = true;
+      } else if (!isHidden) {
+        const minCur = queryTrack.chrMin.get(c.chrQuery);
+        if (minCur === undefined || c.bp1Query < minCur) queryTrack.chrMin.set(c.chrQuery, c.bp1Query);
+        const maxCur = queryTrack.chrMax.get(c.chrQuery);
+        if (maxCur === undefined || c.bp2Query > maxCur) queryTrack.chrMax.set(c.chrQuery, c.bp2Query);
+      }
+    }
+  }
+
+  for (const t of out) t.chrOrder = Array.from(t.chrMin.keys()).sort();
+  return out;
+};
+
+// Partition tracks into maximal runs of consecutive tracks whose chr sets are identical.
+// Returns groupOf[i] = group index for track i.
+const partitionTracksByChrSet = (tracks: Track[]): number[] => {
+  const sameSet = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false;
+    const sb = new Set(b);
+    return a.every((c) => sb.has(c));
+  };
+
+  const groupOf: number[] = [0];
+  for (let i = 1; i < tracks.length; i++) {
+    if (sameSet(tracks[i - 1].chrOrder, tracks[i].chrOrder)) {
+      groupOf.push(groupOf[i - 1]);
+    } else {
+      groupOf.push(groupOf[i - 1] + 1);
+    }
+  }
+  return groupOf;
+};
+
+// Within each group, unify per-chr min/max so every track in the group shares the same axis.
+const computeGroupBounds = (
+  tracks: Track[],
+  groupOf: number[]
+): { groupChrMin: Map<string, number>[]; groupChrMax: Map<string, number>[] } => {
+  const groupCount = (groupOf[tracks.length - 1] ?? -1) + 1;
+  const groupChrMin: Map<string, number>[] = Array.from({ length: groupCount }, () => new Map());
+  const groupChrMax: Map<string, number>[] = Array.from({ length: groupCount }, () => new Map());
+  for (let i = 0; i < tracks.length; i++) {
+    const g = groupOf[i];
+    tracks[i].chrMin.forEach((v, chr) => {
+      const cur = groupChrMin[g].get(chr);
+      if (cur === undefined || v < cur) groupChrMin[g].set(chr, v);
+    });
+    tracks[i].chrMax.forEach((v, chr) => {
+      const cur = groupChrMax[g].get(chr);
+      if (cur === undefined || v > cur) groupChrMax[g].set(chr, v);
+    });
+  }
+  return { groupChrMin, groupChrMax };
+};
+
+// Extend each group's chrMin out to the global unified min, unless that extension would
+// create a leading blank wider than stripBlankBp (in which case the tighter group-min stays).
+const applyGlobalExtension = (
+  groupChrMin: Map<string, number>[],
+  unifiedChrMin: Map<string, number>,
+  stripBlankBp: number
+): Map<string, number>[] =>
+  groupChrMin.map((gMin) => {
+    const cmin = new Map<string, number>();
+    gMin.forEach((v, chr) => {
+      const u = unifiedChrMin.get(chr);
+      if (u !== undefined && (stripBlankBp <= 0 || v - u <= stripBlankBp)) {
+        cmin.set(chr, u);
+      } else {
+        cmin.set(chr, v);
+      }
+    });
+    return cmin;
+  });
+
 export const useVisualizationLayout = (
   pairs: PairInput[],
   baseLabel: string,
@@ -42,7 +145,9 @@ export const useVisualizationLayout = (
   commonOnly: boolean,
   denoise: boolean,
   sharedAxis: boolean,
-  stripBlankMbp: number
+  stripBlankMbp: number,
+  intraRelabel: boolean,
+  intraScoreConfig: IntraScoreConfig
 ): VisualizationLayout[] => {
   const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1_000_000 : 0;
   const filteredData = useMemo<ResultRow[][]>(() => {
@@ -97,46 +202,18 @@ export const useVisualizationLayout = (
     [chunksPerPair, othersMode]
   );
 
-  // Tracks: 0..N. Track i is the row shared by pair (i-1)'s query side and pair i's base side.
-  // Each pair p contributes chrBase to track p and chrQuery to track p+1 in a single pass.
-  // The pair-major order ensures track p's chrQuery side (from pair p-1) is populated before
-  // pair p's chrBase contribution checks the restrict set.
-  const tracks = useMemo<Track[]>(() => {
-    const trackCount = pairs.length + 1;
-    const out: Track[] = [];
-    for (let i = 0; i < trackCount; i++) {
-      out.push({ chrMax: new Map(), chrMin: new Map(), chrOrder: [], needsOthersStub: false });
-    }
+  const { minLocalEvents, gapStopMbp, driftK, complexMin } = intraScoreConfig;
+  const relabeledChunksPerPair = useMemo<Chunk[][]>(() => {
+    if (!intraRelabel) return cleanChunksPerPair;
+    return cleanChunksPerPair.map((cs) =>
+      relabelIntraChunks(cs, intraRelabel, { minLocalEvents, gapStopMbp, driftK, complexMin })
+    );
+  }, [cleanChunksPerPair, intraRelabel, minLocalEvents, gapStopMbp, driftK, complexMin]);
 
-    for (let p = 0; p < pairs.length; p++) {
-      const baseTrack = out[p];
-      const queryTrack = out[p + 1];
-      const restrictBase = p > 0;
-
-      for (const c of cleanChunksPerPair[p]) {
-        const isHidden = othersMode !== "show" && c.isOthers;
-
-        if (!isHidden && (!restrictBase || baseTrack.chrMin.has(c.chrBase))) {
-          const minCur = baseTrack.chrMin.get(c.chrBase);
-          if (minCur === undefined || c.bp1Base < minCur) baseTrack.chrMin.set(c.chrBase, c.bp1Base);
-          const maxCur = baseTrack.chrMax.get(c.chrBase);
-          if (maxCur === undefined || c.bp2Base > maxCur) baseTrack.chrMax.set(c.chrBase, c.bp2Base);
-        }
-
-        if (othersMode === "group" && c.isOthers) {
-          queryTrack.needsOthersStub = true;
-        } else if (!isHidden) {
-          const minCur = queryTrack.chrMin.get(c.chrQuery);
-          if (minCur === undefined || c.bp1Query < minCur) queryTrack.chrMin.set(c.chrQuery, c.bp1Query);
-          const maxCur = queryTrack.chrMax.get(c.chrQuery);
-          if (maxCur === undefined || c.bp2Query > maxCur) queryTrack.chrMax.set(c.chrQuery, c.bp2Query);
-        }
-      }
-    }
-
-    for (const t of out) t.chrOrder = Array.from(t.chrMin.keys()).sort();
-    return out;
-  }, [cleanChunksPerPair, othersMode, pairs.length]);
+  const tracks = useMemo<Track[]>(
+    () => buildTracks(cleanChunksPerPair, pairs.length, othersMode),
+    [cleanChunksPerPair, othersMode, pairs.length]
+  );
 
   const unifiedAxis = useMemo(() => {
     const chrMin = new Map<string, number>();
@@ -156,63 +233,17 @@ export const useVisualizationLayout = (
     return { chrMin, chrMax, chrOrder, needsOthersStub };
   }, [tracks]);
 
-  // Per-pair axes under shared-axis. Tracks are partitioned into "groups": maximal
-  // sequences of consecutive tracks where every adjacent pair has matching chr sets. Within
-  // a group, chrMin/chrMax are unified to group-min/group-max so every track in the group
-  // shares the same axis (alignment is mandatory inside a group and never gets stripped).
-  //
-  // chrMin then extends from group-min to the global unified value — this is the only
-  // place stripping kicks in: when stripBlankBp>0, the global extension is skipped if it
-  // would create a leading blank > threshold, and the group keeps its tighter group-min.
-  // chrMax has no global extension; it stays at group-max.
+  // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
+  // unify bounds within each group, then extend chrMin out to the global unified min unless
+  // stripBlankBp would cut a leading blank. chrMax stays at group-max.
   const pairAxes = useMemo(() => {
     if (!sharedAxis) {
       return pairs.map((_, p) => ({ baseAxis: tracks[p], queryAxis: tracks[p + 1] }));
     }
 
-    const sameSet = (a: string[], b: string[]) => {
-      if (a.length !== b.length) return false;
-      const sb = new Set(b);
-      return a.every((c) => sb.has(c));
-    };
-
-    const groupOf: number[] = [0];
-    for (let i = 1; i < tracks.length; i++) {
-      if (sameSet(tracks[i - 1].chrOrder, tracks[i].chrOrder)) {
-        groupOf.push(groupOf[i - 1]);
-      } else {
-        groupOf.push(groupOf[i - 1] + 1);
-      }
-    }
-
-    const groupCount = (groupOf[tracks.length - 1] ?? -1) + 1;
-    const groupChrMin: Map<string, number>[] = Array.from({ length: groupCount }, () => new Map());
-    const groupChrMax: Map<string, number>[] = Array.from({ length: groupCount }, () => new Map());
-    for (let i = 0; i < tracks.length; i++) {
-      const g = groupOf[i];
-      tracks[i].chrMin.forEach((v, chr) => {
-        const cur = groupChrMin[g].get(chr);
-        if (cur === undefined || v < cur) groupChrMin[g].set(chr, v);
-      });
-      tracks[i].chrMax.forEach((v, chr) => {
-        const cur = groupChrMax[g].get(chr);
-        if (cur === undefined || v > cur) groupChrMax[g].set(chr, v);
-      });
-    }
-
-    const groupFinalChrMin: Map<string, number>[] = [];
-    for (let g = 0; g < groupCount; g++) {
-      const cmin = new Map<string, number>();
-      groupChrMin[g].forEach((v, chr) => {
-        const u = unifiedAxis.chrMin.get(chr);
-        if (u !== undefined && (stripBlankBp <= 0 || v - u <= stripBlankBp)) {
-          cmin.set(chr, u);
-        } else {
-          cmin.set(chr, v);
-        }
-      });
-      groupFinalChrMin.push(cmin);
-    }
+    const groupOf = partitionTracksByChrSet(tracks);
+    const { groupChrMin, groupChrMax } = computeGroupBounds(tracks, groupOf);
+    const groupFinalChrMin = applyGlobalExtension(groupChrMin, unifiedAxis.chrMin, stripBlankBp);
 
     const finalAxes: Track[] = tracks.map((t, i) => ({
       chrMin: groupFinalChrMin[groupOf[i]],
@@ -279,11 +310,11 @@ export const useVisualizationLayout = (
 
       const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, perChrPxPerBp);
 
-      const ribbons = computeRibbons(cleanChunksPerPair[p], baseRow, queryRow, othersMode);
+      const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
       const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
       const y2top = queryRow.y - RIBBON_GAP;
 
       return { baseRow, queryRow, ribbons, y1bot, y2top };
     });
-  }, [pairs, pairAxes, perChrPxPerBp, cleanChunksPerPair, baseLabel, trackW, othersMode]);
+  }, [pairs, pairAxes, perChrPxPerBp, relabeledChunksPerPair, baseLabel, trackW, othersMode]);
 };

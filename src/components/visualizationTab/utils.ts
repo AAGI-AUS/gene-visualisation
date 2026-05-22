@@ -435,7 +435,7 @@ export const pct = (n: number, total: number): string => {
   return total ? `${((n / total) * 100).toFixed(1)}%` : "0%";
 };
 
-const serializeSvg = (svgEl: SVGSVGElement): Blob => {
+export const serializeSvg = (svgEl: SVGSVGElement): Blob => {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
@@ -449,17 +449,16 @@ const serializeSvg = (svgEl: SVGSVGElement): Blob => {
   });
 };
 
-const triggerDownload = (blob: Blob, filename: string): void => {
+export const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob);
-  Object.assign(document.createElement("a"), { href: url, download: filename }).click();
-  URL.revokeObjectURL(url);
+  const a = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
-export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void => {
-  triggerDownload(serializeSvg(svgEl), filename);
-};
-
-export const exportPng = async (svgEl: SVGSVGElement, filename = "synteny.png", scale = 2): Promise<void> => {
+export const svgToPngBlob = async (svgEl: SVGSVGElement, scale = 2): Promise<Blob | null> => {
   const w = svgEl.width.baseVal.value || svgEl.clientWidth;
   const h = svgEl.height.baseVal.value || svgEl.clientHeight;
   const svgUrl = URL.createObjectURL(serializeSvg(svgEl));
@@ -471,14 +470,22 @@ export const exportPng = async (svgEl: SVGSVGElement, filename = "synteny.png", 
     canvas.width = Math.round(w * scale);
     canvas.height = Math.round(h * scale);
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.drawImage(img, 0, 0);
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (blob) triggerDownload(blob, filename);
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
+};
+
+export const exportSvg = (svgEl: SVGSVGElement, filename = "synteny.svg"): void => {
+  triggerDownload(serializeSvg(svgEl), filename);
+};
+
+export const exportPng = async (svgEl: SVGSVGElement, filename = "synteny.png", scale = 2): Promise<void> => {
+  const blob = await svgToPngBlob(svgEl, scale);
+  if (blob) triggerDownload(blob, filename);
 };

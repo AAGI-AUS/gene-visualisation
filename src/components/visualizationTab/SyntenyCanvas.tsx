@@ -1,10 +1,11 @@
-import { useMemo, type RefObject } from "react";
+import { useEffect, useMemo, type RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { Result, useAppStore } from "@/src/store/useAppStore";
 import { LinePair } from "@/src/components/visualizationTab/LinePair";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { PAD } from "@/src/constants";
 import { useVisualizationLayout, type PairInput } from "@/src/hooks/useVisualizationLayout";
+import { registerVisibleChunks } from "@/src/components/visualizationTab/batchExport";
 
 interface SyntenyCanvasProps {
   data: Result;
@@ -23,6 +24,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
+  const { relabel, ...intra } = useVisualizationStore((s) => s.intra);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
 
   const pairs = useMemo<PairInput[]>(
@@ -34,15 +36,26 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     pairs,
     base?.name.split(".")[0] ?? "",
     svgW - PAD.left - PAD.right,
-    gapBp,
+    1000 * gapBp,
     othersMode,
     hiddenThreshold,
     commonIds,
     commonOnly,
     denoise,
     sharedAxis,
-    stripBlankMbp
+    stripBlankMbp,
+    relabel,
+    intra
   );
+
+  useEffect(() => {
+    registerVisibleChunks(
+      layouts.map((l, i) => ({
+        queryLabel: pairs[i].queryLabel,
+        chunks: l.ribbons.map((r) => r.chunk),
+      }))
+    );
+  }, [layouts, pairs]);
 
   return (
     <svg ref={svgRef} className={styles.svgCanvas} width={width} height={height}>

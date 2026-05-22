@@ -2,6 +2,23 @@ import { OTHERS_CYCLE, OthersMode } from "@/src/constants";
 import { TooltipInfo } from "@/types";
 import { create } from "zustand";
 
+export interface IntraState {
+  relabel: boolean;
+  minLocalEvents: number;
+  gapStopMbp: number;
+  driftK: number;
+  complexMin: number;
+}
+
+const clampIntra = (patch: Partial<IntraState>): Partial<IntraState> => {
+  const out: Partial<IntraState> = { ...patch };
+  if (out.minLocalEvents !== undefined) out.minLocalEvents = Math.max(100, Math.round(out.minLocalEvents));
+  if (out.gapStopMbp !== undefined) out.gapStopMbp = Math.max(0, out.gapStopMbp);
+  if (out.driftK !== undefined) out.driftK = Math.max(0, out.driftK);
+  if (out.complexMin !== undefined) out.complexMin = Math.max(1, Math.round(out.complexMin));
+  return out;
+};
+
 interface VisualizationState {
   gapBp: number;
   hiddenThreshold: number;
@@ -9,7 +26,8 @@ interface VisualizationState {
   commonOnly: boolean;
   denoise: boolean;
   sharedAxis: boolean;
-  boundaryLabels: boolean;
+  intra: IntraState;
+  boundaryTicks: boolean;
   stripBlankMbp: number;
   svgW: number;
   fontSize: number;
@@ -24,7 +42,8 @@ interface VisualizationActions {
   setCommonOnly: (v: boolean | ((prev: boolean) => boolean)) => void;
   setDenoise: (v: boolean | ((prev: boolean) => boolean)) => void;
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
-  setBoundaryLabels: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setIntra: (patch: Partial<IntraState> | ((prev: IntraState) => Partial<IntraState>)) => void;
+  setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
   setFontSize: (v: number) => void;
@@ -34,26 +53,38 @@ interface VisualizationActions {
 }
 
 export const useVisualizationStore = create<VisualizationState & VisualizationActions>((set) => ({
-  gapBp: 100000,
+  gapBp: 100,
   hiddenThreshold: 10,
   othersMode: OTHERS_CYCLE[0],
   commonOnly: true,
   denoise: true,
   sharedAxis: true,
-  boundaryLabels: true,
+  intra: {
+    relabel: true,
+    minLocalEvents: 500,
+    gapStopMbp: 10,
+    driftK: 0.7,
+    complexMin: 2,
+  },
+  boundaryTicks: false,
   stripBlankMbp: 300,
   svgW: 900,
   fontSize: 11,
   hoverChunk: null,
   tooltip: null,
 
-  setGapBp: (v) => set({ gapBp: Math.max(1000, v) }),
+  setGapBp: (v) => set({ gapBp: Math.max(100, v) }),
   setHiddenThreshold: (v) => set({ hiddenThreshold: Math.max(0, v) }),
   setOthersMode: (v) => set((s) => ({ othersMode: typeof v === "function" ? v(s.othersMode) : v })),
   setCommonOnly: (v) => set((s) => ({ commonOnly: typeof v === "function" ? v(s.commonOnly) : v })),
   setDenoise: (v) => set((s) => ({ denoise: typeof v === "function" ? v(s.denoise) : v })),
   setSharedAxis: (v) => set((s) => ({ sharedAxis: typeof v === "function" ? v(s.sharedAxis) : v })),
-  setBoundaryLabels: (v) => set((s) => ({ boundaryLabels: typeof v === "function" ? v(s.boundaryLabels) : v })),
+  setIntra: (patch) =>
+    set((s) => {
+      const next = typeof patch === "function" ? patch(s.intra) : patch;
+      return { intra: { ...s.intra, ...clampIntra(next) } };
+    }),
+  setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setFontSize: (v) => set({ fontSize: Math.max(6, v) }),

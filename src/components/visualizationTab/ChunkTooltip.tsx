@@ -52,6 +52,7 @@ export const ChunkTooltip = ({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipP
     eventCounts,
     queryChromCounts,
     isOthers,
+    id,
   } = chunk;
 
   // Horizontally centre on the ribbon, clamped to canvas bounds
@@ -138,6 +139,8 @@ export const ChunkTooltip = ({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipP
             ))}
           </>
         )}
+
+        <span className={styles.tooltipCount}>{id}</span>
       </div>
     </div>
   );
