@@ -7,7 +7,16 @@ interface DropZoneProps extends React.InputHTMLAttributes<HTMLInputElement> {
   onFilesLoad: FilesHandler;
 }
 
-export const DropZone = ({ label, onFilesLoad, ...props }: DropZoneProps) => {
+const DEFAULT_ACCEPT = ".bed,.tsv";
+
+const formatAcceptHint = (accept: string): string =>
+  accept
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join("/");
+
+export const DropZone = ({ label, onFilesLoad, accept = DEFAULT_ACCEPT, ...props }: DropZoneProps) => {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -43,12 +52,12 @@ export const DropZone = ({ label, onFilesLoad, ...props }: DropZoneProps) => {
       onClick={() => inputRef.current?.click()}
     >
       <span className={styles.label}>{label}</span>
-      <span className={styles.sub}>drop .bed/.tsv or click</span>
+      <span className={styles.sub}>drop {formatAcceptHint(accept)} or click</span>
       <input
         ref={inputRef}
         className={styles.hiddenInput}
         type="file"
-        accept=".bed,.tsv,.txt"
+        accept={accept}
         onChange={onChange}
         {...props}
       />

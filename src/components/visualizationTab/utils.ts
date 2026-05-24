@@ -489,3 +489,121 @@ export const exportPng = async (svgEl: SVGSVGElement, filename = "synteny.png", 
   const blob = await svgToPngBlob(svgEl, scale);
   if (blob) triggerDownload(blob, filename);
 };
+
+const BASE_PREDICTING_LINES = ["paragon", "spelt"] as const;
+
+// Extra lines added on top of BASE_PREDICTING_LINES for specific chrs.
+const CHR_EXTRA_LINES: Record<string, readonly string[]> = {
+  "1A": ["cs"],
+  "1D": ["cs"],
+  "2A": ["cs"],
+  "2D": ["cs"],
+  "3A": ["cs"],
+  "3B": ["cs", "arina"],
+  "4A": ["cs"],
+  "4B": ["norin61", "landmark"],
+  "4D": ["cs"],
+  "5A": ["landmark", "lancer"],
+  "5B": ["arina"],
+  "6B": ["landmark", "lancer"],
+  "6D": ["cs"],
+  "7A": ["cs"],
+  "7B": ["arina"],
+};
+
+export const getPredictingLines = (chr: string): readonly string[] => [
+  ...BASE_PREDICTING_LINES,
+  ...(CHR_EXTRA_LINES[chr] ?? []),
+];
+
+const PREDICT_HALF_WINDOW_MBP = 30;
+
+// Per-chr default centromere midpoint (Mbp); unlisted chrs fall back to 300.
+const CHR_DEFAULT_MID: Record<string, number> = {
+  "1A": 210,
+  "1B": 250,
+  "1D": 170,
+  "2A": 350,
+  "2B": 350,
+  "2D": 270,
+  "3A": 320,
+  "3B": 370,
+  "3D": 250,
+  "4A": 300,
+  "4B": 300,
+  "4D": 210,
+  "5A": 250,
+  "5B": 210,
+  "5D": 190,
+  "6A": 300,
+  "6B": 320,
+  "6D": 210,
+  "7A": 370,
+  "7B": 310,
+  "7D": 350,
+};
+
+// Per-(chr, line) overrides. A number shifts the mid (still ±half-window);
+// an object replaces the whole {lo, hi} window verbatim.
+const PREDICTING_OVERRIDES: Record<string, Record<string, number | { lo: number; hi: number }>> = {
+  "2B": { paragon: { lo: 355, hi: 365 } },
+  "4A": { cs: 250 },
+  "4B": { norin61: { lo: 305, hi: 335 }, landmark: { lo: 255, hi: 285 }, spelt: 270 },
+  "4D": { spelt: { lo: 200, hi: 205 } },
+  "5B": { arina: { lo: 165, hi: 175 } },
+  "6A": { paragon: { lo: 289, hi: 293 }, spelt: { lo: 256, hi: 259 } },
+  "6D": { paragon: 245 },
+  "7B": { arina: 490 },
+};
+
+export const getPredictingRange = (chr: string, label: string) => {
+  const override = PREDICTING_OVERRIDES[chr]?.[label];
+  if (typeof override === "object") return override;
+  const mid = override ?? CHR_DEFAULT_MID[chr] ?? 300;
+  return { lo: mid - PREDICT_HALF_WINDOW_MBP, hi: mid + PREDICT_HALF_WINDOW_MBP };
+};
+
+/**
+ * Midpoint of the largest uncovered span inside `[lo, hi]`, given a set of
+ * `[bp1, bp2]` intervals. Intervals are clipped to the range and merged,
+ * then leading/trailing gaps against the boundaries are considered too.
+ * Returns `null` when the range is fully covered or invalid.
+ */
+export const findLargestGapCenter = (
+  intervals: readonly (readonly [number, number])[],
+  lo: number,
+  hi: number
+) => {
+  if (hi <= lo) return null;
+
+  const clipped: [number, number][] = [];
+  for (const [a, b] of intervals) {
+    const left = Math.max(a, lo);
+    const right = Math.min(b, hi);
+    if (left < right) clipped.push([left, right]);
+  }
+  clipped.sort((x, y) => x[0] - y[0]);
+
+  const merged: [number, number][] = [];
+  for (const [a, b] of clipped) {
+    const top = merged[merged.length - 1];
+    if (top && a <= top[1]) top[1] = Math.max(top[1], b);
+    else merged.push([a, b]);
+  }
+
+  let bestGap = 0;
+  let bestCenter: number | null = null;
+  let prev = lo;
+  for (const [a, b] of merged) {
+    if (a - prev > bestGap) {
+      bestGap = a - prev;
+      bestCenter = (prev + a) / 2;
+    }
+    prev = b;
+  }
+  if (hi - prev > bestGap) {
+    bestGap = hi - prev;
+    bestCenter = (prev + hi) / 2;
+  }
+  return bestCenter;
+};

@@ -15,6 +15,13 @@ export interface BedFile {
   rows: BedRow[];
 }
 
+/**
+ * Centromere positions in base pairs, keyed by short line code (e.g. "cs", "arina")
+ * then by chromosome (e.g. "1A"). A line can have multiple rows in the source file,
+ * so each (line, chr) pair maps to an array of positions.
+ */
+export type CentromereData = Map<string, Map<string, number[]>>;
+
 export type MainEvent = "synteny" | "inversion" | "translocation" | "noise";
 
 /** The merged / enriched row produced by queryGene(). */

@@ -1,6 +1,6 @@
 import { zip, type AsyncZippableFile } from "fflate";
 import { useAppStore } from "@/src/store/useAppStore";
-import { serializeSvg, svgToPngBlob } from "@/src/components/visualizationTab/utils";
+import { serializeSvg, svgToPngBlob, triggerDownload } from "@/src/components/visualizationTab/utils";
 import type { Chunk } from "@/types";
 import type { ChunkEvent } from "@/src/constants";
 
@@ -142,6 +142,71 @@ const collectCsvRows = (): string[] => {
 
 export const buildNotableEventsCsv = (): string => [CSV_HEADER, ...collectCsvRows()].join("\n");
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Predicted centromeres (per-line × per-chr Mbp, matching centromere file shape)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PredictedByLine = Map<string, Map<string, number>>;
+
+let visiblePredicted: PredictedByLine = new Map();
+
+export const registerVisiblePredicted = (predicted: PredictedByLine): void => {
+  visiblePredicted = predicted;
+};
+
+const PREDICTED_CHRS = [
+  "1A",
+  "1B",
+  "1D",
+  "2A",
+  "2B",
+  "2D",
+  "3A",
+  "3B",
+  "3D",
+  "4A",
+  "4B",
+  "4D",
+  "5A",
+  "5B",
+  "5D",
+  "6A",
+  "6B",
+  "6D",
+  "7A",
+  "7B",
+  "7D",
+] as const;
+
+const PREDICTED_HEADER = ["Genome Assembly", ...PREDICTED_CHRS.map((c) => `chr${c}`)].join(",");
+
+export const buildPredictedCentromeresCsv = (predicted: PredictedByLine): string => {
+  const rows = [PREDICTED_HEADER];
+  const lines = Array.from(predicted.keys()).sort();
+  for (const line of lines) {
+    const chrMap = predicted.get(line);
+    if (!chrMap) continue;
+    const cells = [line];
+    for (const chr of PREDICTED_CHRS) {
+      const bp = chrMap.get(chr);
+      cells.push(bp !== undefined ? (bp / 1_000_000).toFixed(1) : "");
+    }
+    rows.push(cells.join(","));
+  }
+  return rows.join("\n");
+};
+
+const mergePredicted = (acc: PredictedByLine, incoming: PredictedByLine): void => {
+  incoming.forEach((chrMap, line) => {
+    let into = acc.get(line);
+    if (!into) {
+      into = new Map();
+      acc.set(line, into);
+    }
+    chrMap.forEach((bp, chr) => into!.set(chr, bp));
+  });
+};
+
 const waitForRender = (): Promise<void> =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
@@ -164,10 +229,22 @@ interface SaveFilePickerWindow {
   }) => Promise<{ createWritable: () => Promise<ZipWritable> }>;
 }
 
+export const downloadPredictedCentromeresCsv = (filename = "predicted_centromeres.csv"): void => {
+  if (!visiblePredicted.size) return;
+  const blob = new Blob([buildPredictedCentromeresCsv(visiblePredicted)], { type: "text/csv;charset=utf-8" });
+  triggerDownload(blob, filename);
+};
+
+let currentAbortController: AbortController | null = null;
+
+export const abortBatchExport = (): void => {
+  currentAbortController?.abort();
+};
+
 export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void> => {
   const store = useAppStore.getState();
   const { chromosomes, autoSort } = store;
-  if (!chromosomes.length) return;
+  if (!chromosomes.length || currentAbortController) return;
 
   let writable: ZipWritable;
   try {
@@ -180,6 +257,11 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
     return;
   }
 
+  const controller = new AbortController();
+  const { signal } = controller;
+  currentAbortController = controller;
+  useAppStore.setState({ batching: true });
+
   const snapshot = {
     selectedChr: store.selectedChr,
     queryFiles: store.queryFiles,
@@ -191,11 +273,14 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
 
   const files: Record<string, AsyncZippableFile> = {};
   const csvRows: string[] = [CSV_HEADER];
+  const predictedAcc: PredictedByLine = new Map();
   try {
     for (const chr of chromosomes) {
+      if (signal.aborted) break;
       useAppStore.setState({ selectedChr: chr });
       await autoSort();
       await waitForRender();
+      if (signal.aborted) break;
       if (!svgEl) continue;
 
       const base = chr.toLowerCase();
@@ -205,13 +290,22 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
       if (png) files[`${base}.png`] = [await blobToBytes(png), { level: 0 }];
 
       csvRows.push(...collectCsvRows());
+      mergePredicted(predictedAcc, visiblePredicted);
     }
   } finally {
     useAppStore.setState(snapshot);
+    useAppStore.setState({ batching: false });
+    currentAbortController = null;
   }
 
-  if (Object.keys(files).length) {
+  if (!signal.aborted && Object.keys(files).length) {
     files["notable_events.csv"] = [new TextEncoder().encode(csvRows.join("\n")), { level: 6 }];
+    if (predictedAcc.size) {
+      files["predicted_centromeres.csv"] = [
+        new TextEncoder().encode(buildPredictedCentromeresCsv(predictedAcc)),
+        { level: 6 },
+      ];
+    }
     const zipped = await zipAsync(files);
     await writable.write(zipped);
   }

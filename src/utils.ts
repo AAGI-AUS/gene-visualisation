@@ -1,4 +1,5 @@
-import { BedRow, ResultRow, MainEvent } from "../types";
+import { BedRow, CentromereData, ResultRow, MainEvent } from "../types";
+import { LINE_MAPPING } from "./constants";
 
 export const min = <T extends number | string>(...array: T[]): T => {
   if (typeof array[0] === "string") {
@@ -104,6 +105,51 @@ export const queryGene = (
   }
 
   return { rows: queried, chromosomes };
+};
+
+/**
+ * Parse a centromere csv into a per-line, per-chromosome lookup of base-pair positions.
+ *
+ * The file is tab-separated with a header row: first column is "Genome Assembly"
+ * (matched against `lineMapping` to resolve the short line code), the remaining
+ * columns are chromosome names (e.g. "chr1A") with values in Mbp. A genome
+ * assembly may appear on more than one row; all of its positions accumulate.
+ * Unknown assemblies, empty cells, and non-numeric cells are skipped silently.
+ */
+export const parseCentromere = (text: string): CentromereData => {
+  const lines = text.split("\n").filter((l) => l.trim().length > 0);
+  const out: CentromereData = new Map();
+  if (lines.length < 2) return out;
+
+  const header = lines[0].split(",");
+  const chrs = header.slice(1).map((h) => h.trim().replace(/^chr/i, ""));
+
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(",");
+    const assembly = cells[0]?.trim();
+    const lineKey = LINE_MAPPING[assembly as keyof typeof LINE_MAPPING];
+    if (!lineKey) continue;
+
+    let chrMap = out.get(lineKey);
+    if (!chrMap) {
+      chrMap = new Map();
+      out.set(lineKey, chrMap);
+    }
+
+    for (let j = 0; j < chrs.length; j++) {
+      const raw = cells[j + 1]?.trim();
+      if (!raw) continue;
+      const mbp = Number(raw);
+      if (!Number.isFinite(mbp)) continue;
+      const bp = mbp * 1_000_000;
+      const chr = chrs[j];
+      const positions = chrMap.get(chr);
+      if (positions) positions.push(bp);
+      else chrMap.set(chr, [bp]);
+    }
+  }
+
+  return out;
 };
 
 /** Read a File object as UTF-8 text. */

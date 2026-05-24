@@ -12,6 +12,9 @@ export const InputFiles = () => {
   const clearQuery = useAppStore((s) => s.clearQuery);
   const reorderQuery = useAppStore((s) => s.reorderQuery);
   const swapBaseWithQuery = useAppStore((s) => s.swapBaseWithQuery);
+  const centromereName = useAppStore((s) => s.centromereName);
+  const setCentromere = useAppStore((s) => s.setCentromere);
+  const clearCentromere = useAppStore((s) => s.clearCentromere);
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -30,6 +33,7 @@ export const InputFiles = () => {
       <div className={styles.panelBody}>
         <div className={styles.slotLabel}>Baseline</div>
         <FileSlot filename={base?.name} onFilesLoad={setBase} onClear={clearBase} />
+
         <div className={styles.slotLabel}>Query</div>
         {queryFiles.map((qf, i) => (
           <div
@@ -37,9 +41,7 @@ export const InputFiles = () => {
             draggable
             className={`${styles.draggable} ${dragIndex === i ? styles.dragging : ""} ${
               validDrop && dropIndex === i ? styles.dragOverAbove : ""
-            } ${
-              validDrop && dropIndex === i + 1 && i === queryFiles.length - 1 ? styles.dragOverBelow : ""
-            }`}
+            } ${validDrop && dropIndex === i + 1 && i === queryFiles.length - 1 ? styles.dragOverBelow : ""}`}
             onDragStart={(e) => {
               setDragIndex(i);
               e.dataTransfer.effectAllowed = "move";
@@ -64,6 +66,14 @@ export const InputFiles = () => {
           </div>
         ))}
         <FileSlot onFilesLoad={setQueryFiles} multiple />
+
+        <div className={styles.slotLabel}>Centromere (optional)</div>
+        <FileSlot
+          filename={centromereName}
+          onFilesLoad={setCentromere}
+          onClear={clearCentromere}
+          accept=".csv"
+        />
       </div>
     </div>
   );

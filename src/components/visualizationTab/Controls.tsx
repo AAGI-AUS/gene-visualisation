@@ -28,6 +28,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
   const boundaryTicks = useVisualizationStore((s) => s.boundaryTicks);
+  const showMarks = useVisualizationStore((s) => s.showMarks);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
   const fontSize = useVisualizationStore((s) => s.fontSize);
@@ -38,6 +39,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
   const setBoundaryTicks = useVisualizationStore((s) => s.setBoundaryTicks);
+  const setShowMarks = useVisualizationStore((s) => s.setShowMarks);
   const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const setFontSize = useVisualizationStore((s) => s.setFontSize);
@@ -72,6 +74,7 @@ export const Controls = ({ svgRef }: ControlsProps) => {
       <ToggleButton active={denoise} onClick={() => setDenoise((v) => !v)} text="Denoise" />
       <ToggleButton active={sharedAxis} onClick={() => setSharedAxis((v) => !v)} text="Shared axis" />
       <ToggleButton active={boundaryTicks} onClick={() => setBoundaryTicks((v) => !v)} text="Intra ticks" />
+      <ToggleButton active={showMarks} onClick={() => setShowMarks((v) => !v)} text="Marks" />
 
       {/* Render + export cluster (right-aligned) */}
       <div className={styles.rightCluster}>

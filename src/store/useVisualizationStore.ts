@@ -28,6 +28,7 @@ interface VisualizationState {
   sharedAxis: boolean;
   intra: IntraState;
   boundaryTicks: boolean;
+  showMarks: boolean;
   stripBlankMbp: number;
   svgW: number;
   fontSize: number;
@@ -44,6 +45,7 @@ interface VisualizationActions {
   setSharedAxis: (v: boolean | ((prev: boolean) => boolean)) => void;
   setIntra: (patch: Partial<IntraState> | ((prev: IntraState) => Partial<IntraState>)) => void;
   setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
+  setShowMarks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
   setSvgW: (w: number) => void;
   setFontSize: (v: number) => void;
@@ -67,6 +69,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
     complexMin: 2,
   },
   boundaryTicks: false,
+  showMarks: true,
   stripBlankMbp: 300,
   svgW: 900,
   fontSize: 11,
@@ -85,6 +88,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
       return { intra: { ...s.intra, ...clampIntra(next) } };
     }),
   setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
+  setShowMarks: (v) => set((s) => ({ showMarks: typeof v === "function" ? v(s.showMarks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setFontSize: (v) => set({ fontSize: Math.max(6, v) }),

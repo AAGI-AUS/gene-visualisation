@@ -1,7 +1,10 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { exportPng, exportSvg, triggerDownload } from "@/src/components/visualizationTab/utils";
-import { buildNotableEventsCsv } from "@/src/components/visualizationTab/batchExport";
+import {
+  buildNotableEventsCsv,
+  downloadPredictedCentromeresCsv,
+} from "@/src/components/visualizationTab/batchExport";
 
 interface ExportButtonsProps {
   svgRef: RefObject<SVGSVGElement | null>;
@@ -35,6 +38,13 @@ export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => (
       type="button"
     >
       ↓ CSV
+    </button>
+    <button
+      className={styles.exportBtn}
+      onClick={() => downloadPredictedCentromeresCsv(`${filenameBase}_predicted.csv`)}
+      type="button"
+    >
+      ↓ predicted
     </button>
   </div>
 );
