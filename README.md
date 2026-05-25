@@ -1,11 +1,6 @@
 # gene-visualizer
 
-<!--
-Private repo: this Codecov badge needs the read-only graphing token appended,
-e.g. .../badge.svg?token=XXXX. Copy the full URL from Codecov ->
-repo Settings -> Badges & Graphs and replace the URL below.
--->
-[![codecov](https://codecov.io/gh/biometryhub/gene-visualisation/graph/badge.svg)](https://codecov.io/gh/biometryhub/gene-visualisation)
+[![codecov](https://codecov.io/gh/biometryhub/gene-visualisation/graph/badge.svg?token=dVaPov0Yxu)](https://codecov.io/gh/biometryhub/gene-visualisation)
 
 React + TypeScript app for visualizing genomic structural rearrangements and
 synteny from BED files. It loads a base BED plus one or more query BEDs, joins
