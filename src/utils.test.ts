@@ -1,0 +1,224 @@
+import {
+  fileToText,
+  getChromosomes,
+  max,
+  min,
+  parseBED,
+  parseCentromere,
+  queryGene,
+  withinThreshold,
+} from "@/src/utils";
+import type { BedRow } from "@/types";
+
+describe("min / max", () => {
+  test("min returns the numerically smallest argument", () => {
+    expect(min(3, 1, 2)).toBe(1);
+    expect(min(-5, -2, -8)).toBe(-8);
+    expect(min(42)).toBe(42);
+  });
+
+  test("max returns the numerically largest argument", () => {
+    expect(max(3, 1, 2)).toBe(3);
+    expect(max(-5, -2, -8)).toBe(-2);
+    expect(max(42)).toBe(42);
+  });
+
+  test("min / max compare strings lexicographically", () => {
+    expect(min("banana", "apple", "cherry")).toBe("apple");
+    expect(max("banana", "apple", "cherry")).toBe("cherry");
+    expect(min("10", "2", "1")).toBe("1");
+    expect(max("10", "2", "1")).toBe("2");
+  });
+});
+
+describe("withinThreshold", () => {
+  test("identical values are within threshold", () => {
+    expect(withinThreshold(100, 100)).toBe(true);
+  });
+
+  test("uses the 10% default threshold", () => {
+    expect(withinThreshold(105, 100)).toBe(true);
+    expect(withinThreshold(120, 100)).toBe(false);
+  });
+
+  test("respects a custom threshold", () => {
+    expect(withinThreshold(150, 100, 0.5)).toBe(false);
+    expect(withinThreshold(149, 100, 0.5)).toBe(true);
+  });
+});
+
+describe("parseBED", () => {
+  test("parses tab-separated rows with positional ids", () => {
+    const text = ["1A\t100\t200\t+\t0", "1A\t300\t400\t-\t1"].join("\n");
+    const rows = parseBED(text);
+    expect(rows).toEqual([
+      { id: 0, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
+      { id: 1, chromosome: "1A", p1: 300, p2: 400, sign: "-" },
+    ]);
+  });
+
+  test("skips comment lines and blank lines", () => {
+    const text = ["# header", "", "1A\t10\t20\t+\t0", "# another", "2B\t30\t40\t-\t1"].join("\n");
+    const rows = parseBED(text);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.chromosome)).toEqual(["1A", "2B"]);
+  });
+
+  test("drops rows whose chromosome name is not exactly two characters", () => {
+    const text = ["chr1A\t10\t20\t+\t0", "1A\t30\t40\t+\t1"].join("\n");
+    expect(parseBED(text)).toEqual([{ id: 1, chromosome: "1A", p1: 30, p2: 40, sign: "+" }]);
+  });
+
+  test("drops rows where p1 >= p2", () => {
+    const text = ["1A\t200\t100\t+\t0", "1A\t100\t100\t+\t1", "1A\t100\t200\t+\t2"].join("\n");
+    const rows = parseBED(text);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(2);
+  });
+
+  test("falls back to the row index when the id column is missing or zero", () => {
+    const text = ["1A\t10\t20\t+", "1A\t30\t40\t+\t0", "1A\t50\t60\t+\t9"].join("\n");
+    const rows = parseBED(text);
+    expect(rows.map((r) => r.id)).toEqual([0, 1, 9]);
+  });
+
+  test("returns an empty array for empty input", () => {
+    expect(parseBED("")).toEqual([]);
+    expect(parseBED("   \n  ")).toEqual([]);
+  });
+});
+
+describe("queryGene", () => {
+  const baseRows: BedRow[] = [
+    { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
+    { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
+    { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" },
+    { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
+  ];
+
+  test("classifies synteny, inversion, and translocation per row", () => {
+    const queryMap = new Map<number, BedRow>([
+      [0, { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" }],
+      [1, { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "-" }],
+      [2, { id: 2, chromosome: "2B", p1: 0, p2: 100, sign: "+" }],
+      [3, { id: 3, chromosome: "2B", p1: 100, p2: 200, sign: "-" }],
+    ]);
+    const { rows } = queryGene(baseRows, queryMap, 0);
+
+    expect(rows).toHaveLength(4);
+    expect(rows[0].mainEvent).toBe("synteny");
+    expect(rows[0].isInvert).toBe(false);
+    expect(rows[0].isTranslocation).toBe(false);
+
+    expect(rows[1].mainEvent).toBe("inversion");
+    expect(rows[1].isInvert).toBe(true);
+    expect(rows[1].isTranslocation).toBe(false);
+
+    expect(rows[2].mainEvent).toBe("translocation");
+    expect(rows[2].isInvert).toBe(false);
+    expect(rows[2].isTranslocation).toBe(true);
+
+    // translocation wins over inversion in mainEvent classification
+    expect(rows[3].mainEvent).toBe("translocation");
+    expect(rows[3].isInvert).toBe(true);
+    expect(rows[3].isTranslocation).toBe(true);
+  });
+
+  test("skips base rows with no matching query id", () => {
+    const queryMap = new Map<number, BedRow>([
+      [0, { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" }],
+      [2, { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" }],
+    ]);
+    const { rows } = queryGene(baseRows, queryMap, 0);
+    expect(rows.map((r) => r.id)).toEqual([0, 2]);
+  });
+
+  test("groups rare chromosomes into 'others' once their share is at/below threshold", () => {
+    const queryMap = new Map<number, BedRow>([
+      [0, { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" }],
+      [1, { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" }],
+      [2, { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" }],
+      [3, { id: 3, chromosome: "2B", p1: 0, p2: 100, sign: "+" }],
+    ]);
+    // 2B share = 1/4 = 0.25; threshold 0.3 means it falls below and is grouped.
+    const { rows, chromosomes } = queryGene(baseRows, queryMap, 0.3);
+    const grouped = rows.map((r) => [r.chromosomeQuery, r.groupedQuery]);
+    expect(grouped).toEqual([
+      ["1A", "1A"],
+      ["1A", "1A"],
+      ["1A", "1A"],
+      ["2B", "others"],
+    ]);
+    expect(chromosomes).toEqual(["1A"]);
+  });
+
+  test("returns empty results when there are no matches", () => {
+    const { rows, chromosomes } = queryGene(baseRows, new Map(), 0.01);
+    expect(rows).toEqual([]);
+    expect(chromosomes).toEqual([]);
+  });
+});
+
+describe("parseCentromere", () => {
+  test("parses a CSV into the line/chr -> bp map", () => {
+    const text = [
+      "Genome Assembly,chr1A,chr1B",
+      "ArinaLrFor,210,250",
+      "CDC Landmark,200,",
+    ].join("\n");
+    const out = parseCentromere(text);
+    expect(out.get("arina")?.get("1A")).toEqual([210_000_000]);
+    expect(out.get("arina")?.get("1B")).toEqual([250_000_000]);
+    expect(out.get("landmark")?.get("1A")).toEqual([200_000_000]);
+    expect(out.get("landmark")?.get("1B")).toBeUndefined();
+  });
+
+  test("accumulates positions across multiple rows for the same line", () => {
+    const text = [
+      "Genome Assembly,chr1A",
+      "Chinese Spring (dataset 1)a,210",
+      "Chinese Spring (dataset 2)a,212",
+    ].join("\n");
+    const out = parseCentromere(text);
+    expect(out.get("cs")?.get("1A")).toEqual([210_000_000, 212_000_000]);
+  });
+
+  test("ignores rows whose assembly is not in LINE_MAPPING", () => {
+    const text = ["Genome Assembly,chr1A", "MysteryLine,300"].join("\n");
+    expect(parseCentromere(text).size).toBe(0);
+  });
+
+  test("skips empty and non-numeric cells silently", () => {
+    const text = ["Genome Assembly,chr1A,chr1B", "ArinaLrFor,,not-a-number"].join("\n");
+    const out = parseCentromere(text);
+    expect(out.get("arina")?.size).toBe(0);
+  });
+
+  test("returns an empty map when input has no data rows", () => {
+    expect(parseCentromere("").size).toBe(0);
+    expect(parseCentromere("Genome Assembly,chr1A").size).toBe(0);
+  });
+});
+
+describe("getChromosomes", () => {
+  test("returns each chromosome once in first-seen order", () => {
+    const rows: BedRow[] = [
+      { id: 0, chromosome: "1A", p1: 0, p2: 1, sign: "+" },
+      { id: 1, chromosome: "1A", p1: 1, p2: 2, sign: "+" },
+      { id: 2, chromosome: "2B", p1: 0, p2: 1, sign: "+" },
+      { id: 3, chromosome: "1A", p1: 2, p2: 3, sign: "+" },
+    ];
+    expect(getChromosomes(rows)).toEqual(["1A", "2B"]);
+  });
+
+  test("returns an empty array for empty input", () => {
+    expect(getChromosomes([])).toEqual([]);
+  });
+});
+
+describe("fileToText", () => {
+  test("reads a File's contents as UTF-8 text", async () => {
+    const file = new File(["hello\nworld"], "f.bed", { type: "text/plain" });
+    await expect(fileToText(file)).resolves.toBe("hello\nworld");
+  });
+});
