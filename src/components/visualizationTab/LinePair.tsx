@@ -62,8 +62,8 @@ export const LinePair = ({
   return (
     <Group left={PAD.left} top={i * (CHROM_THICKNESS + ROW_GAP)}>
       <RibbonLayer hoverChunk={hoverChunk} onMove={onMove} ribbons={ribbons} y1bot={y1bot} y2top={y2top} />
-      <BaseRowLayer row={baseRow} noLine={i > 0} palette={palette} fontSize={fontSize} />
-      <QueryRowLayer row={queryRow} palette={palette} fontSize={fontSize} />
+      <BaseRowLayer row={baseRow} noLine={!isFirst} palette={palette} fontSize={fontSize} />
+      <QueryRowLayer row={queryRow} noLabel={!isLast} palette={palette} fontSize={fontSize} />
       {showMarks && isFirst && (
         <CentromereMarks bars={baseRow.bars} positions={baseCentromere} rowY={baseRow.y} />
       )}

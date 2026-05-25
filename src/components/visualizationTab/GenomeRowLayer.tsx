@@ -16,12 +16,22 @@ const LineLabel = ({ y, text, ...props }: LineLabelProps) => (
   </SVGText>
 );
 
-const ChromLabel = ({ y, text, ...props }: LineLabelProps) => {
-  const yCalc = y + CHROM_THICKNESS / 2 + 3;
+type ChromLabelProps = LineLabelProps & { bg?: string };
+
+const ChromLabel = ({ y, text, fill = "white", bg = "black", ...props }: ChromLabelProps) => {
+  const x = Number(props.x) || 0;
+  const fontSize = Number(props.fontSize) || 10;
+  const yCalc = y + CHROM_THICKNESS / 2 + Math.round((1 / 3) * fontSize - 2 / 3);
+  const size = fontSize + 4;
+  const width = size + Math.round((1 / 6) * fontSize - 5 / 6);
+  const height = fontSize + 2;
   return (
-    <SVGText y={yCalc} stroke="white" strokeWidth={3} paintOrder="stroke" {...props}>
-      {text}
-    </SVGText>
+    <g>
+      <rect x={x - size / 2} y={yCalc - fontSize * 0.85 - 1} width={width} height={height} fill={bg} />
+      <SVGText y={yCalc} fill={fill} {...props}>
+        {text}
+      </SVGText>
+    </g>
   );
 };
 
@@ -47,11 +57,11 @@ interface BaseRowLayerProps {
 export const BaseRowLayer = ({ row, noLine, palette, fontSize }: BaseRowLayerProps) => (
   <g>
     <LineLabel y={row.y} text={row.label} fontSize={fontSize + 2} />
-    {row.bars.map((bar) => (
-      <g key={bar.chr}>
-        {!noLine && <HorizontalLine x={bar.px} width={bar.pw} y={row.y} stroke={palette[bar.chr]} />}
-        {bar.pw > 24 && (
-          <ChromLabel x={bar.px + 11} y={row.y} fill={palette[bar.chr]} text={bar.chr} fontSize={fontSize} />
+    {row.bars.map(({ chr, px, pw }) => (
+      <g key={chr}>
+        {!noLine && <HorizontalLine x={px} width={pw} y={row.y} stroke={palette[chr]} />}
+        {pw > 24 && (
+          <ChromLabel x={px + 11} y={row.y} fill="white" bg={palette[chr]} text={chr} fontSize={fontSize} />
         )}
       </g>
     ))}
@@ -60,11 +70,12 @@ export const BaseRowLayer = ({ row, noLine, palette, fontSize }: BaseRowLayerPro
 
 interface QueryRowLayerProps {
   row: QueryRow;
+  noLabel?: boolean;
   palette: Record<string, string>;
   fontSize: number;
 }
 
-export const QueryRowLayer = ({ row, palette, fontSize }: QueryRowLayerProps) => (
+export const QueryRowLayer = ({ row, noLabel, palette, fontSize }: QueryRowLayerProps) => (
   <g>
     <LineLabel y={row.y} text={row.label} fontSize={fontSize + 2} />
     {row.slots.map((slot, si) => {
@@ -87,8 +98,8 @@ export const QueryRowLayer = ({ row, palette, fontSize }: QueryRowLayerProps) =>
       return (
         <g key={key}>
           <HorizontalLine x={slot.px} width={slot.pw} y={row.y} stroke={col} strokeDasharray={dash} />
-          {(slot.pw > 24 || slot.kind === "others") && (
-            <ChromLabel x={slot.px + 11} y={row.y} fill={col} text={label} fontSize={fontSize} />
+          {!noLabel && (slot.pw > 24 || slot.kind === "others") && (
+            <ChromLabel x={slot.px + 11} y={row.y} bg={col} text={label} fontSize={fontSize} />
           )}
         </g>
       );

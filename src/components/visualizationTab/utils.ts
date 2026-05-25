@@ -1,14 +1,5 @@
 import type { QuerySlotLookup, ResultRow } from "@/types";
-import {
-  CHR_GAP_PX,
-  CHROM_THICKNESS,
-  ChunkEvent,
-  chunkEvents,
-  OTHERS_W,
-  OthersMode,
-  PAD,
-  ROW_GAP,
-} from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, ChunkEvent, OTHERS_W, OthersMode, PAD, ROW_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
 import { withinThreshold } from "@/src/utils";
 
@@ -27,10 +18,6 @@ export const rowCategory = (r: ResultRow): ChunkEvent => {
 
 export const zeroCounts = (): EventCounts => {
   return { synteny: 0, inversion: 0, translocation: 0, "translocation+inversion": 0, total: 0 };
-};
-
-export const dominantEvent = (c: EventCounts): ChunkEvent => {
-  return chunkEvents.reduce((b, k) => (c[k] > c[b] ? k : b), chunkEvents[0]);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,23 +69,30 @@ export const buildChunk = (rows: ResultRow[], idx: number, lineName: string): Ch
   let chrQuery = "";
   let chrQueryMaxCount = 0;
   let othersCount = 0;
+  let dominant: ChunkEvent = "synteny";
+  let dominantCount = 0;
   for (const r of rows) {
     ids.push(r.id);
-    eventCounts[rowCategory(r)]++;
+    const cat = rowCategory(r);
+    const next = eventCounts[cat] + 1;
+    eventCounts[cat] = next;
     eventCounts.total++;
+    if (next > dominantCount) {
+      dominantCount = next;
+      dominant = cat;
+    }
     bpGeneBase += r.p2Base - r.p1Base;
     if (r.chromosomeQuery) {
       bpGeneQuery += r.p2Query - r.p1Query;
-      const next = (queryChromCounts[r.chromosomeQuery] ?? 0) + 1;
-      queryChromCounts[r.chromosomeQuery] = next;
-      if (next > chrQueryMaxCount) {
-        chrQueryMaxCount = next;
+      const nextChr = (queryChromCounts[r.chromosomeQuery] ?? 0) + 1;
+      queryChromCounts[r.chromosomeQuery] = nextChr;
+      if (nextChr > chrQueryMaxCount) {
+        chrQueryMaxCount = nextChr;
         chrQuery = r.chromosomeQuery;
       }
     }
     if (r.groupedQuery === "others") othersCount++;
   }
-  const dominant = dominantEvent(eventCounts);
 
   // HACK: some info lost, but not matter vis wise
   const onlySynteny = dominant === "synteny";

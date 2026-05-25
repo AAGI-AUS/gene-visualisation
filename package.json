@@ -29,7 +29,13 @@
     "dev": "craco start",
     "build": "craco build",
     "build-one": "craco build && ./touch-up.py && npx webpack",
+    "test": "craco test",
     "prepare": "husky"
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   },
   "eslintConfig": {
     "extends": [
