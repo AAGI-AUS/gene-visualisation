@@ -168,6 +168,20 @@ describe("buildChunk", () => {
     const chunk = buildChunk(rows, 0, "lineA");
     expect(chunk.isOthers).toBe(true);
   });
+
+  test("non-synteny rows don't extend the query bp range when synteny dominates", () => {
+    const rows: ResultRow[] = [
+      makeRow({ id: 1, p1Query: 0, p2Query: 100 }),
+      makeRow({ id: 2, p1Query: 100, p2Query: 200 }),
+      makeRow({ id: 3, p1Query: 200, p2Query: 300 }),
+      // dominant stays "synteny" (3 vs 1); this row's query range is excluded.
+      makeRow({ id: 4, isInvert: true, mainEvent: "inversion", p1Query: 1000, p2Query: 2000 }),
+    ];
+    const chunk = buildChunk(rows, 0, "lineA");
+    expect(chunk.dominant).toBe("synteny");
+    expect(chunk.bp1Query).toBe(0);
+    expect(chunk.bp2Query).toBe(300);
+  });
 });
 
 describe("chunkRows", () => {
@@ -213,6 +227,63 @@ describe("chunkRows", () => {
     expect(chunks).toHaveLength(2);
     expect(chunks.flatMap((c) => c.ids).sort()).toEqual([1, 2]);
   });
+
+  test("strict mode splits when the query span is disproportional to the base span", () => {
+    const rows: ResultRow[] = [
+      makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 0, p2Query: 100 }),
+      // Base gap is 10 (well within gapBp=50), but the query jumps to ~2000.
+      // withinThreshold(2000, 200) is false → strict mode forces a split.
+      makeRow({ id: 2, p1Base: 110, p2Base: 200, p1Query: 1000, p2Query: 2000 }),
+    ];
+    const chunks = chunkRows(rows, 50, "lineA");
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].ids).toEqual([1]);
+    expect(chunks[1].ids).toEqual([2]);
+  });
+
+  test("strict mode splits non-inverted rows whose query lies before the chunk start", () => {
+    const rows: ResultRow[] = [
+      makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 100, p2Query: 200 }),
+      // Same-sign rows with proportional query span (200) but cur.p2Query=50 < first.p1Query=100,
+      // so the reverse-order guard rejects the merge even though withinThreshold passes.
+      makeRow({ id: 2, p1Base: 110, p2Base: 200, p1Query: 0, p2Query: 50 }),
+    ];
+    const chunks = chunkRows(rows, 50, "lineA");
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0].ids).toEqual([1]);
+    expect(chunks[1].ids).toEqual([2]);
+  });
+
+  test("translocation 'others' rows use non-strict sweep and stay together despite skewed query spans", () => {
+    const rows: ResultRow[] = [
+      makeRow({
+        id: 1,
+        p1Base: 0,
+        p2Base: 100,
+        chromosomeQuery: "rare1",
+        p1Query: 0,
+        p2Query: 100,
+        isTranslocation: true,
+        mainEvent: "translocation",
+        groupedQuery: "others",
+      }),
+      makeRow({
+        id: 2,
+        p1Base: 110,
+        p2Base: 200,
+        chromosomeQuery: "rare2",
+        // Wildly disproportional query span; strict would split, non-strict keeps them.
+        p1Query: 1000,
+        p2Query: 2000,
+        isTranslocation: true,
+        mainEvent: "translocation",
+        groupedQuery: "others",
+      }),
+    ];
+    const chunks = chunkRows(rows, 50, "lineA");
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].ids).toEqual([1, 2]);
+  });
 });
 
 describe("buildBaseRow", () => {
@@ -242,6 +313,30 @@ describe("buildBaseRow", () => {
     const chrMin = new Map([["1A", 0]]);
     const row = buildBaseRow(chrMax, chrMin, ["1A"], "label", 500, "group");
     expect(row.bars[0].px).toBe(OTHERS_W + CHR_GAP_PX);
+  });
+
+  test("perChrPxPerBp overrides rowPxPerBp per chr and stretches the last bar to fill availW", () => {
+    const chrMax = new Map([
+      ["1A", 100],
+      ["2B", 100],
+    ]);
+    const chrMin = new Map([
+      ["1A", 0],
+      ["2B", 0],
+    ]);
+    // rowPxPerBp = (203 - 3 gap) / 200 = 1. 1A overridden to 0.5; 2B falls back to rowPxPerBp.
+    const perChrPxPerBp = new Map([["1A", 0.5]]);
+    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", perChrPxPerBp);
+
+    expect(row.bars[0].pw).toBe(50);
+    expect(row.bars[0].bpLen).toBe(100);
+    expect(row.bars[0].dataBpLen).toBeUndefined();
+
+    // last bar absorbs the 50px deficit (50 / pxPerBp=1 → +50bp).
+    expect(row.bars[1].pw).toBe(150);
+    expect(row.bars[1].bpLen).toBe(150);
+    expect(row.bars[1].dataBpLen).toBe(100);
+    expect(row.bars[1].px + row.bars[1].pw).toBe(203);
   });
 });
 
@@ -274,6 +369,32 @@ describe("buildQueryRow", () => {
     expect(right.kind).toBe("others");
     expect(right.px).toBe(chr.px + chr.pw + CHR_GAP_PX);
     expect(right.pw).toBe(OTHERS_W);
+  });
+
+  test("perChrPxPerBp stretches the last chr slot and shifts trailing others by the deficit", () => {
+    const specs: SlotSpec[] = [
+      { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
+      { kind: "others", baseChr: "1A", side: "right" },
+    ];
+    // chr width = 100*0.5 = 50. targetRight = 200 - 3 gap - 24 others = 173.
+    // deficit = 123 → +123px width, +246bp (123/0.5) of bpLen, others slot shifts +123.
+    const perChrPxPerBp = new Map([["1A", 0.5]]);
+    const row = buildQueryRow(specs, "label", 200, perChrPxPerBp);
+    const [chr, right] = row.slots;
+
+    expect(chr.kind).toBe("chr");
+    expect(chr.px).toBe(0);
+    expect(chr.pw).toBe(173);
+    if (chr.kind === "chr") {
+      expect(chr.bpLen).toBe(346);
+      expect(chr.dataBpLen).toBe(100);
+    }
+
+    expect(right.kind).toBe("others");
+    expect(right.px).toBe(53 + 123);
+    if (right.kind === "others") {
+      expect(right.targetX).toBe(65 + 123);
+    }
   });
 });
 
