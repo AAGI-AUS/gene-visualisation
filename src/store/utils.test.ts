@@ -39,7 +39,6 @@ describe("buildPalette", () => {
     const palette = buildPalette("seed", extras);
     expect(palette["seed"]).toBe(CHR_PALETTE[0]);
     // The last extra wraps around to index 0 again.
-    expect(palette[extras[extras.length - 1]]).toBe(CHR_PALETTE[CHR_PALETTE.length % CHR_PALETTE.length]);
     expect(palette[extras[extras.length - 1]]).toBe(CHR_PALETTE[0]);
   });
 });
@@ -69,7 +68,9 @@ describe("computeCommonIds", () => {
     const pairA = common.map((id) => makeRow(id, "1A"));
     const pairB = common.map((id) => makeRow(id, id === 10 ? "rare" : "2B"));
 
-    expect(computeCommonIds([{ rows: pairA }, { rows: pairB }], 0.2)).toEqual(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]));
+    expect(computeCommonIds([{ rows: pairA }, { rows: pairB }], 0.2)).toEqual(
+      new Set([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    );
   });
 
   test("uses the default COMMON_CHR_THRESHOLD when none is supplied", () => {

@@ -6,7 +6,6 @@ import {
   chunkRows,
   collectNoisyIds,
   computeRibbons,
-  dominantEvent,
   findLargestGapCenter,
   getPredictingLines,
   getPredictingRange,
@@ -18,6 +17,8 @@ import {
 } from "@/src/components/visualizationTab/utils";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { ChrBar, Chunk, ResultRow } from "@/types";
+
+const EMPTY_SET = new Set();
 
 const makeRow = (overrides: Partial<ResultRow> = {}): ResultRow => ({
   id: 0,
@@ -35,22 +36,36 @@ const makeRow = (overrides: Partial<ResultRow> = {}): ResultRow => ({
   ...overrides,
 });
 
+const makeChunk = (ids: number[]): Chunk => ({
+  id: `chunk-${ids.join("-")}`,
+  ids,
+  chrBase: "1A",
+  bp1Base: 0,
+  bp2Base: 100,
+  bpGeneBase: 100,
+  chrQuery: "1A",
+  bp1Query: 0,
+  bp2Query: 100,
+  bpGeneQuery: 100,
+  dominant: "synteny",
+  eventCounts: { ...zeroCounts(), synteny: ids.length, total: ids.length },
+  queryChromCounts: { "1A": ids.length },
+  isInvert: false,
+  isOthers: false,
+});
+
 describe("rowCategory", () => {
   test("returns the event matching the row's flags", () => {
     expect(rowCategory(makeRow())).toBe("synteny");
     expect(rowCategory(makeRow({ isInvert: true, mainEvent: "inversion" }))).toBe("inversion");
 
-    const translocationProps = {
-      isTranslocation: true,
-      mainEvent: "translocation",
-      chromosomeQuery: "2B",
-    } as const;
-    expect(rowCategory(makeRow(translocationProps))).toBe("translocation");
-    expect(rowCategory(makeRow({ ...translocationProps, isInvert: true }))).toBe("translocation+inversion");
+    const translocation = makeRow({ isTranslocation: true, mainEvent: "translocation", chromosomeQuery: "2B" });
+    expect(rowCategory(translocation)).toBe("translocation");
+    expect(rowCategory({ ...translocation, isInvert: true })).toBe("translocation+inversion");
   });
 });
 
-describe("zeroCounts / dominantEvent", () => {
+describe("zeroCounts", () => {
   test("zeroCounts initialises every key to 0", () => {
     expect(zeroCounts()).toEqual({
       synteny: 0,
@@ -60,24 +75,12 @@ describe("zeroCounts / dominantEvent", () => {
       total: 0,
     });
   });
-
-  test("dominantEvent picks the key with the highest count", () => {
-    const counts = { ...zeroCounts(), synteny: 2, inversion: 5, translocation: 1 };
-    counts.total = 8;
-    expect(dominantEvent(counts)).toBe("inversion");
-  });
-
-  test("dominantEvent ties break to the first chunkEvents entry", () => {
-    const counts = { ...zeroCounts(), synteny: 3, inversion: 3, translocation: 0 };
-    counts.total = 6;
-    expect(dominantEvent(counts)).toBe("synteny");
-  });
 });
 
 describe("collectNoisyIds", () => {
   test("returns an empty set when there is at most one pair", () => {
-    expect(collectNoisyIds([])).toEqual(new Set());
-    expect(collectNoisyIds([[makeChunk([1, 2])]])).toEqual(new Set());
+    expect(collectNoisyIds([])).toEqual(EMPTY_SET);
+    expect(collectNoisyIds([[makeChunk([1, 2])]])).toEqual(EMPTY_SET);
   });
 
   test("flags ids missing from at least one pair", () => {
@@ -88,28 +91,9 @@ describe("collectNoisyIds", () => {
 
   test("returns an empty set when every id appears in every pair", () => {
     const chunks = [makeChunk([1, 2, 3])];
-    expect(collectNoisyIds([chunks, [makeChunk([3, 2, 1])]])).toEqual(new Set());
+    expect(collectNoisyIds([chunks, [makeChunk([3, 2, 1])]])).toEqual(EMPTY_SET);
   });
 });
-
-const makeChunk = (ids: number[]): Chunk =>
-  ({
-    id: `chunk-${ids.join("-")}`,
-    ids,
-    chrBase: "1A",
-    bp1Base: 0,
-    bp2Base: 100,
-    bpGeneBase: 100,
-    chrQuery: "1A",
-    bp1Query: 0,
-    bp2Query: 100,
-    bpGeneQuery: 100,
-    dominant: "synteny",
-    eventCounts: { ...zeroCounts(), synteny: ids.length, total: ids.length },
-    queryChromCounts: { "1A": ids.length },
-    isInvert: false,
-    isOthers: false,
-  }) as Chunk;
 
 describe("buildChunk", () => {
   test("aggregates ids, bp ranges, and event counts", () => {
@@ -167,6 +151,17 @@ describe("buildChunk", () => {
     ];
     const chunk = buildChunk(rows, 0, "lineA");
     expect(chunk.isOthers).toBe(true);
+  });
+
+  test("dominant ties resolve to whichever event reached the max first in row order", () => {
+    const synteny = () => makeRow({ id: 0 });
+    const inversion = () => makeRow({ id: 0, isInvert: true, mainEvent: "inversion" });
+
+    const syntenyFirst = [synteny(), synteny(), synteny(), inversion(), inversion(), inversion()];
+    expect(buildChunk(syntenyFirst, 0, "lineA").dominant).toBe("synteny");
+
+    const inversionFirst = [inversion(), inversion(), inversion(), synteny(), synteny(), synteny()];
+    expect(buildChunk(inversionFirst, 0, "lineA").dominant).toBe("inversion");
   });
 
   test("non-synteny rows don't extend the query bp range when synteny dominates", () => {
