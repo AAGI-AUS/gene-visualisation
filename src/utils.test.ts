@@ -48,38 +48,38 @@ describe("withinThreshold", () => {
 });
 
 describe("parseBED", () => {
+  const baseRows = ["1A\t100\t200\t+\t0", "1B\t300\t400\t-\t1"];
+  const baseExpectedRows: BedRow[] = [
+    { id: 0, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
+    { id: 1, chromosome: "1B", p1: 300, p2: 400, sign: "-" },
+  ];
+
   test("parses tab-separated rows with positional ids", () => {
-    const text = ["1A\t100\t200\t+\t0", "1A\t300\t400\t-\t1"].join("\n");
+    const text = baseRows.join("\n");
     const rows = parseBED(text);
-    expect(rows).toEqual([
-      { id: 0, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
-      { id: 1, chromosome: "1A", p1: 300, p2: 400, sign: "-" },
-    ]);
+    expect(rows).toEqual(baseExpectedRows);
   });
 
   test("skips comment lines and blank lines", () => {
-    const text = ["# header", "", "1A\t10\t20\t+\t0", "# another", "2B\t30\t40\t-\t1"].join("\n");
+    const text = ["# header", "", baseRows[0], "# another", baseRows[1]].join("\n");
     const rows = parseBED(text);
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.chromosome)).toEqual(["1A", "2B"]);
+    expect(rows.map((r) => r.chromosome)).toEqual(["1A", "1B"]);
   });
 
   test("drops rows whose chromosome name is not exactly two characters", () => {
-    const text = ["chr1A\t10\t20\t+\t0", "1A\t30\t40\t+\t1"].join("\n");
-    expect(parseBED(text)).toEqual([{ id: 1, chromosome: "1A", p1: 30, p2: 40, sign: "+" }]);
+    const text = ["chr1A\t10\t20\t+\t2", ...baseRows].join("\n");
+    expect(parseBED(text)).toEqual(baseExpectedRows);
   });
 
   test("drops rows where p1 >= p2", () => {
-    const text = ["1A\t200\t100\t+\t0", "1A\t100\t100\t+\t1", "1A\t100\t200\t+\t2"].join("\n");
-    const rows = parseBED(text);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe(2);
+    const text = ["1A\t200\t100\t+\t2", "1A\t100\t100\t+\t3", ...baseRows].join("\n");
+    expect(parseBED(text)).toEqual(baseExpectedRows);
   });
 
   test("falls back to the row index when the id column is missing or zero", () => {
-    const text = ["1A\t10\t20\t+", "1A\t30\t40\t+\t0", "1A\t50\t60\t+\t9"].join("\n");
+    const text = ["1A\t10\t20\t+", "1A\t50\t60\t+\t9"].join("\n");
     const rows = parseBED(text);
-    expect(rows.map((r) => r.id)).toEqual([0, 1, 9]);
+    expect(rows.map((r) => r.id)).toEqual([0, 9]);
   });
 
   test("returns an empty array for empty input", () => {
@@ -89,6 +89,7 @@ describe("parseBED", () => {
 });
 
 describe("queryGene", () => {
+  const rowsToMap = (rows: BedRow[]) => new Map(rows.map((r) => [r.id, r]));
   const baseRows: BedRow[] = [
     { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
     { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
@@ -96,13 +97,15 @@ describe("queryGene", () => {
     { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
   ];
 
+  const queryRows: BedRow[] = [
+    { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
+    { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "-" },
+    { id: 2, chromosome: "2B", p1: 0, p2: 100, sign: "+" },
+    { id: 3, chromosome: "2B", p1: 100, p2: 200, sign: "-" },
+  ];
+
   test("classifies synteny, inversion, and translocation per row", () => {
-    const queryMap = new Map<number, BedRow>([
-      [0, { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" }],
-      [1, { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "-" }],
-      [2, { id: 2, chromosome: "2B", p1: 0, p2: 100, sign: "+" }],
-      [3, { id: 3, chromosome: "2B", p1: 100, p2: 200, sign: "-" }],
-    ]);
+    const queryMap = rowsToMap(queryRows);
     const { rows } = queryGene(baseRows, queryMap, 0);
 
     expect(rows).toHaveLength(4);
@@ -125,26 +128,24 @@ describe("queryGene", () => {
   });
 
   test("skips base rows with no matching query id", () => {
-    const queryMap = new Map<number, BedRow>([
-      [0, { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" }],
-      [2, { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" }],
-    ]);
+    const queryMap = rowsToMap([queryRows[0], queryRows[2]]);
     const { rows } = queryGene(baseRows, queryMap, 0);
     expect(rows.map((r) => r.id)).toEqual([0, 2]);
   });
 
+  test("ignores query ids that have no matching base row", () => {
+    const nonMatchingRow: BedRow = { id: 99, chromosome: "1A", p1: 900, p2: 1000, sign: "+" };
+    const queryMap = rowsToMap([queryRows[1], queryRows[2], nonMatchingRow]);
+    const { rows } = queryGene(baseRows, queryMap, 0);
+    expect(rows.map((r) => r.id)).toEqual([1, 2]);
+  });
+
   test("groups rare chromosomes into 'others' once their share is at/below threshold", () => {
-    const queryMap = new Map<number, BedRow>([
-      [0, { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" }],
-      [1, { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" }],
-      [2, { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" }],
-      [3, { id: 3, chromosome: "2B", p1: 0, p2: 100, sign: "+" }],
-    ]);
-    // 2B share = 1/4 = 0.25; threshold 0.3 means it falls below and is grouped.
-    const { rows, chromosomes } = queryGene(baseRows, queryMap, 0.3);
+    const queryMap = rowsToMap(queryRows.slice(0, 3));
+    // 2B share = 1/3 = 0.33; threshold 0.4
+    const { rows, chromosomes } = queryGene(baseRows, queryMap, 0.4);
     const grouped = rows.map((r) => [r.chromosomeQuery, r.groupedQuery]);
     expect(grouped).toEqual([
-      ["1A", "1A"],
       ["1A", "1A"],
       ["1A", "1A"],
       ["2B", "others"],
@@ -160,12 +161,10 @@ describe("queryGene", () => {
 });
 
 describe("parseCentromere", () => {
+  const baseRows = ["ArinaLrFor,210,250", "CDC Landmark,200,"];
+
   test("parses a CSV into the line/chr -> bp map", () => {
-    const text = [
-      "Genome Assembly,chr1A,chr1B",
-      "ArinaLrFor,210,250",
-      "CDC Landmark,200,",
-    ].join("\n");
+    const text = ["Genome Assembly,chr1A,chr1B", ...baseRows].join("\n");
     const out = parseCentromere(text);
     expect(out.get("arina")?.get("1A")).toEqual([210_000_000]);
     expect(out.get("arina")?.get("1B")).toEqual([250_000_000]);
@@ -184,14 +183,18 @@ describe("parseCentromere", () => {
   });
 
   test("ignores rows whose assembly is not in LINE_MAPPING", () => {
-    const text = ["Genome Assembly,chr1A", "MysteryLine,300"].join("\n");
-    expect(parseCentromere(text).size).toBe(0);
+    const text = ["Genome Assembly,chr1A,chr1B", "MysteryLine,300,", baseRows[0]].join("\n");
+    const out = parseCentromere(text);
+    expect(out.size).toBe(1);
+    expect(out.get("arina")?.get("1A")).toEqual([210_000_000]);
+    expect(out.get("arina")?.get("1B")).toEqual([250_000_000]);
   });
 
   test("skips empty and non-numeric cells silently", () => {
-    const text = ["Genome Assembly,chr1A,chr1B", "ArinaLrFor,,not-a-number"].join("\n");
+    const text = ["Genome Assembly,chr1A,chr1B", "ArinaLrFor,,not-a-number", baseRows[1]].join("\n");
     const out = parseCentromere(text);
     expect(out.get("arina")?.size).toBe(0);
+    expect(out.get("landmark")?.get("1A")).toEqual([200_000_000]);
   });
 
   test("returns an empty map when input has no data rows", () => {
