@@ -23,39 +23,49 @@ React + TypeScript app for visualizing genomic structural rearrangements and syn
 
 ```
 src/
-├── App.tsx                   Sidebar + tabbed content (Visualization / Distribution)
-├── constants.ts              Layout constants, ChunkEvent colors, CHR_PALETTE, OthersMode
-├── utils.ts                  parseBED, queryGene, fileToText, getChromosomes
+├── App.tsx                   shell: topbar + sidebar + tab switcher (Visualization / Distribution)
+├── index.tsx                 ReactDOM entry
+├── icons.tsx                 react-icons re-exports
+├── constants.ts              layout constants, ChunkEvent colors, CHR_PALETTE, OthersMode, LINE_MAPPING
+├── utils.ts                  parseBED, parseCentromere, queryGene, fileToText, getChromosomes
+├── global.css, App.module.css
 ├── components/
-│   ├── sideBar/              InputFiles (drag-drop + reorder), Parameters, FileSlot, DropZone
-│   ├── visualizationTab/     SyntenyCanvas → LinePair → {Ribbon,BaseRow,Query}Layer + ChunkTooltip + Controls
-│   │   └── utils.ts          chunk building, row layout, ribbon geometry
+│   ├── sideBar/              Sidebar (root), InputFiles (drag-drop + reorder), Parameters, FileSlot, DropZone
+│   ├── visualizationTab/     VisualizationTab (root) → SyntenyCanvas → LinePair → RibbonLayer
+│   │   │                     + GenomeRowLayer (exports BaseRowLayer + QueryRowLayer) + CoordinateGrid
+│   │   │                     + CentromereMarks; Controls, ChunkTooltip, IntraRelabelControls,
+│   │   │                     NumberControl, ToggleButton, ExportButtons, DistributionRow
+│   │   ├── utils.ts          chunk building, row layout, ribbon geometry
+│   │   ├── relabel.ts        score-based intra-chr translocation relabeler (see relabel.md)
+│   │   └── batchExport.ts    SVG/PNG/CSV export
 │   └── DistributionTab.tsx   event/chromosome distribution charts
 ├── hooks/
 │   └── useVisualizationLayout.ts   memoized chunks → baseRow/queryRow → ribbons
 └── store/
-    ├── useAppStore.ts        domain: files, analysis result, palette, error, running
-    ├── useVisualizationStore.ts   render: svgW, hover, tooltip, gapBp, othersMode, baseRows
-    └── utils.ts              buildPalette
+    ├── useAppStore.ts        domain: base/query/centromere files, analysis result, palette, error, running
+    ├── useVisualizationStore.ts   render: svgW, hover, tooltip, layout flags, intra-relabel config
+    └── utils.ts              buildPalette, computeCommonIds
 ```
 
-`types.ts` (project root) holds shared domain types: `BedRow`, `BedFile`, `ResultRow`, `Chunk`, `ChrBar`/`OthersBar`, `BaseRow`/`QueryRow`, etc.
+`types.ts` (project root) holds shared domain types: `BedRow`, `BedFile`, `CentromereData`, `ResultRow`, `Chunk`, `ChrBar`/`OthersBar`, `BaseRow`/`QueryRow`, etc.
+
+`src/components/visualizationTab/relabel.md` documents the score-based intra-chromosomal relabeler.
 
 ## Data flow
 
 1. **Load** — user picks base + query BED files in the sidebar; `setBase`/`setQueryFiles` parse via `parseBED` (tab-separated, no header). Row `id` is positional and is the join key.
 2. **Analyze** (`runAnalysis` or `autoSort` in `useAppStore`) — filter base to `selectedChr`; left-join each query by `id`; derive `isInvert`, `isTranslocation`, `mainEvent`. `queryGene` then collapses query chromosomes that appear less than `groupThreshold` into `"others"` and sets `groupedQuery`.
-3. **Layout** (`useVisualizationLayout`) — group ResultRows into `Chunk[]` (split on `gapBp` and event boundary), build `BaseRow`/`QueryRow` with pixel coords scaled by bp-length, then compute ribbon paths (swap endpoints for inversions).
-4. **Render** — `SyntenyCanvas` stacks one `LinePair` per query; each pair = `RibbonLayer` (bezier paths) + `BaseRowLayer` + `QueryRowLayer`. Width comes from a `ResizeObserver` writing `svgW` to the visualization store.
+3. **Layout** (`useVisualizationLayout`) - group ResultRows into `Chunk[]` (split on `gapBp` and event boundary), optionally rescore intra-chr translocations via `relabelIntraChunks` (gated by `intra.relabel`; see `relabel.md`), build `BaseRow`/`QueryRow` with pixel coords scaled by bp-length, then compute ribbon paths (swap endpoints for inversions).
+4. **Render** - `SyntenyCanvas` stacks one `LinePair` per query; each pair = `RibbonLayer` (bezier paths) + `BaseRowLayer` + `QueryRowLayer` (both exported from `GenomeRowLayer.tsx`) + optional `CoordinateGrid` / `CentromereMarks`. Width comes from a `ResizeObserver` writing `svgW` to the visualization store.
 
 ## State
 
 Two zustand stores, separated by concern:
 
-- **`useAppStore`** — domain/data: `base`, `queryFiles`, `chromosomes`, `selectedChr`, `groupThreshold`, `result`, `palette`, `running`, `error`. Actions: `setBase`, `setQueryFiles`, `runAnalysis`, `autoSort`, `clearBase`/`clearQuery`/`reorderQuery`.
-- **`useVisualizationStore`** — render-only: `svgW`, `hoverChunk`, `tooltip`, `gapBp` (default 100k), `hiddenThreshold`, `othersMode` (`hide`|`show`|`group`), `baseRows[]` (accumulated y-offsets for stacked pairs).
+- **`useAppStore`** - domain/data: `base`, `baseFile`, `queryFiles`, `chromosomes`, `selectedChr`, `groupThreshold`, `result`, `commonIds`, `centromere`/`centromereName`, `palette`, `running`, `batching`, `error`. Actions: `setBase`, `setQueryFiles`, `swapBaseWithQuery`, `setCentromere`/`clearCentromere`, `runAnalysis`, `autoSort`, `clearBase`/`clearQuery`/`reorderQuery`, `setAppState`.
+- **`useVisualizationStore`** - render-only: `svgW`, `fontSize`, `hoverChunk`, `tooltip`, `gapBp` (stored in kbp; default `100` = 100k), `hiddenThreshold`, `othersMode` (`hide`|`show`|`group`), `commonOnly`, `denoise`, `sharedAxis`, `boundaryTicks`, `showMarks`, `stripBlankMbp`, `intra` (relabel config: `relabel`, `minLocalEvents`, `gapStopMbp`, `driftK`, `complexMin`; see `relabel.md`).
 
-Keep parsing/analysis in `useAppStore` and hover/sizing/tooltip in `useVisualizationStore` — don't mix.
+Keep parsing/analysis in `useAppStore` and hover/sizing/tooltip in `useVisualizationStore` - don't mix.
 
 ## Conventions
 
@@ -63,7 +73,7 @@ Keep parsing/analysis in `useAppStore` and hover/sizing/tooltip in `useVisualiza
 - Most SVG geometry is hand-rolled (`bpToPx`, `ribbonPath`); @visx is used thinly. Don't reach for d3 — match the existing pattern.
 - Chromosome colors come from cycling `CHR_PALETTE` deterministically via `buildPalette` so renders stay stable across analyses.
 - Default to no comments; identifiers are descriptive. CSS lives in colocated `*.module.css` files.
-- No tests exist. Jest/RTL ship from CRA but nothing is wired up — don't claim test coverage you didn't add.
+- Tests live next to source as `*.test.ts` (`src/utils.test.ts`, `src/store/utils.test.ts`, `src/components/visualizationTab/{utils,batchExport}.test.ts`). CI runs `yarn test --coverage --watchAll=false` and uploads to Codecov. Add tests next to the module you touch; don't introduce a separate `__tests__/` tree.
 
 ## Shared-axis tick lines
 
