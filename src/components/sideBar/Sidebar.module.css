@@ -15,7 +15,7 @@
   font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-alt);
   user-select: none;
 }
 
@@ -49,7 +49,7 @@
 
 .thresholdInput:focus {
   outline: none;
-  border-color: var(--green-dim);
+  border-color: var(--focus);
 }
 
 /* ── Chromosome select ── */
@@ -63,7 +63,7 @@
   border-radius: var(--radius);
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a5568'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 7px center;
   padding-right: 22px;
@@ -72,7 +72,7 @@
 
 .chrSelect:focus {
   outline: none;
-  border-color: var(--green-dim);
+  border-color: var(--focus);
 }
 
 .chrSelect:disabled {
@@ -104,7 +104,7 @@
 }
 
 .abortBtn {
-  background: #ffd6df;
+  background: rgba(var(--red-rgb), 0.22);
   color: var(--red);
 }
 

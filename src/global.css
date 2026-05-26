@@ -7,21 +7,43 @@
 }
 
 :root {
-  --bg: white;
-  --surface: white;
-  --border: #1e2530;
-  --border-hi: #2d3a4a;
+  /* Surfaces */
+  --bg: #fff;
+  --surface: #fff;
+  --surface-alt: #f8fafc;
+
+  /* Borders */
+  --border: #e2e8f0;
+  --border-hi: #cbd5e1;
+  --divider: #f1f5f9;
+
+  /* Text */
+  --text: #1e293b;
+  --text-strong: #334155;
+  --text-soft: #475569;
+  --text-dim: #64748b;
+  --muted: #94a3b8;
+
+  /* Accents */
   --green: #00808b;
   --green-dim: #90ee90;
+  --green-bright-rgb: 57, 255, 135;
   --amber: #ffb340;
   --red: #ff4e6a;
+  --red-rgb: 255, 78, 106;
   --blue: #4ea8ff;
-  --muted: #4a5568;
-  --text: black;
-  --text-dim: grey;
+  --focus: var(--blue);
+  --sky: #38bdf8;
+  --sky-strong: #0284c7;
+  --sky-bg: #f0f9ff;
+  --sky-bg-strong: #e0f2fe;
+
+  /* Typography & shape */
   --mono: "IBM Plex Mono", monospace;
   --sans: "IBM Plex Sans", sans-serif;
   --radius: 3px;
+
+  /* Shadows */
   --shadow-dark: rgba(0, 0, 0, 0.854);
   --shadow-heavy: rgba(0, 0, 0, 0.618);
   --shadow-mid: rgba(0, 0, 0, 0.3);

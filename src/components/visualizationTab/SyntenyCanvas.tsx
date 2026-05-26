@@ -10,8 +10,8 @@ import {
   type VisualizationLayout,
 } from "@/src/hooks/useVisualizationLayout";
 import {
-  registerVisibleChunks,
-  registerVisiblePredicted,
+  setVisibleExport,
+  clearVisibleExport,
   type PredictedByLine,
 } from "@/src/components/visualizationTab/batchExport";
 import {
@@ -120,12 +120,10 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   );
 
   useEffect(() => {
-    registerVisibleChunks(
-      layouts.map((l, i) => ({
-        queryLabel: pairs[i].queryLabel.toLowerCase(),
-        chunks: l.ribbons.map((r) => r.chunk),
-      }))
-    );
+    const visiblePairs = layouts.map((l, i) => ({
+      queryLabel: pairs[i].queryLabel.toLowerCase(),
+      chunks: l.ribbons.map((r) => r.chunk),
+    }));
 
     const predicted: PredictedByLine = new Map();
     const merge = (line: string, positions: Map<string, number[]>) => {
@@ -143,7 +141,9 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
       if (i === 0) merge(baseLabel, basePredicted);
       merge(queryLineKey, queryPredicted);
     });
-    registerVisiblePredicted(predicted);
+
+    setVisibleExport({ pairs: visiblePairs, predicted });
+    return () => clearVisibleExport();
   }, [layouts, pairs, predictedPerPair, baseLabel]);
 
   return (

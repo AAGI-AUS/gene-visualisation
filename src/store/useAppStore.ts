@@ -66,7 +66,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const text = await fileToText(file);
     const rows = parseBED(text);
-    const chromosomes = getChromosomes(rows);
+    const chromosomes = getChromosomes(rows).sort();
     set({ base: { name: file.name, rows }, baseFile: file, chromosomes, selectedChr: chromosomes[0] });
   },
   setQueryFiles: (file) => {
@@ -101,7 +101,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     const text = await fileToText(incoming);
     const rows = parseBED(text);
-    const chromosomes = getChromosomes(rows);
+    const chromosomes = getChromosomes(rows).sort();
     const nextQueries = [...queryFiles];
     if (baseFile) {
       nextQueries[i] = baseFile;

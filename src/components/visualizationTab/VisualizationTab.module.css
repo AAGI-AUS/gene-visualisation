@@ -24,7 +24,7 @@
 .controlLabel {
   font-size: 10px;
   letter-spacing: 0.09em;
-  color: #64748b;
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
@@ -34,9 +34,9 @@
 
 .controlInput {
   width: 80px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #1e293b;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
   font-family: var(--mono);
   font-size: 11px;
   padding: 3px 0;
@@ -46,13 +46,13 @@
 
 .controlInput:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--focus);
 }
 
 .sep {
   width: 1px;
   height: 20px;
-  background: #e2e8f0;
+  background: var(--border);
 }
 
 .rowBreak {
@@ -66,10 +66,10 @@
   align-items: center;
   gap: 6px;
   padding: 4px 11px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-hi);
   border-radius: 20px;
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--surface-alt);
+  color: var(--text-dim);
   font-family: var(--mono);
   font-size: 11px;
   cursor: pointer;
@@ -78,31 +78,31 @@
 }
 
 .toggleBtn:hover {
-  border-color: #94a3b8;
-  color: #334155;
+  border-color: var(--muted);
+  color: var(--text-strong);
 }
 
 .toggleBtnOn {
-  background: #f0f9ff;
-  border-color: #38bdf8;
-  color: #0284c7;
+  background: var(--sky-bg);
+  border-color: var(--sky);
+  color: var(--sky-strong);
 }
 
 .toggleDot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #cbd5e1;
+  background: var(--border-hi);
   flex-shrink: 0;
 }
 
 .toggleBtnOn .toggleDot {
-  background: #38bdf8;
+  background: var(--sky);
 }
 
 .toggleBadge {
-  background: #e0f2fe;
-  color: #0284c7;
+  background: var(--sky-bg-strong);
+  color: var(--sky-strong);
   font-size: 9px;
   padding: 1px 5px;
   border-radius: 8px;
@@ -127,10 +127,10 @@
   align-items: center;
   gap: 5px;
   padding: 4px 11px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-hi);
   border-radius: 3px;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--surface-alt);
+  color: var(--text-soft);
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
@@ -140,9 +140,9 @@
 }
 
 .exportBtn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #1e293b;
+  background: var(--divider);
+  border-color: var(--muted);
+  color: var(--text);
 }
 
 /* ── Stats strip ── */
@@ -150,7 +150,7 @@
   display: flex;
   gap: 14px;
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--muted);
   align-items: center;
 }
 
@@ -162,7 +162,7 @@
 
 .statNum {
   font-weight: 600;
-  color: #334155;
+  color: var(--text-strong);
 }
 
 /* ── Legend ── */
@@ -178,7 +178,7 @@
   align-items: center;
   gap: 5px;
   font-size: 10px;
-  color: #64748b;
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
@@ -191,7 +191,7 @@
 
 /* ── Canvas ── */
 .canvasWrap {
-  background: #fff;
+  background: var(--surface);
   position: relative;
   min-height: 300px;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -206,11 +206,11 @@
 .tooltip {
   position: absolute;
   /* relative to canvasWrap */
-  background: #fff;
+  background: var(--surface);
   border-radius: 3px;
   padding: 0;
   font-family: var(--mono);
-  color: #1e293b;
+  color: var(--text);
   pointer-events: none;
   z-index: 999;
   width: 300px;
@@ -245,7 +245,7 @@
 
 .tooltipCount {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .tooltipCoordGrid {
@@ -255,7 +255,7 @@
   row-gap: 2px;
   align-items: baseline;
   font-size: 10.5px;
-  color: #475569;
+  color: var(--text-soft);
   line-height: 1.7;
 }
 
@@ -265,7 +265,7 @@
 }
 
 .tooltipDash {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .tooltipOthers {
@@ -273,7 +273,7 @@
 }
 
 .tooltipGenome {
-  color: #94a3b8;
+  color: var(--muted);
   text-transform: uppercase;
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -302,18 +302,18 @@
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .tooltipSpanVal {
   font-size: 11px;
   font-weight: 500;
-  color: #334155;
+  color: var(--text-strong);
 }
 
 .tooltipDivider {
   height: 1px;
-  background: #f1f5f9;
+  background: var(--divider);
   margin: 5px -8px;
 }
 
@@ -332,7 +332,7 @@
 }
 
 .distLabel {
-  color: #64748b;
+  color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -340,7 +340,7 @@
 
 .distBarWrap {
   height: 7px;
-  background: #f1f5f9;
+  background: var(--divider);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -353,13 +353,13 @@
 
 .distN {
   text-align: right;
-  color: #334155;
+  color: var(--text-strong);
   font-weight: 500;
 }
 
 .distPct {
   text-align: right;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 /* ── Empty state ── */
@@ -370,7 +370,7 @@
   justify-content: center;
   height: 100%;
   gap: 10px;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .emptyIcon {
@@ -380,7 +380,7 @@
 
 .emptyTitle {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-dim);
 }
 
 .emptySub {
