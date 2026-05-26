@@ -16,7 +16,7 @@ import {
   zeroCounts,
 } from "@/src/components/visualizationTab/utils";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
-import type { ChrBar, Chunk, ResultRow } from "@/types";
+import type { ChrBar, Chunk, OthersBar, ResultRow } from "@/types";
 
 const EMPTY_SET = new Set();
 
@@ -474,6 +474,47 @@ describe("computeRibbons", () => {
   it("skips chunks whose query chromosome is not laid out and not grouped", () => {
     const chunk: Chunk = { ...makeChunk([1]), chrQuery: "missing" };
     expect(computeRibbons([chunk], baseRow, queryRow, "hide")).toEqual([]);
+  });
+
+  const rightStub: OthersBar = {
+    kind: "others",
+    baseChr: "1A",
+    side: "right",
+    px: 176,
+    pw: OTHERS_W,
+    targetX: 188,
+  };
+
+  it("routes a grouped 'others' chunk to the stub on the side its base midpoint favours", () => {
+    const leftStub: OthersBar = {
+      kind: "others",
+      baseChr: "1A",
+      side: "left",
+      px: 0,
+      pw: OTHERS_W,
+      targetX: 12,
+    };
+    const groupedRow = { label: "q", slots: [leftStub, rightStub], y: 80 };
+
+    // base midpoint 10 <= barMid 100 → left stub; halfW = min(span/2=10, OTHERS_W/2=12) = 10.
+    const left: Chunk = { ...makeChunk([1]), bp1Base: 0, bp2Base: 20, isOthers: true };
+    const [leftRibbon] = computeRibbons([left], baseRow, groupedRow, "group");
+    expect(leftRibbon).toMatchObject({ bxs: 0, bxe: 20, qxs: 2, qxe: 22 });
+
+    // base midpoint 190 > barMid 100 → right stub.
+    const right: Chunk = { ...makeChunk([2]), bp1Base: 180, bp2Base: 200, isOthers: true };
+    const [rightRibbon] = computeRibbons([right], baseRow, groupedRow, "group");
+    expect(rightRibbon).toMatchObject({ bxs: 180, bxe: 200, qxs: 178, qxe: 198 });
+  });
+
+  it("skips a grouped 'others' chunk when its favoured stub is absent", () => {
+    const rightOnly = {
+      label: "q",
+      slots: [rightStub],
+      y: 80,
+    };
+    const left: Chunk = { ...makeChunk([1]), bp1Base: 0, bp2Base: 20, isOthers: true };
+    expect(computeRibbons([left], baseRow, rightOnly, "group")).toEqual([]);
   });
 });
 
