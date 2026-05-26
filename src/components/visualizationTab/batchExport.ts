@@ -15,10 +15,26 @@ export interface VisibleChunkPair {
   chunks: Chunk[];
 }
 
-let visiblePairs: VisibleChunkPair[] = [];
+export type PredictedByLine = Map<string, Map<string, number>>;
 
-export const registerVisibleChunks = (pairs: VisibleChunkPair[]): void => {
-  visiblePairs = pairs;
+// Live snapshot bridging the rendered canvas to the export routines that live outside its
+// subtree: the single-CSV button (under Controls) and the async batchExportAll loop, which
+// drives a render-per-chromosome loop and harvests each frame. SyntenyCanvas writes this
+// after each render via setVisibleExport. The CSV builders below take this data as explicit
+// arguments rather than reading it implicitly, so they stay pure and unit-testable.
+interface VisibleExport {
+  pairs: VisibleChunkPair[];
+  predicted: PredictedByLine;
+}
+
+let visibleExport: VisibleExport = { pairs: [], predicted: new Map() };
+
+export const setVisibleExport = (snapshot: VisibleExport): void => {
+  visibleExport = snapshot;
+};
+
+export const clearVisibleExport = (): void => {
+  visibleExport = { pairs: [], predicted: new Map() };
 };
 
 const NOTABLE_EVENTS: ReadonlySet<ChunkEvent> = new Set<ChunkEvent>([
@@ -91,12 +107,10 @@ const SYNTENY_MAP: Record<ChunkEvent, ChunkEvent> = {
 // Build CSV rows for the currently registered visible chunks. Within each
 // pair, sort notable chunks by (chrBase, bp1Base), then merge a run of
 // consecutive same-event chunks sharing the same chrBase and chrQuery.
-const collectCsvRows = (): string[] => {
-  const store = useAppStore.getState();
-
+const collectCsvRows = (pairs: VisibleChunkPair[], baseName: string): string[] => {
   const rows: string[] = [];
-  let baseLabel = store.base?.name.split(".")[0] ?? "";
-  for (const { queryLabel, chunks } of visiblePairs) {
+  let baseLabel = baseName;
+  for (const { queryLabel, chunks } of pairs) {
     const notable = chunks
       .filter((c) => NOTABLE_EVENTS.has(c.dominant))
       .sort((a, b) => a.chrBase.localeCompare(b.chrBase) || a.bp1Base - b.bp1Base);
@@ -140,19 +154,19 @@ const collectCsvRows = (): string[] => {
   return rows;
 };
 
-export const buildNotableEventsCsv = (): string => [CSV_HEADER, ...collectCsvRows()].join("\n");
+export const buildNotableEventsCsv = (pairs: VisibleChunkPair[], baseName: string): string =>
+  [CSV_HEADER, ...collectCsvRows(pairs, baseName)].join("\n");
+
+const currentBaseName = (): string => useAppStore.getState().base?.name.split(".")[0] ?? "";
+
+export const downloadNotableEventsCsv = (filename: string): void => {
+  const csv = buildNotableEventsCsv(visibleExport.pairs, currentBaseName());
+  triggerDownload(new Blob([csv], { type: "text/csv" }), filename);
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Predicted centromeres (per-line × per-chr Mbp, matching centromere file shape)
 // ─────────────────────────────────────────────────────────────────────────────
-
-export type PredictedByLine = Map<string, Map<string, number>>;
-
-let visiblePredicted: PredictedByLine = new Map();
-
-export const registerVisiblePredicted = (predicted: PredictedByLine): void => {
-  visiblePredicted = predicted;
-};
 
 const PREDICTED_CHRS = [
   "1A",
@@ -230,8 +244,10 @@ interface SaveFilePickerWindow {
 }
 
 export const downloadPredictedCentromeresCsv = (filename = "predicted_centromeres.csv"): void => {
-  if (!visiblePredicted.size) return;
-  const blob = new Blob([buildPredictedCentromeresCsv(visiblePredicted)], { type: "text/csv;charset=utf-8" });
+  if (!visibleExport.predicted.size) return;
+  const blob = new Blob([buildPredictedCentromeresCsv(visibleExport.predicted)], {
+    type: "text/csv;charset=utf-8",
+  });
   triggerDownload(blob, filename);
 };
 
@@ -245,6 +261,8 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
   const store = useAppStore.getState();
   const { chromosomes, autoSort } = store;
   if (!chromosomes.length || currentAbortController) return;
+
+  const baseName = store.base?.name.split(".")[0] ?? "";
 
   let writable: ZipWritable;
   try {
@@ -289,8 +307,8 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
       const png = await svgToPngBlob(svgEl);
       if (png) files[`${base}.png`] = [await blobToBytes(png), { level: 0 }];
 
-      csvRows.push(...collectCsvRows());
-      mergePredicted(predictedAcc, visiblePredicted);
+      csvRows.push(...collectCsvRows(visibleExport.pairs, baseName));
+      mergePredicted(predictedAcc, visibleExport.predicted);
     }
   } finally {
     useAppStore.setState(snapshot);
