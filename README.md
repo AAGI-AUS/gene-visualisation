@@ -11,8 +11,22 @@ contiguous rows into chunks, and draws ribbons between chromosome bars.
 
 - `yarn dev`: start the dev server (craco)
 - `yarn build`: production build to `build/`
-- `yarn build-one`: single self-contained HTML in `dist/` with CSS/JS inlined
+- `yarn build-one`: single self-contained HTML in `dist/` with CSS/JS inlined (requires the Python helper, see below)
 - `yarn test`: run the Jest suite (append `--coverage` for a coverage report)
+
+## `yarn build-one` prerequisites
+
+`build-one` runs `./touch-up.py` between the CRA build and the webpack inlining
+step. The script's shebang is `#!./env/bin/python`, so a virtualenv must exist
+at `./env` with `beautifulsoup4` installed. One-time setup:
+
+```sh
+python3 -m venv env
+env/bin/pip install -r requirements.txt
+```
+
+After that, `yarn build-one` works as-is. `yarn dev` and `yarn build` don't
+need the venv.
 
 ## Tech
 
