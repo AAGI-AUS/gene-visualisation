@@ -194,7 +194,7 @@ const PREDICTED_CHRS = [
 
 const PREDICTED_HEADER = ["Genome Assembly", ...PREDICTED_CHRS.map((c) => `chr${c}`)].join(",");
 
-export const buildPredictedCentromeresCsv = (predicted: PredictedByLine): string => {
+export const buildCentromeresCsv = (predicted: PredictedByLine): string => {
   const rows = [PREDICTED_HEADER];
   const lines = Array.from(predicted.keys()).sort();
   for (const line of lines) {
@@ -245,7 +245,7 @@ interface SaveFilePickerWindow {
 
 export const downloadPredictedCentromeresCsv = (filename = "predicted_centromeres.csv"): void => {
   if (!visibleExport.predicted.size) return;
-  const blob = new Blob([buildPredictedCentromeresCsv(visibleExport.predicted)], {
+  const blob = new Blob([buildCentromeresCsv(visibleExport.predicted)], {
     type: "text/csv;charset=utf-8",
   });
   triggerDownload(blob, filename);
@@ -320,7 +320,7 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
     files["notable_events.csv"] = [new TextEncoder().encode(csvRows.join("\n")), { level: 6 }];
     if (predictedAcc.size) {
       files["predicted_centromeres.csv"] = [
-        new TextEncoder().encode(buildPredictedCentromeresCsv(predictedAcc)),
+        new TextEncoder().encode(buildCentromeresCsv(predictedAcc)),
         { level: 6 },
       ];
     }

@@ -1,6 +1,6 @@
 import {
   buildNotableEventsCsv,
-  buildPredictedCentromeresCsv,
+  buildCentromeresCsv,
   type PredictedByLine,
   type VisibleChunkPair,
 } from "@/src/components/visualizationTab/batchExport";
@@ -58,6 +58,7 @@ const parseRow = (row: string) => {
     translocated,
     chunkCount,
   ] = row.split("|");
+
   return {
     baseLine,
     baseChr,
@@ -78,6 +79,25 @@ const parseRow = (row: string) => {
 };
 
 describe("buildNotableEventsCsv", () => {
+  const baseChunks: Chunk[] = [
+    makeChunk({
+      dominant: "inversion",
+      chrBase: "1A",
+      chrQuery: "1A",
+      bp1Base: 0,
+      bp2Base: 100,
+      eventCounts: counts({ inversion: 5 }),
+    }),
+    makeChunk({
+      dominant: "inversion",
+      chrBase: "1A",
+      chrQuery: "1A",
+      bp1Base: 400,
+      bp2Base: 500,
+      eventCounts: counts({ inversion: 7 }),
+    }),
+  ];
+
   it("emits only the header when there are no pairs", () => {
     expect(buildNotableEventsCsv([], "base")).toBe(NOTABLE_HEADER);
   });
@@ -88,11 +108,12 @@ describe("buildNotableEventsCsv", () => {
         queryLabel: "q",
         chunks: [
           makeChunk({ dominant: "synteny", eventCounts: counts({ synteny: 9, total: 9 }) }),
-          makeChunk({ dominant: "inversion", eventCounts: counts({ inversion: 5, total: 5 }) }),
+          baseChunks[0],
         ],
       },
     ];
     const rows = dataRows(buildNotableEventsCsv(pairs, "base"));
+
     expect(rows).toHaveLength(1);
     const r = parseRow(rows[0]);
     expect(r.event).toBe("inversion");
@@ -105,45 +126,38 @@ describe("buildNotableEventsCsv", () => {
   });
 
   it("merges consecutive same-event same-chr chunks: spans expand, counts/genes/chunkCount sum", () => {
-    const pairs: VisibleChunkPair[] = [
-      {
-        queryLabel: "q",
-        chunks: [
-          makeChunk({
-            dominant: "translocation",
-            bp1Base: 0,
-            bp2Base: 100,
-            bp1Query: 0,
-            bp2Query: 100,
-            bpGeneBase: 10,
-            bpGeneQuery: 20,
-            eventCounts: counts({ synteny: 3, translocation: 99 }),
-          }),
-          makeChunk({
-            dominant: "translocation",
-            bp1Base: 200,
-            bp2Base: 300,
-            bp1Query: 150,
-            bp2Query: 250,
-            bpGeneBase: 5,
-            bpGeneQuery: 7,
-            eventCounts: counts({ synteny: 4, translocation: 88 }),
-          }),
-        ],
-      },
-    ];
+    const pairs: VisibleChunkPair[] = [{ queryLabel: "q", chunks: baseChunks }];
     const rows = dataRows(buildNotableEventsCsv(pairs, "base"));
+
     expect(rows).toHaveLength(1);
     const r = parseRow(rows[0]);
+    expect(r.event).toBe("inversion");
     expect(r.baseBp1).toBe("0");
-    expect(r.baseBp2).toBe("300");
-    expect(r.queryBp1).toBe("0");
-    expect(r.queryBp2).toBe("250");
-    expect(r.baseGene).toBe("15");
-    expect(r.queryGene).toBe("27");
+    expect(r.baseBp2).toBe("500");
+    expect(r.baseGene).toBe("20");
+    expect(r.queryGene).toBe("40");
     expect(r.chunkCount).toBe("2");
-    // intra-chr translocation maps to the synteny bucket: 3 + 4, not 99 + 88
-    expect(r.eventCount).toBe("7");
+    expect(r.eventCount).toBe("12");
+  });
+
+  it("does not merge same-event chunks on the same chr when a different event sits between them", () => {
+    const middle = makeChunk({
+      dominant: "translocation",
+      chrBase: "1A",
+      chrQuery: "1A",
+      bp1Base: 200,
+      bp2Base: 300,
+      eventCounts: counts({ synteny: 4 }),
+    });
+    const pairs: VisibleChunkPair[] = [{ queryLabel: "q", chunks: [baseChunks[0], middle, baseChunks[1]] }];
+    const rows = dataRows(buildNotableEventsCsv(pairs, "base")).map(parseRow);
+
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.event)).toEqual(["inversion", "translocation", "inversion"]);
+    expect(rows.map((r) => r.baseBp1)).toEqual(["0", "200", "400"]);
+    expect(rows.map((r) => r.baseBp2)).toEqual(["100", "300", "500"]);
+    expect(rows.map((r) => r.chunkCount)).toEqual(["1", "1", "1"]);
+    expect(rows.map((r) => r.eventCount)).toEqual(["5", "4", "7"]);
   });
 
   it("reads different count buckets for intra- vs inter-chromosomal translocations", () => {
@@ -169,10 +183,11 @@ describe("buildNotableEventsCsv", () => {
       },
     ];
     const rows = dataRows(buildNotableEventsCsv(pairs, "base"));
+
     expect(rows).toHaveLength(2);
-    // intra-chr -> SYNTENY_MAP remaps to synteny bucket
+    // intra-chr maps to synteny bucket
     expect(parseRow(rows[0]).eventCount).toBe("2");
-    // inter-chr -> reads the translocation bucket directly
+    // inter-chr no map
     expect(parseRow(rows[1]).eventCount).toBe("50");
   });
 
@@ -189,6 +204,7 @@ describe("buildNotableEventsCsv", () => {
       },
     ];
     const r = parseRow(dataRows(buildNotableEventsCsv(pairs, "base"))[0]);
+
     expect(r.event).toBe("translocation+inversion");
     expect(r.inverted).toBe("true");
     expect(r.translocated).toBe("true");
@@ -201,22 +217,24 @@ describe("buildNotableEventsCsv", () => {
         queryLabel: "q",
         chunks: [
           makeChunk({ dominant: "inversion", chrBase: "2A", chrQuery: "2A", bp1Base: 0 }),
-          makeChunk({ dominant: "translocation", chrBase: "1A", chrQuery: "1A", bp1Base: 50 }),
-          makeChunk({ dominant: "inversion", chrBase: "1A", chrQuery: "1A", bp1Base: 10 }),
+          { ...baseChunks[1], dominant: "translocation" },
+          baseChunks[0],
         ],
       },
     ];
     const rows = dataRows(buildNotableEventsCsv(pairs, "base")).map(parseRow);
+
     expect(rows.map((r) => r.baseChr)).toEqual(["1A", "1A", "2A"]);
     expect(rows.map((r) => r.event)).toEqual(["inversion", "translocation", "inversion"]);
   });
 
   it("chains base_line across pairs: each pair's query line becomes the next base line", () => {
     const pairs: VisibleChunkPair[] = [
-      { queryLabel: "q1", chunks: [makeChunk({ dominant: "inversion" })] },
-      { queryLabel: "q2", chunks: [makeChunk({ dominant: "inversion" })] },
+      { queryLabel: "q1", chunks: baseChunks },
+      { queryLabel: "q2", chunks: baseChunks },
     ];
     const rows = dataRows(buildNotableEventsCsv(pairs, "base")).map(parseRow);
+
     expect([rows[0].baseLine, rows[0].queryLine]).toEqual(["base", "q1"]);
     expect([rows[1].baseLine, rows[1].queryLine]).toEqual(["q1", "q2"]);
   });
@@ -226,9 +244,9 @@ const PREDICTED_HEADER =
   "Genome Assembly,chr1A,chr1B,chr1D,chr2A,chr2B,chr2D,chr3A,chr3B,chr3D,chr4A,chr4B,chr4D," +
   "chr5A,chr5B,chr5D,chr6A,chr6B,chr6D,chr7A,chr7B,chr7D";
 
-describe("buildPredictedCentromeresCsv", () => {
+describe("buildCentromeresCsv", () => {
   it("emits only the header for an empty map", () => {
-    expect(buildPredictedCentromeresCsv(new Map())).toBe(PREDICTED_HEADER);
+    expect(buildCentromeresCsv(new Map())).toBe(PREDICTED_HEADER);
   });
 
   it("converts bp to Mbp (1 decimal), blanks missing chrs, and keeps an explicit zero", () => {
@@ -242,7 +260,8 @@ describe("buildPredictedCentromeresCsv", () => {
         ]),
       ],
     ]);
-    const lines = buildPredictedCentromeresCsv(predicted).split("\n");
+    const lines = buildCentromeresCsv(predicted).split("\n");
+
     expect(lines[0]).toBe(PREDICTED_HEADER);
     const cells = lines[1].split(",");
     expect(cells[0]).toBe("lineA");
@@ -257,7 +276,8 @@ describe("buildPredictedCentromeresCsv", () => {
       ["zeta", new Map([["1A", 100_000_000]])],
       ["alpha", new Map([["1A", 200_000_000]])],
     ]);
-    const lines = buildPredictedCentromeresCsv(predicted).split("\n");
+    const lines = buildCentromeresCsv(predicted).split("\n");
+
     expect(lines[1].startsWith("alpha,")).toBe(true);
     expect(lines[2].startsWith("zeta,")).toBe(true);
   });
@@ -272,7 +292,8 @@ describe("buildPredictedCentromeresCsv", () => {
         ]),
       ],
     ]);
-    const cells = buildPredictedCentromeresCsv(predicted).split("\n")[1].split(",");
+    const cells = buildCentromeresCsv(predicted).split("\n")[1].split(",");
+
     expect(cells).toHaveLength(22); // line label + 21 chromosomes
     expect(cells[1]).toBe("10.0"); // chr1A
     expect(cells).not.toContain("50.0"); // chr8A has no column
