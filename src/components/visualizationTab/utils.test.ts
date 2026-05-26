@@ -55,7 +55,7 @@ const makeChunk = (ids: number[]): Chunk => ({
 });
 
 describe("rowCategory", () => {
-  test("returns the event matching the row's flags", () => {
+  it("returns the event matching the row's flags", () => {
     expect(rowCategory(makeRow())).toBe("synteny");
     expect(rowCategory(makeRow({ isInvert: true, mainEvent: "inversion" }))).toBe("inversion");
 
@@ -66,7 +66,7 @@ describe("rowCategory", () => {
 });
 
 describe("zeroCounts", () => {
-  test("zeroCounts initialises every key to 0", () => {
+  it("zeroCounts initialises every key to 0", () => {
     expect(zeroCounts()).toEqual({
       synteny: 0,
       inversion: 0,
@@ -78,25 +78,25 @@ describe("zeroCounts", () => {
 });
 
 describe("collectNoisyIds", () => {
-  test("returns an empty set when there is at most one pair", () => {
+  it("returns an empty set when there is at most one pair", () => {
     expect(collectNoisyIds([])).toEqual(EMPTY_SET);
     expect(collectNoisyIds([[makeChunk([1, 2])]])).toEqual(EMPTY_SET);
   });
 
-  test("flags ids missing from at least one pair", () => {
+  it("flags ids missing from at least one pair", () => {
     const chunksPair1 = [makeChunk([1, 2, 3])];
     const chunksPair2 = [makeChunk([2, 3, 4])];
     expect(collectNoisyIds([chunksPair1, chunksPair2])).toEqual(new Set([1, 4]));
   });
 
-  test("returns an empty set when every id appears in every pair", () => {
+  it("returns an empty set when every id appears in every pair", () => {
     const chunks = [makeChunk([1, 2, 3])];
     expect(collectNoisyIds([chunks, [makeChunk([3, 2, 1])]])).toEqual(EMPTY_SET);
   });
 });
 
 describe("buildChunk", () => {
-  test("aggregates ids, bp ranges, and event counts", () => {
+  it("aggregates ids, bp ranges, and event counts", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 0, p2Query: 100 }),
       makeRow({ id: 2, p1Base: 150, p2Base: 250, p1Query: 150, p2Query: 250 }),
@@ -120,7 +120,7 @@ describe("buildChunk", () => {
     expect(chunk.isOthers).toBe(false);
   });
 
-  test("picks the dominant query chromosome by count", () => {
+  it("picks the dominant query chromosome by count", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, chromosomeQuery: "1A", p1Query: 0, p2Query: 100 }),
       makeRow({ id: 2, chromosomeQuery: "2B", p1Query: 0, p2Query: 100 }),
@@ -133,7 +133,7 @@ describe("buildChunk", () => {
     expect(chunk.queryChromCounts).toEqual({ "1A": 1, "2B": 2 });
   });
 
-  test("marks isInvert when the dominant query rows are mostly inverted", () => {
+  it("marks isInvert when the dominant query rows are mostly inverted", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, isInvert: true, mainEvent: "inversion" }),
       makeRow({ id: 2, isInvert: true, mainEvent: "inversion" }),
@@ -143,7 +143,7 @@ describe("buildChunk", () => {
     expect(chunk.isInvert).toBe(true);
   });
 
-  test("marks isOthers when most rows are grouped as 'others'", () => {
+  it("marks isOthers when most rows are grouped as 'others'", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, chromosomeQuery: "rare1", groupedQuery: "others" }),
       makeRow({ id: 2, chromosomeQuery: "rare2", groupedQuery: "others" }),
@@ -153,7 +153,7 @@ describe("buildChunk", () => {
     expect(chunk.isOthers).toBe(true);
   });
 
-  test("dominant ties resolve to whichever event reached the max first in row order", () => {
+  it("dominant ties resolve to whichever event reached the max first in row order", () => {
     const synteny = () => makeRow({ id: 0 });
     const inversion = () => makeRow({ id: 0, isInvert: true, mainEvent: "inversion" });
 
@@ -164,7 +164,7 @@ describe("buildChunk", () => {
     expect(buildChunk(inversionFirst, 0, "lineA").dominant).toBe("inversion");
   });
 
-  test("non-synteny rows don't extend the query bp range when synteny dominates", () => {
+  it("non-synteny rows don't extend the query bp range when synteny dominates", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Query: 0, p2Query: 100 }),
       makeRow({ id: 2, p1Query: 100, p2Query: 200 }),
@@ -180,11 +180,11 @@ describe("buildChunk", () => {
 });
 
 describe("chunkRows", () => {
-  test("returns no chunks for empty input", () => {
+  it("returns no chunks for empty input", () => {
     expect(chunkRows([], 100, "lineA")).toEqual([]);
   });
 
-  test("keeps rows together when the base gap is within gapBp", () => {
+  it("keeps rows together when the base gap is within gapBp", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 0, p2Query: 100 }),
       makeRow({ id: 2, p1Base: 110, p2Base: 200, p1Query: 110, p2Query: 200 }),
@@ -194,7 +194,7 @@ describe("chunkRows", () => {
     expect(chunks[0].ids).toEqual([1, 2]);
   });
 
-  test("splits rows where the base gap exceeds gapBp", () => {
+  it("splits rows where the base gap exceeds gapBp", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 0, p2Query: 100 }),
       makeRow({ id: 2, p1Base: 1000, p2Base: 1100, p1Query: 1000, p2Query: 1100 }),
@@ -205,7 +205,7 @@ describe("chunkRows", () => {
     expect(chunks[1].ids).toEqual([2]);
   });
 
-  test("keeps non-translocation and translocation rows in separate chunks", () => {
+  it("keeps non-translocation and translocation rows in separate chunks", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Base: 0, p2Base: 100 }),
       makeRow({
@@ -223,7 +223,7 @@ describe("chunkRows", () => {
     expect(chunks.flatMap((c) => c.ids).sort()).toEqual([1, 2]);
   });
 
-  test("strict mode splits when the query span is disproportional to the base span", () => {
+  it("strict mode splits when the query span is disproportional to the base span", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 0, p2Query: 100 }),
       // Base gap is 10 (well within gapBp=50), but the query jumps to ~2000.
@@ -236,7 +236,7 @@ describe("chunkRows", () => {
     expect(chunks[1].ids).toEqual([2]);
   });
 
-  test("strict mode splits non-inverted rows whose query lies before the chunk start", () => {
+  it("strict mode splits non-inverted rows whose query lies before the chunk start", () => {
     const rows: ResultRow[] = [
       makeRow({ id: 1, p1Base: 0, p2Base: 100, p1Query: 100, p2Query: 200 }),
       // Same-sign rows with proportional query span (200) but cur.p2Query=50 < first.p1Query=100,
@@ -249,7 +249,7 @@ describe("chunkRows", () => {
     expect(chunks[1].ids).toEqual([2]);
   });
 
-  test("translocation 'others' rows use non-strict sweep and stay together despite skewed query spans", () => {
+  it("translocation 'others' rows use non-strict sweep and stay together despite skewed query spans", () => {
     const rows: ResultRow[] = [
       makeRow({
         id: 1,
@@ -282,12 +282,12 @@ describe("chunkRows", () => {
 });
 
 describe("buildBaseRow", () => {
-  test("returns no bars when chrOrder is empty", () => {
+  it("returns no bars when chrOrder is empty", () => {
     const row = buildBaseRow(new Map(), new Map(), [], "label", 500, "hide");
     expect(row).toEqual({ label: "label", bars: [], y: PAD.top });
   });
 
-  test("places bars consecutively with the configured gap between them", () => {
+  it("places bars consecutively with the configured gap between them", () => {
     const chrMax = new Map([
       ["1A", 100],
       ["2B", 100],
@@ -303,14 +303,14 @@ describe("buildBaseRow", () => {
     expect(row.bars[0].pw + row.bars[1].pw).toBe(200);
   });
 
-  test("reserves an 'others' stub on the left when othersMode is 'group'", () => {
+  it("reserves an 'others' stub on the left when othersMode is 'group'", () => {
     const chrMax = new Map([["1A", 100]]);
     const chrMin = new Map([["1A", 0]]);
     const row = buildBaseRow(chrMax, chrMin, ["1A"], "label", 500, "group");
     expect(row.bars[0].px).toBe(OTHERS_W + CHR_GAP_PX);
   });
 
-  test("perChrPxPerBp overrides rowPxPerBp per chr and stretches the last bar to fill availW", () => {
+  it("perChrPxPerBp overrides rowPxPerBp per chr and stretches the last bar to fill availW", () => {
     const chrMax = new Map([
       ["1A", 100],
       ["2B", 100],
@@ -336,7 +336,7 @@ describe("buildBaseRow", () => {
 });
 
 describe("buildQueryRow", () => {
-  test("returns no slots when slotSpecs is empty", () => {
+  it("returns no slots when slotSpecs is empty", () => {
     const row = buildQueryRow([], "label", 200);
     expect(row).toEqual({
       label: "label",
@@ -345,7 +345,7 @@ describe("buildQueryRow", () => {
     });
   });
 
-  test("lays out chr and others slots back-to-back with the configured gap", () => {
+  it("lays out chr and others slots back-to-back with the configured gap", () => {
     const specs: SlotSpec[] = [
       { kind: "others", baseChr: "1A", side: "left" },
       { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
@@ -366,7 +366,7 @@ describe("buildQueryRow", () => {
     expect(right.pw).toBe(OTHERS_W);
   });
 
-  test("perChrPxPerBp stretches the last chr slot and shifts trailing others by the deficit", () => {
+  it("perChrPxPerBp stretches the last chr slot and shifts trailing others by the deficit", () => {
     const specs: SlotSpec[] = [
       { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
       { kind: "others", baseChr: "1A", side: "right" },
@@ -396,26 +396,26 @@ describe("buildQueryRow", () => {
 describe("bpToPx", () => {
   const bar: ChrBar = { kind: "chr", chr: "1A", px: 50, pw: 200, bpLen: 1000, p1: 0 };
 
-  test("returns the bar's start when bp matches its p1", () => {
+  it("returns the bar's start when bp matches its p1", () => {
     expect(bpToPx(bar, 0)).toBe(50);
   });
 
-  test("returns the bar's end when bp matches its full extent", () => {
+  it("returns the bar's end when bp matches its full extent", () => {
     expect(bpToPx(bar, 1000)).toBe(250);
   });
 
-  test("interpolates linearly inside the bar", () => {
+  it("interpolates linearly inside the bar", () => {
     expect(bpToPx(bar, 500)).toBe(150);
   });
 
-  test("clamps below p1 and above p1 + bpLen", () => {
+  it("clamps below p1 and above p1 + bpLen", () => {
     expect(bpToPx(bar, -100)).toBe(50);
     expect(bpToPx(bar, 5000)).toBe(250);
   });
 });
 
 describe("ribbonPath", () => {
-  test("produces an SVG path that starts with M, has both C segments, an L, and closes with Z", () => {
+  it("produces an SVG path that starts with M, has both C segments, an L, and closes with Z", () => {
     const d = ribbonPath(0, 100, 0, 50, 150, 200);
     expect(d.startsWith("M ")).toBe(true);
     expect(d.endsWith("Z")).toBe(true);
@@ -423,7 +423,7 @@ describe("ribbonPath", () => {
     expect(d).toContain("L ");
   });
 
-  test("expands collapsed endpoints to the requested minWidth", () => {
+  it("expands collapsed endpoints to the requested minWidth", () => {
     const d = ribbonPath(100, 100, 0, 200, 200, 50, 10);
     expect(d).toContain("M 95");
     expect(d).toContain("195");
@@ -437,7 +437,7 @@ describe("computeRibbons", () => {
   const baseRow = { label: "base", bars: [baseBar], y: 10 };
   const queryRow = { label: "q", slots: [queryBar], y: 80 };
 
-  test("maps each chunk's bp coordinates onto base and query slot pixels", () => {
+  it("maps each chunk's bp coordinates onto base and query slot pixels", () => {
     const chunk: Chunk = {
       ...makeChunk([1]),
       bp1Base: 50,
@@ -452,7 +452,7 @@ describe("computeRibbons", () => {
     expect(ribbon.qxe).toBe(150);
   });
 
-  test("swaps query endpoints when the chunk is inverted", () => {
+  it("swaps query endpoints when the chunk is inverted", () => {
     const chunk: Chunk = {
       ...makeChunk([1]),
       bp1Base: 50,
@@ -466,34 +466,34 @@ describe("computeRibbons", () => {
     expect(ribbon.qxe).toBe(50);
   });
 
-  test("skips chunks whose base chromosome is not laid out", () => {
+  it("skips chunks whose base chromosome is not laid out", () => {
     const chunk: Chunk = { ...makeChunk([1]), chrBase: "missing" };
     expect(computeRibbons([chunk], baseRow, queryRow, "hide")).toEqual([]);
   });
 
-  test("skips chunks whose query chromosome is not laid out and not grouped", () => {
+  it("skips chunks whose query chromosome is not laid out and not grouped", () => {
     const chunk: Chunk = { ...makeChunk([1]), chrQuery: "missing" };
     expect(computeRibbons([chunk], baseRow, queryRow, "hide")).toEqual([]);
   });
 });
 
 describe("pct", () => {
-  test("formats as a percentage with one decimal place", () => {
+  it("formats as a percentage with one decimal place", () => {
     expect(pct(1, 4)).toBe("25.0%");
     expect(pct(1, 3)).toBe("33.3%");
   });
 
-  test("returns '0%' when the total is zero", () => {
+  it("returns '0%' when the total is zero", () => {
     expect(pct(5, 0)).toBe("0%");
   });
 });
 
 describe("getPredictingLines", () => {
-  test("returns the base prediction lines for unlisted chromosomes", () => {
+  it("returns the base prediction lines for unlisted chromosomes", () => {
     expect(getPredictingLines("ZZ")).toEqual(["paragon", "spelt"]);
   });
 
-  test("appends per-chromosome extras", () => {
+  it("appends per-chromosome extras", () => {
     expect(getPredictingLines("1A")).toEqual(["paragon", "spelt", "cs"]);
     expect(getPredictingLines("3B")).toEqual(["paragon", "spelt", "cs", "arina"]);
     expect(getPredictingLines("4B")).toEqual(["paragon", "spelt", "norin61", "landmark"]);
@@ -501,40 +501,40 @@ describe("getPredictingLines", () => {
 });
 
 describe("getPredictingRange", () => {
-  test("falls back to mid=300 for unknown chromosomes", () => {
+  it("falls back to mid=300 for unknown chromosomes", () => {
     expect(getPredictingRange("ZZ", "paragon")).toEqual({ lo: 270, hi: 330 });
   });
 
-  test("centres on CHR_DEFAULT_MID when no override exists", () => {
+  it("centres on CHR_DEFAULT_MID when no override exists", () => {
     // 1A default mid = 210, half-window 30.
     expect(getPredictingRange("1A", "paragon")).toEqual({ lo: 180, hi: 240 });
   });
 
-  test("numeric overrides shift the midpoint but keep the half-window", () => {
+  it("numeric overrides shift the midpoint but keep the half-window", () => {
     // 4A cs override = 250.
     expect(getPredictingRange("4A", "cs")).toEqual({ lo: 220, hi: 280 });
   });
 
-  test("object overrides replace the window verbatim", () => {
+  it("object overrides replace the window verbatim", () => {
     expect(getPredictingRange("2B", "paragon")).toEqual({ lo: 355, hi: 365 });
   });
 });
 
 describe("findLargestGapCenter", () => {
-  test("returns null when the range is invalid", () => {
+  it("returns null when the range is invalid", () => {
     expect(findLargestGapCenter([], 10, 10)).toBeNull();
     expect(findLargestGapCenter([], 20, 10)).toBeNull();
   });
 
-  test("returns the midpoint when there are no intervals", () => {
+  it("returns the midpoint when there are no intervals", () => {
     expect(findLargestGapCenter([], 0, 100)).toBe(50);
   });
 
-  test("returns null when intervals fully cover the range", () => {
+  it("returns null when intervals fully cover the range", () => {
     expect(findLargestGapCenter([[0, 100]], 0, 100)).toBeNull();
   });
 
-  test("picks the midpoint of the largest gap", () => {
+  it("picks the midpoint of the largest gap", () => {
     expect(
       findLargestGapCenter(
         [
@@ -547,7 +547,7 @@ describe("findLargestGapCenter", () => {
     ).toBe(85);
   });
 
-  test("merges overlapping intervals before measuring gaps", () => {
+  it("merges overlapping intervals before measuring gaps", () => {
     expect(
       findLargestGapCenter(
         [
@@ -560,7 +560,7 @@ describe("findLargestGapCenter", () => {
     ).toBe(70);
   });
 
-  test("clips intervals to the range so out-of-bounds endpoints don't shrink gaps", () => {
+  it("clips intervals to the range so out-of-bounds endpoints don't shrink gaps", () => {
     expect(findLargestGapCenter([[-100, 10]], 0, 100)).toBe(55);
   });
 });
