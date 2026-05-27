@@ -17,42 +17,17 @@ import {
 } from "@/src/components/visualizationTab/utils";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { ChrBar, Chunk, OthersBar, ResultRow } from "@/types";
+import { counts, makeChunk as baseChunk, makeRow } from "@/src/test/factories";
 
 const EMPTY_SET = new Set();
 
-const makeRow = (overrides: Partial<ResultRow> = {}): ResultRow => ({
-  id: 0,
-  chromosomeBase: "1A",
-  p1Base: 0,
-  p2Base: 100,
-  chromosomeQuery: "1A",
-  p1Query: 0,
-  p2Query: 100,
-  sign: "+",
-  isInvert: false,
-  isTranslocation: false,
-  mainEvent: "synteny",
-  groupedQuery: "1A",
-  ...overrides,
-});
-
-const makeChunk = (ids: number[]): Chunk => ({
-  id: `chunk-${ids.join("-")}`,
-  ids,
-  chrBase: "1A",
-  bp1Base: 0,
-  bp2Base: 100,
-  bpGeneBase: 100,
-  chrQuery: "1A",
-  bp1Query: 0,
-  bp2Query: 100,
-  bpGeneQuery: 100,
-  dominant: "synteny",
-  eventCounts: { ...zeroCounts(), synteny: ids.length, total: ids.length },
-  queryChromCounts: { "1A": ids.length },
-  isInvert: false,
-  isOthers: false,
-});
+// Chunk keyed by its row ids, with event counts and query-chr counts derived from them.
+const makeChunk = (ids: number[]): Chunk =>
+  baseChunk({
+    ids,
+    eventCounts: counts({ synteny: ids.length, total: ids.length }),
+    queryChromCounts: { "1A": ids.length },
+  });
 
 describe("rowCategory", () => {
   it("returns the event matching the row's flags", () => {

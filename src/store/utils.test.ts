@@ -1,21 +1,17 @@
 import { CHR_PALETTE } from "@/src/constants";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
+import { makeRow as baseRow } from "@/src/test/factories";
 import type { ResultRow } from "@/types";
 
-const makeRow = (id: number, chromosomeQuery: string): ResultRow => ({
-  id,
-  chromosomeBase: "1A",
-  p1Base: id * 100,
-  p2Base: id * 100 + 50,
-  chromosomeQuery,
-  p1Query: 0,
-  p2Query: 50,
-  sign: "+",
-  isInvert: false,
-  isTranslocation: false,
-  mainEvent: "synteny",
-  groupedQuery: chromosomeQuery,
-});
+const makeRow = (id: number, chromosomeQuery: string): ResultRow =>
+  baseRow({
+    id,
+    p1Base: id * 100,
+    p2Base: id * 100 + 50,
+    p2Query: 50,
+    chromosomeQuery,
+    groupedQuery: chromosomeQuery,
+  });
 
 describe("buildPalette", () => {
   it("places selectedChr first and assigns colors from CHR_PALETTE", () => {

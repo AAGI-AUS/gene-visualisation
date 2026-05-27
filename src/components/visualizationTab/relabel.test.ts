@@ -1,6 +1,6 @@
 import { relabelIntraChunks, type IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
-import { zeroCounts } from "@/src/components/visualizationTab/utils";
-import type { Chunk, EventCounts } from "@/types";
+import { counts, makeChunk } from "@/src/test/factories";
+import type { Chunk } from "@/types";
 
 const M = 1_000_000;
 
@@ -10,8 +10,6 @@ const config: IntraScoreConfig = {
   driftK: 0.7,
   complexMin: 2,
 };
-
-const counts = (total: number): EventCounts => ({ ...zeroCounts(), synteny: total, total });
 
 interface ChunkSpec {
   base: number; // bp1Base in Mbp
@@ -28,8 +26,8 @@ const chunk = (spec: ChunkSpec): Chunk => {
   const width = (spec.width ?? 4) * M;
   const bp1Base = spec.base * M;
   const bp1Query = spec.query * M;
-  return {
-    id: `c-${spec.base}-${spec.query}`,
+  const total = spec.total ?? 1;
+  return makeChunk({
     ids: [spec.base],
     chrBase: spec.chrBase ?? "1A",
     bp1Base,
@@ -40,11 +38,9 @@ const chunk = (spec: ChunkSpec): Chunk => {
     bp2Query: bp1Query + width,
     bpGeneQuery: width,
     dominant: spec.dominant ?? "synteny",
-    eventCounts: counts(spec.total ?? 1),
-    queryChromCounts: {},
+    eventCounts: counts({ synteny: total, total }),
     isInvert: spec.isInvert ?? false,
-    isOthers: false,
-  };
+  });
 };
 
 describe("relabelIntraChunks", () => {
