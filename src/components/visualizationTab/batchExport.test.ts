@@ -4,35 +4,8 @@ import {
   type PredictedByLine,
   type VisibleChunkPair,
 } from "@/src/components/visualizationTab/batchExport";
-import type { Chunk, EventCounts } from "@/types";
-
-const counts = (overrides: Partial<EventCounts> = {}): EventCounts => ({
-  synteny: 0,
-  inversion: 0,
-  translocation: 0,
-  "translocation+inversion": 0,
-  total: 0,
-  ...overrides,
-});
-
-const makeChunk = (overrides: Partial<Chunk> = {}): Chunk => ({
-  id: "c",
-  ids: [0],
-  chrBase: "1A",
-  bp1Base: 0,
-  bp2Base: 100,
-  bpGeneBase: 10,
-  chrQuery: "1A",
-  bp1Query: 0,
-  bp2Query: 100,
-  bpGeneQuery: 20,
-  dominant: "synteny",
-  eventCounts: counts(),
-  queryChromCounts: {},
-  isInvert: false,
-  isOthers: false,
-  ...overrides,
-});
+import type { Chunk } from "@/types";
+import { counts, makeChunk } from "@/src/test/factories";
 
 const NOTABLE_HEADER =
   "base_line|base_chr|query_line|query_chr|event|base_bp1|base_bp2|query_bp1|query_bp2|" +
@@ -86,6 +59,8 @@ describe("buildNotableEventsCsv", () => {
       chrQuery: "1A",
       bp1Base: 0,
       bp2Base: 100,
+      bpGeneBase: 10,
+      bpGeneQuery: 20,
       eventCounts: counts({ inversion: 5 }),
     }),
     makeChunk({
@@ -94,6 +69,8 @@ describe("buildNotableEventsCsv", () => {
       chrQuery: "1A",
       bp1Base: 400,
       bp2Base: 500,
+      bpGeneBase: 10,
+      bpGeneQuery: 20,
       eventCounts: counts({ inversion: 7 }),
     }),
   ];

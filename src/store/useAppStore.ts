@@ -26,7 +26,7 @@ interface AppState {
 }
 
 interface AppActions {
-  setBase: FilesHandler;
+  setBase: (files: FileList | null | undefined) => Promise<void>;
   setQueryFiles: FilesHandler;
   setGroupThreshold: (value: number) => void;
   setAppState: (state: Partial<AppState>) => void;
@@ -34,7 +34,7 @@ interface AppActions {
   clearQuery: (i: number) => void;
   reorderQuery: (from: number, to: number) => void;
   swapBaseWithQuery: (i: number) => Promise<void>;
-  setCentromere: FilesHandler;
+  setCentromere: (files: FileList | null | undefined) => Promise<void>;
   clearCentromere: () => void;
   runAnalysis: () => Promise<void>;
   autoSort: () => Promise<void>;

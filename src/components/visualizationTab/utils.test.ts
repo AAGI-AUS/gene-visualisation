@@ -16,43 +16,18 @@ import {
   zeroCounts,
 } from "@/src/components/visualizationTab/utils";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
-import type { ChrBar, Chunk, ResultRow } from "@/types";
+import type { ChrBar, Chunk, OthersBar, ResultRow } from "@/types";
+import { counts, makeChunk as baseChunk, makeRow } from "@/src/test/factories";
 
 const EMPTY_SET = new Set();
 
-const makeRow = (overrides: Partial<ResultRow> = {}): ResultRow => ({
-  id: 0,
-  chromosomeBase: "1A",
-  p1Base: 0,
-  p2Base: 100,
-  chromosomeQuery: "1A",
-  p1Query: 0,
-  p2Query: 100,
-  sign: "+",
-  isInvert: false,
-  isTranslocation: false,
-  mainEvent: "synteny",
-  groupedQuery: "1A",
-  ...overrides,
-});
-
-const makeChunk = (ids: number[]): Chunk => ({
-  id: `chunk-${ids.join("-")}`,
-  ids,
-  chrBase: "1A",
-  bp1Base: 0,
-  bp2Base: 100,
-  bpGeneBase: 100,
-  chrQuery: "1A",
-  bp1Query: 0,
-  bp2Query: 100,
-  bpGeneQuery: 100,
-  dominant: "synteny",
-  eventCounts: { ...zeroCounts(), synteny: ids.length, total: ids.length },
-  queryChromCounts: { "1A": ids.length },
-  isInvert: false,
-  isOthers: false,
-});
+// Chunk keyed by its row ids, with event counts and query-chr counts derived from them.
+const makeChunk = (ids: number[]): Chunk =>
+  baseChunk({
+    ids,
+    eventCounts: counts({ synteny: ids.length, total: ids.length }),
+    queryChromCounts: { "1A": ids.length },
+  });
 
 describe("rowCategory", () => {
   it("returns the event matching the row's flags", () => {
@@ -474,6 +449,47 @@ describe("computeRibbons", () => {
   it("skips chunks whose query chromosome is not laid out and not grouped", () => {
     const chunk: Chunk = { ...makeChunk([1]), chrQuery: "missing" };
     expect(computeRibbons([chunk], baseRow, queryRow, "hide")).toEqual([]);
+  });
+
+  const rightStub: OthersBar = {
+    kind: "others",
+    baseChr: "1A",
+    side: "right",
+    px: 176,
+    pw: OTHERS_W,
+    targetX: 188,
+  };
+
+  it("routes a grouped 'others' chunk to the stub on the side its base midpoint favours", () => {
+    const leftStub: OthersBar = {
+      kind: "others",
+      baseChr: "1A",
+      side: "left",
+      px: 0,
+      pw: OTHERS_W,
+      targetX: 12,
+    };
+    const groupedRow = { label: "q", slots: [leftStub, rightStub], y: 80 };
+
+    // base midpoint 10 <= barMid 100 → left stub; halfW = min(span/2=10, OTHERS_W/2=12) = 10.
+    const left: Chunk = { ...makeChunk([1]), bp1Base: 0, bp2Base: 20, isOthers: true };
+    const [leftRibbon] = computeRibbons([left], baseRow, groupedRow, "group");
+    expect(leftRibbon).toMatchObject({ bxs: 0, bxe: 20, qxs: 2, qxe: 22 });
+
+    // base midpoint 190 > barMid 100 → right stub.
+    const right: Chunk = { ...makeChunk([2]), bp1Base: 180, bp2Base: 200, isOthers: true };
+    const [rightRibbon] = computeRibbons([right], baseRow, groupedRow, "group");
+    expect(rightRibbon).toMatchObject({ bxs: 180, bxe: 200, qxs: 178, qxe: 198 });
+  });
+
+  it("skips a grouped 'others' chunk when its favoured stub is absent", () => {
+    const rightOnly = {
+      label: "q",
+      slots: [rightStub],
+      y: 80,
+    };
+    const left: Chunk = { ...makeChunk([1]), bp1Base: 0, bp2Base: 20, isOthers: true };
+    expect(computeRibbons([left], baseRow, rightOnly, "group")).toEqual([]);
   });
 });
 
