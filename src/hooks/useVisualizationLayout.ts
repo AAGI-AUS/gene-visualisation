@@ -25,7 +25,7 @@ export interface PairInput {
   queryLabel: string;
 }
 
-interface Track {
+export interface Track {
   chrMax: Map<string, number>;
   chrMin: Map<string, number>;
   chrOrder: string[];
@@ -36,7 +36,7 @@ interface Track {
 // Each pair p contributes chrBase to track p and chrQuery to track p+1 in a single pass.
 // The pair-major order ensures track p's chrQuery side (from pair p-1) is populated before
 // pair p's chrBase contribution checks the restrict set.
-const buildTracks = (cleanChunksPerPair: Chunk[][], pairCount: number, othersMode: OthersMode): Track[] => {
+export const buildTracks = (cleanChunksPerPair: Chunk[][], pairCount: number, othersMode: OthersMode) => {
   const out: Track[] = [];
   for (let i = 0; i < pairCount + 1; i++) {
     out.push({ chrMax: new Map(), chrMin: new Map(), chrOrder: [], needsOthersStub: false });
@@ -74,7 +74,7 @@ const buildTracks = (cleanChunksPerPair: Chunk[][], pairCount: number, othersMod
 
 // Partition tracks into maximal runs of consecutive tracks whose chr sets are identical.
 // Returns groupOf[i] = group index for track i.
-const partitionTracksByChrSet = (tracks: Track[]): number[] => {
+export const partitionTracksByChrSet = (tracks: Track[]): number[] => {
   const sameSet = (a: string[], b: string[]) => {
     if (a.length !== b.length) return false;
     const sb = new Set(b);
@@ -93,10 +93,7 @@ const partitionTracksByChrSet = (tracks: Track[]): number[] => {
 };
 
 // Within each group, unify per-chr min/max so every track in the group shares the same axis.
-const computeGroupBounds = (
-  tracks: Track[],
-  groupOf: number[]
-): { groupChrMin: Map<string, number>[]; groupChrMax: Map<string, number>[] } => {
+export const computeGroupBounds = (tracks: Track[], groupOf: number[]) => {
   const groupCount = (groupOf[tracks.length - 1] ?? -1) + 1;
   const groupChrMin: Map<string, number>[] = Array.from({ length: groupCount }, () => new Map());
   const groupChrMax: Map<string, number>[] = Array.from({ length: groupCount }, () => new Map());
@@ -116,11 +113,11 @@ const computeGroupBounds = (
 
 // Extend each group's chrMin out to the global unified min, unless that extension would
 // create a leading blank wider than stripBlankBp (in which case the tighter group-min stays).
-const applyGlobalExtension = (
+export const applyGlobalExtension = (
   groupChrMin: Map<string, number>[],
   unifiedChrMin: Map<string, number>,
   stripBlankBp: number
-): Map<string, number>[] =>
+) =>
   groupChrMin.map((gMin) => {
     const cmin = new Map<string, number>();
     gMin.forEach((v, chr) => {
