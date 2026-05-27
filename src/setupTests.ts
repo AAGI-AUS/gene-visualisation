@@ -1,5 +1,5 @@
 // Registers @testing-library/jest-dom matchers (toBeInTheDocument, toHaveAttribute, ...).
-// Auto-loaded by react-scripts/craco as a Jest setupFilesAfterEach entry.
+// Auto-loaded by react-scripts/craco as a Jest setupFilesAfterEnv entry.
 import "@testing-library/jest-dom";
 
 // @testing-library/react@13.4 calls the deprecated ReactDOMTestUtils.act, which react@18.3
