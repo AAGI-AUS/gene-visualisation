@@ -353,20 +353,14 @@ describe("buildQueryRow", () => {
     const perChrPxPerBp = new Map([["1A", 0.5]]);
     const row = buildQueryRow(specs, "label", 200, perChrPxPerBp);
     const [chr, right] = row.slots;
+    if (chr.kind !== "chr" || right.kind !== "others") throw new Error("unexpected slot kinds");
 
-    expect(chr.kind).toBe("chr");
     expect(chr.px).toBe(0);
     expect(chr.pw).toBe(173);
-    if (chr.kind === "chr") {
-      expect(chr.bpLen).toBe(346);
-      expect(chr.dataBpLen).toBe(100);
-    }
-
-    expect(right.kind).toBe("others");
+    expect(chr.bpLen).toBe(346);
+    expect(chr.dataBpLen).toBe(100);
     expect(right.px).toBe(53 + 123);
-    if (right.kind === "others") {
-      expect(right.targetX).toBe(65 + 123);
-    }
+    expect(right.targetX).toBe(65 + 123);
   });
 });
 
