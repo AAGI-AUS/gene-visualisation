@@ -1,6 +1,7 @@
 import {
   buildNotableEventsCsv,
   buildCentromeresCsv,
+  mergePredicted,
   type PredictedByLine,
   type VisibleChunkPair,
 } from "@/src/components/visualizationTab/batchExport";
@@ -274,5 +275,33 @@ describe("buildCentromeresCsv", () => {
     expect(cells).toHaveLength(22); // line label + 21 chromosomes
     expect(cells[1]).toBe("10.0"); // chr1A
     expect(cells).not.toContain("50.0"); // chr8A has no column
+  });
+});
+
+describe("mergePredicted", () => {
+  it("adds a new line to the accumulator", () => {
+    const acc: PredictedByLine = new Map();
+
+    mergePredicted(acc, new Map([["lineA", new Map([["1A", 100]])]]));
+    expect(acc.get("lineA")?.get("1A")).toBe(100);
+
+    mergePredicted(acc, new Map([["lineB", new Map([["1B", 200]])]]));
+    expect(acc.get("lineA")?.get("1A")).toBe(100);
+    expect(acc.get("lineB")?.get("1B")).toBe(200);
+  });
+
+  it("unions chromosomes into an existing line", () => {
+    const acc: PredictedByLine = new Map([["lineA", new Map([["1A", 100]])]]);
+    mergePredicted(acc, new Map([["lineA", new Map([["2B", 200]])]]));
+
+    expect(acc.get("lineA")?.get("1A")).toBe(100);
+    expect(acc.get("lineA")?.get("2B")).toBe(200);
+  });
+
+  it("overwrites a chromosome when the incoming line repeats it", () => {
+    const acc: PredictedByLine = new Map([["lineA", new Map([["1A", 100]])]]);
+    mergePredicted(acc, new Map([["lineA", new Map([["1A", 999]])]]));
+
+    expect(acc.get("lineA")?.get("1A")).toBe(999);
   });
 });

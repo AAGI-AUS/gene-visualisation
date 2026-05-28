@@ -210,7 +210,7 @@ export const buildCentromeresCsv = (predicted: PredictedByLine): string => {
   return rows.join("\n");
 };
 
-const mergePredicted = (acc: PredictedByLine, incoming: PredictedByLine): void => {
+export const mergePredicted = (acc: PredictedByLine, incoming: PredictedByLine): void => {
   incoming.forEach((chrMap, line) => {
     let into = acc.get(line);
     if (!into) {
