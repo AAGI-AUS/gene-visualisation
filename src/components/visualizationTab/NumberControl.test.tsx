@@ -24,11 +24,11 @@ describe("NumberControl", () => {
     expect(onChange).toHaveBeenCalledWith(7);
   });
 
-  it("treats 0 as falsy and reports the fallback (|| semantics)", () => {
+  it("reports 0 instead of the fallback when the input parses to zero", () => {
     const onChange = jest.fn();
     render(<NumberControl label="Gap" onChange={onChange} fallback={7} />);
     fireEvent.change(input(), { target: { value: "0" } });
-    expect(onChange).toHaveBeenCalledWith(7);
+    expect(onChange).toHaveBeenCalledWith(0);
   });
 
   it("forwards the default min of 0 to the input", () => {

@@ -27,7 +27,10 @@ export const NumberControl = ({
       min={min}
       className={styles.controlInput}
       type="number"
-      onChange={(e) => onChange(parseFloat(e.target.value) || fallback)}
+      onChange={(e) => {
+        const parsed = parseFloat(e.target.value);
+        onChange(Number.isNaN(parsed) ? fallback : parsed);
+      }}
       style={{ width }}
     />
     {unit && <span className={styles.controlUnit}>{unit}</span>}
