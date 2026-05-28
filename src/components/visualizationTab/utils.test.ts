@@ -17,7 +17,13 @@ import {
 } from "@/src/components/visualizationTab/utils";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { ChrBar, Chunk, OthersBar, ResultRow } from "@/types";
-import { counts, makeChunk as baseChunk, makeRow } from "@/src/test/factories";
+import {
+  counts,
+  makeChunk as baseChunk,
+  makeInversionRow,
+  makeRow,
+  makeTranslocationRow,
+} from "@/src/test/factories";
 
 const EMPTY_SET = new Set();
 
@@ -32,9 +38,9 @@ const makeChunk = (ids: number[]): Chunk =>
 describe("rowCategory", () => {
   it("returns the event matching the row's flags", () => {
     expect(rowCategory(makeRow())).toBe("synteny");
-    expect(rowCategory(makeRow({ isInvert: true, mainEvent: "inversion" }))).toBe("inversion");
+    expect(rowCategory(makeInversionRow())).toBe("inversion");
 
-    const translocation = makeRow({ isTranslocation: true, mainEvent: "translocation", chromosomeQuery: "2B" });
+    const translocation = makeTranslocationRow({ chromosomeQuery: "2B" });
     expect(rowCategory(translocation)).toBe("translocation");
     expect(rowCategory({ ...translocation, isInvert: true })).toBe("translocation+inversion");
   });
@@ -109,11 +115,7 @@ describe("buildChunk", () => {
   });
 
   it("marks isInvert when the dominant query rows are mostly inverted", () => {
-    const rows: ResultRow[] = [
-      makeRow({ id: 1, isInvert: true, mainEvent: "inversion" }),
-      makeRow({ id: 2, isInvert: true, mainEvent: "inversion" }),
-      makeRow({ id: 3, isInvert: false }),
-    ];
+    const rows: ResultRow[] = [makeInversionRow({ id: 1 }), makeInversionRow({ id: 2 }), makeRow({ id: 3 })];
     const chunk = buildChunk(rows, 0, "lineA");
     expect(chunk.isInvert).toBe(true);
   });
@@ -130,7 +132,7 @@ describe("buildChunk", () => {
 
   it("dominant ties resolve to whichever event reached the max first in row order", () => {
     const synteny = () => makeRow({ id: 0 });
-    const inversion = () => makeRow({ id: 0, isInvert: true, mainEvent: "inversion" });
+    const inversion = () => makeInversionRow({ id: 0 });
 
     const syntenyFirst = [synteny(), synteny(), synteny(), inversion(), inversion(), inversion()];
     expect(buildChunk(syntenyFirst, 0, "lineA").dominant).toBe("synteny");
@@ -145,7 +147,7 @@ describe("buildChunk", () => {
       makeRow({ id: 2, p1Query: 100, p2Query: 200 }),
       makeRow({ id: 3, p1Query: 200, p2Query: 300 }),
       // dominant stays "synteny" (3 vs 1); this row's query range is excluded.
-      makeRow({ id: 4, isInvert: true, mainEvent: "inversion", p1Query: 1000, p2Query: 2000 }),
+      makeInversionRow({ id: 4, p1Query: 1000, p2Query: 2000 }),
     ];
     const chunk = buildChunk(rows, 0, "lineA");
     expect(chunk.dominant).toBe("synteny");

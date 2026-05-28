@@ -1,4 +1,5 @@
 import { useAppStore } from "@/src/store/useAppStore";
+import * as storeUtils from "@/src/store/utils";
 import type { BedRow } from "@/types";
 
 const initialState = useAppStore.getState();
@@ -6,6 +7,7 @@ const reset = () => useAppStore.setState(initialState, true);
 const get = useAppStore.getState;
 
 afterEach(reset);
+afterEach(() => jest.restoreAllMocks());
 
 // Each row is [chromosome, p1, p2, sign, id]; cells are tab-joined, rows newline-joined.
 type Cell = string | number;
@@ -112,6 +114,42 @@ describe("swapBaseWithQuery", () => {
     expect(get().selectedChr).toBe("1A");
     expect(get().chromosomes).toEqual(["1A", "2B"]);
   });
+
+  it("removes the promoted query from the list when there is no base to demote", async () => {
+    useAppStore.setState({ base: null, baseFile: null, queryFiles: [syntenyFile, lowSyntenyFile] });
+
+    await get().swapBaseWithQuery(0);
+
+    expect(get().baseFile?.name).toBe("q1.bed");
+    expect(get().base?.name).toBe("q1.bed");
+    expect(namesOf(get().queryFiles)).toEqual(["q2.bed"]);
+  });
+});
+
+describe("setCentromere / clearCentromere", () => {
+  it("parses the centromere CSV into the line/chr -> bp map", async () => {
+    const file = new File(["Genome Assembly,chr1A\nArinaLrFor,300"], "centro.csv", { type: "text/csv" });
+    await get().setCentromere(fileList(file));
+
+    expect(get().centromereName).toBe("centro.csv");
+    expect(get().centromere.get("arina")?.get("1A")).toEqual([300_000_000]);
+  });
+
+  it("clears the map when no file is supplied", async () => {
+    useAppStore.setState({ centromereName: "x", centromere: new Map([["arina", new Map()]]) });
+    await get().setCentromere(fileList());
+
+    expect(get().centromereName).toBeNull();
+    expect(get().centromere.size).toBe(0);
+  });
+
+  it("clearCentromere resets the name and map", () => {
+    useAppStore.setState({ centromereName: "x", centromere: new Map([["arina", new Map()]]) });
+    get().clearCentromere();
+
+    expect(get().centromereName).toBeNull();
+    expect(get().centromere.size).toBe(0);
+  });
 });
 
 describe("runAnalysis", () => {
@@ -142,6 +180,24 @@ describe("runAnalysis", () => {
   it("does nothing when there is no base", async () => {
     useAppStore.setState({ base: null, selectedChr: "1A", queryFiles: [syntenyFile] });
     await get().runAnalysis();
+    expect(get().result).toEqual([]);
+    expect(get().running).toBe(false);
+  });
+
+  it("captures the error message and clears running when assembly throws", async () => {
+    jest.spyOn(storeUtils, "buildPalette").mockImplementation(() => {
+      throw new Error("boom");
+    });
+    useAppStore.setState({
+      base: { name: "base.bed", rows: baseRows },
+      selectedChr: "1A",
+      groupThreshold: 0.01,
+      queryFiles: [syntenyFile],
+    });
+
+    await get().runAnalysis();
+
+    expect(get().error).toBe("boom");
     expect(get().result).toEqual([]);
     expect(get().running).toBe(false);
   });

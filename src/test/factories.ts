@@ -45,3 +45,18 @@ export const makeRow = (overrides: Partial<ResultRow> = {}): ResultRow => ({
   groupedQuery: "1A",
   ...overrides,
 });
+
+export const makeInversionRow = (overrides: Partial<ResultRow> = {}): ResultRow =>
+  makeRow({
+    sign: "-",
+    isInvert: true,
+    mainEvent: "inversion",
+    ...overrides,
+  });
+
+export const makeTranslocationRow = (overrides: Partial<ResultRow> = {}): ResultRow =>
+  makeRow({
+    isTranslocation: true,
+    mainEvent: "translocation",
+    ...overrides,
+  });
