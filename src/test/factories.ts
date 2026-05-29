@@ -54,6 +54,9 @@ export const makeInversionRow = (overrides: Partial<ResultRow> = {}): ResultRow 
     ...overrides,
   });
 
+export const makeContiguousRow = (id: number, len = 100, start = id * len): ResultRow =>
+  makeRow({ id, p1Base: start, p2Base: start + len, p1Query: start, p2Query: start + len });
+
 export const makeTranslocationRow = (overrides: Partial<ResultRow> = {}): ResultRow =>
   makeRow({
     isTranslocation: true,
