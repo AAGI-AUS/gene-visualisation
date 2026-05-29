@@ -1,8 +1,4 @@
-import {
-  computeExportSnapshot,
-  snapshotFromStores,
-  __resetSnapshotCache,
-} from "@/src/components/visualizationTab/snapshot";
+import { computeExportSnapshot, snapshotFromStores } from "@/src/components/visualizationTab/snapshot";
 import { useAppStore } from "@/src/store/useAppStore";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import type { PairInput } from "@/src/hooks/useVisualizationLayout";
@@ -92,7 +88,6 @@ describe("snapshotFromStores", () => {
   };
 
   beforeEach(() => {
-    __resetSnapshotCache();
     seedStores();
   });
 

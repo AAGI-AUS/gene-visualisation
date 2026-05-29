@@ -50,6 +50,7 @@ export const snapshotFromStores = (): ExportSnapshot => {
     data: d.rows,
     queryLabel: d.name.split(".")[0],
   }));
+
   const baseLabel = app.base?.name.split(".")[0].toLowerCase() ?? "";
   const trackW = viz.svgW - PAD.left - PAD.right;
   const { relabel, ...intra } = viz.intra;
@@ -68,15 +69,12 @@ export const snapshotFromStores = (): ExportSnapshot => {
     relabel,
     intra
   );
+
   const snap: ExportSnapshot = {
     ...computeExportSnapshot(layouts, pairs, baseLabel),
     baseName: app.base?.name.split(".")[0] ?? "",
   };
+
   cached = { app, viz, snap };
   return snap;
-};
-
-// Test-only: drop the memoization cache.
-export const __resetSnapshotCache = (): void => {
-  cached = null;
 };
