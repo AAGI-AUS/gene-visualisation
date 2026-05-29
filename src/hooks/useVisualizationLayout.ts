@@ -148,7 +148,7 @@ export const computeVisualizationLayout = (
   intraRelabel: boolean,
   intraScoreConfig: IntraScoreConfig
 ): VisualizationLayout[] => {
-  const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1_000_000 : 0;
+  const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1e6 : 0;
 
   const filteredData: ResultRow[][] = (() => {
     const data = pairs.map((p) => p.data);

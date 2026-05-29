@@ -184,7 +184,7 @@ export const buildCentromeresCsv = (predicted: PredictedByLine): string => {
     const cells = [line];
     for (const chr of PREDICTED_CHRS) {
       const bp = chrMap.get(chr);
-      cells.push(bp !== undefined ? (bp / 1_000_000).toFixed(1) : "");
+      cells.push(bp !== undefined ? (bp / 1e6).toFixed(1) : "");
     }
     rows.push(cells.join(","));
   }

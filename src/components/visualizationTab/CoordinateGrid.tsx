@@ -46,7 +46,7 @@ const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
       out.push({
         xTop,
         xBottom,
-        label: `${bp / 1_000_000}M`,
+        label: `${bp / 1e6}M`,
         key: `${baseBar.chr}-${bp}`,
         drawLine,
         pw: refPw,

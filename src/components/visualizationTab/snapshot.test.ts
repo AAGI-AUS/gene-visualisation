@@ -9,7 +9,7 @@ import type { PairInput } from "@/src/hooks/useVisualizationLayout";
 import { computeVisualizationLayout } from "@/src/hooks/useVisualizationLayout";
 import { makeContiguousRow, makeTranslocationRow } from "@/src/test/factories";
 
-const MBP = 1_000_000;
+const MBP = 1e6;
 const defaultIntra = { minLocalEvents: 500, gapStopMbp: 10, driftK: 0.7, complexMin: 2 };
 
 const layoutFor = (pairs: PairInput[], baseLabel = "base") =>

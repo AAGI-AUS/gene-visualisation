@@ -197,7 +197,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
         pairs,
         o.baseLabel ?? "base",
         o.trackW ?? 1000,
-        o.gapBp ?? 1_000_000,
+        o.gapBp ?? 1e6,
         o.othersMode ?? "show",
         o.hiddenThreshold ?? 0,
         o.commonIds ?? new Set<number>(),
@@ -382,7 +382,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
   describe("intraRelabel", () => {
     // Five single-row intra-chr chunks with q = [0, 1, 4, 2, 3]: idx2 is the stray
     // sandwiched between near-backbones, hard-labeled by the stray pre-filter.
-    const mbp = 1_000_000;
+    const mbp = 1e6;
     const intraRow = (id: number, baseM: number, queryM: number) =>
       makeRow({
         id,

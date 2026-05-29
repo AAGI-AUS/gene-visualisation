@@ -63,7 +63,7 @@ const pivotX = (c: Chunk): number => {
 
 // Two inverteds within this relative pivot-X distance are treated as one event.
 // const PIVOT_CLUSTER_THRESHOLD = 500_000;
-const PIVOT_CLUSTER_THRESHOLD = 1_000_000;
+const PIVOT_CLUSTER_THRESHOLD = 1e6;
 
 // Pre-normalize, candidates whose sorted scores are within this tolerance
 // collapse into one event-weighted group score so a cluster of near-equal
