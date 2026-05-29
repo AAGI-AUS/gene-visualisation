@@ -23,3 +23,19 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           fail_ci_if_error: false
+
+  build-one:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: yarn install --frozen-lockfile
+      - run: python -m venv env && ./env/bin/pip install -r requirements.txt
+      - run: yarn build-one
+      - run: yarn verify:bundle

@@ -28,7 +28,8 @@
   "scripts": {
     "dev": "craco start",
     "build": "craco build",
-    "build-one": "craco build && ./touch-up.py && npx webpack",
+    "build-one": "craco build && ./touch-up.py && yarn webpack",
+    "verify:bundle": "node scripts/verifyBundle.js",
     "test": "craco test",
     "coverage": "craco test --coverage --watchAll=false",
     "prepare": "husky"

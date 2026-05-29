@@ -1,11 +1,46 @@
+import { act, createRef } from "react";
+import type { RefObject } from "react";
+import { render } from "@testing-library/react";
+import { strFromU8, unzipSync } from "fflate";
 import type { PredictedByLine, VisibleChunkPair } from "@/src/components/visualizationTab/batchExport";
 import {
+  batchExportAll,
   buildNotableEventsCsv,
   buildCentromeresCsv,
   mergePredicted,
+  registerSvgEl,
 } from "@/src/components/visualizationTab/batchExport";
-import type { Chunk } from "@/types";
+import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
+import { useAppStore } from "@/src/store/useAppStore";
+import { useVisualizationStore } from "@/src/store/useVisualizationStore";
+import type { BedRow, Chunk } from "@/types";
 import { counts, makeChunk } from "@/src/test/factories";
+
+// jsdom can't decode an SVG image, so HTMLImageElement.decode rejects inside
+// svgToPngBlob. Stub to null - the export pipeline already treats null as
+// "skip PNG", and we exercise the SVG/CSV/zip path here.
+jest.mock("@/src/components/visualizationTab/utils", () => ({
+  ...jest.requireActual("@/src/components/visualizationTab/utils"),
+  svgToPngBlob: jest.fn().mockResolvedValue(null),
+}));
+
+// jsdom (under react-scripts 5) ships a Blob without arrayBuffer() and no
+// global TextEncoder; batchExportAll needs both for the fflate pipeline.
+if (typeof Blob.prototype.arrayBuffer !== "function") {
+  // eslint-disable-next-line no-extend-native
+  Blob.prototype.arrayBuffer = function (this: Blob): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+if (typeof globalThis.TextEncoder === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  (globalThis as unknown as { TextEncoder: unknown }).TextEncoder = require("util").TextEncoder;
+}
 
 const NOTABLE_HEADER =
   "base_line|base_chr|query_line|query_chr|event|base_bp1|base_bp2|query_bp1|query_bp2|" +
@@ -302,5 +337,85 @@ describe("mergePredicted", () => {
     mergePredicted(acc, new Map([["lineA", new Map([["1A", 999]])]]));
 
     expect(acc.get("lineA")?.get("1A")).toBe(999);
+  });
+});
+
+// Integration: drives batchExportAll across two chrs to cover the seam
+// (selectedChr -> autoSort -> rAF flush -> serializeSvg + snapshotFromStores)
+// that the pure-builder tests above bypass.
+
+const M = 1e6;
+
+// Two contiguous rows per chr, all sign-flipped in the query so chunkRows
+// merges each chr's rows into a single inversion chunk - guaranteed notable.
+const baseRows: BedRow[] = [
+  { id: 0, chromosome: "1A", p1: 0, p2: 40 * M, sign: "+" },
+  { id: 1, chromosome: "1A", p1: 40 * M, p2: 80 * M, sign: "+" },
+  { id: 2, chromosome: "2B", p1: 0, p2: 40 * M, sign: "+" },
+  { id: 3, chromosome: "2B", p1: 40 * M, p2: 80 * M, sign: "+" },
+];
+
+const queryBedText = baseRows.map((r) => [r.chromosome, r.p1, r.p2, "-", r.id].join("\t")).join("\n");
+
+const Harness = ({ svgRef }: { svgRef: RefObject<SVGSVGElement> }) => {
+  const result = useAppStore((s) => s.result);
+  return <SyntenyCanvas data={result} svgRef={svgRef} width={900} height={300} />;
+};
+
+describe("batchExportAll", () => {
+  it("snapshots per chr and restores store state", async () => {
+    let zipBytes: Uint8Array | null = null;
+    (window as unknown as { showSaveFilePicker: jest.Mock }).showSaveFilePicker = jest.fn().mockResolvedValue({
+      createWritable: () =>
+        Promise.resolve({
+          write: (data: Uint8Array) => {
+            zipBytes = data;
+            return Promise.resolve();
+          },
+          close: () => Promise.resolve(),
+        }),
+    });
+
+    useAppStore.setState({
+      base: { name: "baseline.bed", rows: baseRows },
+      queryFiles: [new File([queryBedText], "queryline.bed", { type: "text/plain" })],
+      chromosomes: ["1A", "2B"],
+      selectedChr: "1A",
+      result: [],
+    });
+    useVisualizationStore.setState({
+      hiddenThreshold: 0,
+      commonOnly: false,
+      denoise: false,
+      intra: { ...useVisualizationStore.getState().intra, relabel: false },
+    });
+
+    const svgRef = createRef<SVGSVGElement>();
+    render(<Harness svgRef={svgRef} />);
+    registerSvgEl(svgRef.current);
+    const before = useAppStore.getState();
+
+    await act(() => batchExportAll());
+
+    const files = unzipSync(zipBytes!);
+    expect(Object.keys(files).sort()).toEqual(["1a.svg", "2b.svg", "notable_events.csv"]);
+    expect(strFromU8(files["1a.svg"]).startsWith("<svg")).toBe(true);
+
+    // One row per chr - if snapshotFromStores were captured once before the
+    // loop (the bug class tests.md Finding 2 calls out), only chr 1A's rows
+    // would land in the CSV.
+    const rows = strFromU8(files["notable_events.csv"]).split("\n").slice(1).map(parseRow);
+    expect(rows.map((r) => r.baseChr).sort()).toEqual(["1A", "2B"]);
+    expect(rows.every((r) => r.event === "inversion")).toBe(true);
+    expect(rows.every((r) => r.baseLine === "baseline" && r.queryLine === "queryline")).toBe(true);
+
+    const after = useAppStore.getState();
+    expect(after.selectedChr).toBe(before.selectedChr);
+    expect(after.result).toBe(before.result);
+    expect(after.queryFiles).toBe(before.queryFiles);
+    expect(after.batching).toBe(false);
+
+    registerSvgEl(null);
+    delete (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker;
   });
 });
