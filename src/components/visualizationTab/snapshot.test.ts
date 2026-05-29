@@ -29,11 +29,12 @@ const layoutFor = (pairs: PairInput[], baseLabel = "base") =>
     defaultIntra
   );
 
+const data = [makeContiguousRow(0, 40 * MBP), makeContiguousRow(1, 40 * MBP)];
+
 describe("computeExportSnapshot", () => {
+  const pairs: PairInput[] = [{ queryLabel: "Q1", data }];
+
   it("derives one visible pair per layout, lowercasing queryLabel", () => {
-    const pairs: PairInput[] = [
-      { queryLabel: "Q1", data: [makeContiguousRow(0, 40 * MBP), makeContiguousRow(1, 40 * MBP)] },
-    ];
     const snap = computeExportSnapshot(layoutFor(pairs), pairs, "base");
 
     expect(snap.pairs).toHaveLength(1);
@@ -43,16 +44,12 @@ describe("computeExportSnapshot", () => {
   });
 
   it("emits no predicted entries when no queryLabel matches a predicting line", () => {
-    const pairs: PairInput[] = [{ queryLabel: "q1", data: [makeContiguousRow(0, 40 * MBP)] }];
     const snap = computeExportSnapshot(layoutFor(pairs), pairs, "base");
-
     expect(snap.predicted.size).toBe(0);
   });
 
   it("emits a predicted entry when queryLabel matches getPredictingLines", () => {
-    // "paragon" is in BASE_PREDICTING_LINES, so any chr should match. The interval
-    // [0, 40Mbp) leaves the predicting window (mid - 30Mbp .. mid + 30Mbp) uncovered.
-    const pairs: PairInput[] = [{ queryLabel: "Paragon", data: [makeContiguousRow(0, 40 * MBP)] }];
+    const pairs: PairInput[] = [{ queryLabel: "Paragon", data: [data[0]] }];
     const snap = computeExportSnapshot(layoutFor(pairs), pairs, "base");
 
     expect(snap.predicted.has("paragon")).toBe(true);
@@ -62,20 +59,16 @@ describe("computeExportSnapshot", () => {
 
 describe("snapshotFromStores", () => {
   const seedStores = () => {
-    const rows = [
-      makeContiguousRow(0, 40 * MBP),
-      makeContiguousRow(1, 40 * MBP),
-      makeTranslocationRow({
-        id: 2,
-        chromosomeBase: "1A",
-        chromosomeQuery: "2B",
-        groupedQuery: "2B",
-        p1Base: 100 * MBP,
-        p2Base: 140 * MBP,
-        p1Query: 0,
-        p2Query: 40 * MBP,
-      }),
-    ];
+    const translocationRow = makeTranslocationRow({
+      id: 2,
+      chromosomeQuery: "2B",
+      groupedQuery: "2B",
+      p1Base: 100 * MBP,
+      p2Base: 140 * MBP,
+      p2Query: 40 * MBP,
+    });
+    const rows = [...data, translocationRow];
+
     useAppStore.setState({
       base: { name: "base.bed", rows: [] },
       centromere: new Map(),
@@ -108,7 +101,7 @@ describe("snapshotFromStores", () => {
 
     expect(snap.pairs).toHaveLength(1);
     expect(snap.pairs[0].queryLabel).toBe("q1");
-    // 2 chunks on 1A: a contiguous synteny from rows 0+1, plus the inter-chr translocation.
+    // 2 chunks on 1A: synteny, translocation
     expect(snap.pairs[0].chunks).toHaveLength(2);
     expect(snap.baseName).toBe("base");
   });
