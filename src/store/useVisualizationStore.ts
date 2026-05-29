@@ -1,5 +1,6 @@
-import { OTHERS_CYCLE, OthersMode } from "@/src/constants";
-import { TooltipInfo } from "@/types";
+import type { OthersMode } from "@/src/constants";
+import { OTHERS_CYCLE } from "@/src/constants";
+import type { TooltipInfo } from "@/types";
 import { create } from "zustand";
 
 export interface IntraState {

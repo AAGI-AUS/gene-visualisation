@@ -1,16 +1,18 @@
 import { useMemo } from "react";
 import type { ResultRow } from "@/types";
-import { CHR_GAP_PX, CHROM_THICKNESS, OthersMode, RIBBON_GAP } from "@/src/constants";
+import type { OthersMode } from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, RIBBON_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, QueryRow } from "@/types";
+import type { SlotSpec } from "@/src/components/visualizationTab/utils";
 import {
   buildBaseRow,
   buildQueryRow,
   chunkRows,
   collectNoisyIds,
   computeRibbons,
-  SlotSpec,
 } from "@/src/components/visualizationTab/utils";
-import { relabelIntraChunks, type IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
+import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
+import { relabelIntraChunks } from "@/src/components/visualizationTab/relabel";
 
 export interface VisualizationLayout {
   baseRow: BaseRow;
@@ -131,7 +133,7 @@ export const applyGlobalExtension = (
     return cmin;
   });
 
-export const useVisualizationLayout = (
+export const computeVisualizationLayout = (
   pairs: PairInput[],
   baseLabel: string,
   trackW: number,
@@ -146,73 +148,65 @@ export const useVisualizationLayout = (
   intraRelabel: boolean,
   intraScoreConfig: IntraScoreConfig
 ): VisualizationLayout[] => {
-  const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1_000_000 : 0;
-  const filteredData = useMemo<ResultRow[][]>(() => {
+  const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1e6 : 0;
+
+  const filteredData: ResultRow[][] = (() => {
     const data = pairs.map((p) => p.data);
     if (commonOnly && commonIds.size) {
       return data.map((rows) => rows.filter((r) => commonIds.has(r.id)));
     }
     return data;
-  }, [pairs, commonIds, commonOnly]);
+  })();
 
-  const chunksPerPair = useMemo<Chunk[][]>(() => {
-    const buildPair = (rows: ResultRow[], queryLabel: string) => {
-      const byChr = new Map<string, ResultRow[]>();
-      for (const r of rows) {
-        let arr = byChr.get(r.chromosomeBase);
-        if (!arr) {
-          arr = [];
-          byChr.set(r.chromosomeBase, arr);
-        }
-        arr.push(r);
+  const buildPair = (rows: ResultRow[], queryLabel: string): Chunk[] => {
+    const byChr = new Map<string, ResultRow[]>();
+    for (const r of rows) {
+      let arr = byChr.get(r.chromosomeBase);
+      if (!arr) {
+        arr = [];
+        byChr.set(r.chromosomeBase, arr);
       }
-      const all: Chunk[] = [];
-      byChr.forEach((rs) =>
-        all.push(
-          ...chunkRows(
-            rs.sort((a, b) => a.p1Base - b.p1Base),
-            gapBp,
-            queryLabel
-          ).filter((c) => c.eventCounts.total > hiddenThreshold)
+      arr.push(r);
+    }
+    const all: Chunk[] = [];
+    byChr.forEach((rs) =>
+      all.push(
+        ...chunkRows(
+          rs.sort((a, b) => a.p1Base - b.p1Base),
+          gapBp,
+          queryLabel
+        ).filter((c) => c.eventCounts.total > hiddenThreshold)
+      )
+    );
+    return all;
+  };
+
+  let chunksPerPair = pairs.map((p, i) => buildPair(filteredData[i], p.queryLabel));
+  if (denoise) {
+    const noisy = collectNoisyIds(chunksPerPair);
+    if (noisy.size) {
+      chunksPerPair = pairs.map((p, i) =>
+        buildPair(
+          filteredData[i].filter((r) => !noisy.has(r.id)),
+          p.queryLabel
         )
       );
-      return all;
-    };
-
-    let chunks = pairs.map((p, i) => buildPair(filteredData[i], p.queryLabel));
-    if (denoise) {
-      const noisy = collectNoisyIds(chunks);
-      if (noisy.size) {
-        chunks = pairs.map((p, i) =>
-          buildPair(
-            filteredData[i].filter((r) => !noisy.has(r.id)),
-            p.queryLabel
-          )
-        );
-      }
     }
-    return chunks;
-  }, [pairs, filteredData, gapBp, hiddenThreshold, denoise]);
+  }
 
-  const cleanChunksPerPair = useMemo<Chunk[][]>(
-    () => (othersMode === "hide" ? chunksPerPair.map((cs) => cs.filter((c) => !c.isOthers)) : chunksPerPair),
-    [chunksPerPair, othersMode]
-  );
+  const cleanChunksPerPair: Chunk[][] =
+    othersMode === "hide" ? chunksPerPair.map((cs) => cs.filter((c) => !c.isOthers)) : chunksPerPair;
 
   const { minLocalEvents, gapStopMbp, driftK, complexMin } = intraScoreConfig;
-  const relabeledChunksPerPair = useMemo<Chunk[][]>(() => {
-    if (!intraRelabel) return cleanChunksPerPair;
-    return cleanChunksPerPair.map((cs) =>
-      relabelIntraChunks(cs, intraRelabel, { minLocalEvents, gapStopMbp, driftK, complexMin })
-    );
-  }, [cleanChunksPerPair, intraRelabel, minLocalEvents, gapStopMbp, driftK, complexMin]);
+  const relabeledChunksPerPair: Chunk[][] = !intraRelabel
+    ? cleanChunksPerPair
+    : cleanChunksPerPair.map((cs) =>
+        relabelIntraChunks(cs, intraRelabel, { minLocalEvents, gapStopMbp, driftK, complexMin })
+      );
 
-  const tracks = useMemo<Track[]>(
-    () => buildTracks(cleanChunksPerPair, pairs.length, othersMode),
-    [cleanChunksPerPair, othersMode, pairs.length]
-  );
+  const tracks = buildTracks(cleanChunksPerPair, pairs.length, othersMode);
 
-  const unifiedAxis = useMemo(() => {
+  const unifiedAxis = (() => {
     const chrMin = new Map<string, number>();
     const chrMax = new Map<string, number>();
     for (const t of tracks) {
@@ -228,12 +222,12 @@ export const useVisualizationLayout = (
     const chrOrder = Array.from(chrMin.keys()).sort();
     const needsOthersStub = tracks.some((t) => t.needsOthersStub);
     return { chrMin, chrMax, chrOrder, needsOthersStub };
-  }, [tracks]);
+  })();
 
   // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
   // unify bounds within each group, then extend chrMin out to the global unified min unless
   // stripBlankBp would cut a leading blank. chrMax stays at group-max.
-  const pairAxes = useMemo(() => {
+  const pairAxes = (() => {
     if (!sharedAxis) {
       return pairs.map((_, p) => ({ baseAxis: tracks[p], queryAxis: tracks[p + 1] }));
     }
@@ -250,11 +244,11 @@ export const useVisualizationLayout = (
     }));
 
     return pairs.map((_, p) => ({ baseAxis: finalAxes[p], queryAxis: finalAxes[p + 1] }));
-  }, [pairs, tracks, sharedAxis, unifiedAxis, stripBlankBp]);
+  })();
 
   // One global px/bp: the smallest per-row ratio across all shared-axis rows, so every row
   // fits in trackW and bp coordinates align across rows and chromosomes.
-  const perChrPxPerBp = useMemo(() => {
+  const perChrPxPerBp = (() => {
     if (!sharedAxis) return undefined;
     const allChrs = new Set<string>();
     let globalPxPerBp = Infinity;
@@ -277,41 +271,94 @@ export const useVisualizationLayout = (
     const out = new Map<string, number>();
     for (const chr of allChrs) out.set(chr, globalPxPerBp);
     return out;
-  }, [sharedAxis, pairAxes, trackW]);
+  })();
 
-  return useMemo<VisualizationLayout[]>(() => {
-    return pairs.map((pair, p) => {
-      const { baseAxis, queryAxis } = pairAxes[p];
+  return pairs.map((pair, p) => {
+    const { baseAxis, queryAxis } = pairAxes[p];
 
-      const baseRow = buildBaseRow(
-        baseAxis.chrMax,
-        baseAxis.chrMin,
-        baseAxis.chrOrder,
-        p === 0 ? baseLabel : "",
-        trackW,
-        othersMode,
-        perChrPxPerBp
-      );
+    const baseRow = buildBaseRow(
+      baseAxis.chrMax,
+      baseAxis.chrMin,
+      baseAxis.chrOrder,
+      p === 0 ? baseLabel : "",
+      trackW,
+      othersMode,
+      perChrPxPerBp
+    );
 
-      const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
-        const p1 = queryAxis.chrMin.get(chr) ?? 0;
-        const bpLen = Math.max(queryAxis.chrMax.get(chr) ?? 1, 1) - p1;
-        return { kind: "chr", chr, p1, bpLen };
-      });
-
-      const specs: SlotSpec[] = [];
-      const showOthersStubs = othersMode === "group" && queryAxis.needsOthersStub;
-      if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "left" });
-      specs.push(...chrSpecs);
-      if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
-
-      const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, perChrPxPerBp);
-
-      const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
-      const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
-      const y2top = queryRow.y - RIBBON_GAP;
-
-      return { baseRow, queryRow, ribbons, y1bot, y2top };
+    const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
+      const p1 = queryAxis.chrMin.get(chr) ?? 0;
+      const bpLen = Math.max(queryAxis.chrMax.get(chr) ?? 1, 1) - p1;
+      return { kind: "chr", chr, p1, bpLen };
     });
-  }, [pairs, pairAxes, perChrPxPerBp, relabeledChunksPerPair, baseLabel, trackW, othersMode]);
+
+    const specs: SlotSpec[] = [];
+    const showOthersStubs = othersMode === "group" && queryAxis.needsOthersStub;
+    if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "left" });
+    specs.push(...chrSpecs);
+    if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
+
+    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, perChrPxPerBp);
+
+    const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
+    const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
+    const y2top = queryRow.y - RIBBON_GAP;
+
+    return { baseRow, queryRow, ribbons, y1bot, y2top };
+  });
+};
+
+export const useVisualizationLayout = (
+  pairs: PairInput[],
+  baseLabel: string,
+  trackW: number,
+  gapBp: number,
+  othersMode: OthersMode,
+  hiddenThreshold: number,
+  commonIds: Set<number>,
+  commonOnly: boolean,
+  denoise: boolean,
+  sharedAxis: boolean,
+  stripBlankMbp: number,
+  intraRelabel: boolean,
+  intraScoreConfig: IntraScoreConfig
+): VisualizationLayout[] => {
+  const { minLocalEvents, gapStopMbp, driftK, complexMin } = intraScoreConfig;
+  return useMemo(
+    () =>
+      computeVisualizationLayout(
+        pairs,
+        baseLabel,
+        trackW,
+        gapBp,
+        othersMode,
+        hiddenThreshold,
+        commonIds,
+        commonOnly,
+        denoise,
+        sharedAxis,
+        stripBlankMbp,
+        intraRelabel,
+        intraScoreConfig
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      pairs,
+      baseLabel,
+      trackW,
+      gapBp,
+      othersMode,
+      hiddenThreshold,
+      commonIds,
+      commonOnly,
+      denoise,
+      sharedAxis,
+      stripBlankMbp,
+      intraRelabel,
+      minLocalEvents,
+      gapStopMbp,
+      driftK,
+      complexMin,
+    ]
+  );
 };

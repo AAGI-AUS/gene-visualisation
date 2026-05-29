@@ -1,4 +1,5 @@
-import { useRef, useState, type DragEvent, type ChangeEvent } from "react";
+import type { DragEvent, ChangeEvent } from "react";
+import { useRef, useState } from "react";
 import type { FilesHandler } from "@/types";
 import styles from "./FileSlot.module.css";
 

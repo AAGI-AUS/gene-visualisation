@@ -1,7 +1,8 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
-import { CHUNK_COLOR, ChunkEvent, COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
+import type { ChunkEvent } from "@/src/constants";
+import { CHUNK_COLOR, COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
 import { useAppStore } from "@/src/store/useAppStore";
 import { NumberControl } from "@/src/components/visualizationTab/NumberControl";
 import { ExportButtons } from "@/src/components/visualizationTab/ExportButtons";

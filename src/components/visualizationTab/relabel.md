@@ -47,7 +47,7 @@ Internal constants (not exposed):
 
 | constant                    | value       | role                                              |
 | --------------------------- | ----------- | ------------------------------------------------- |
-| `PIVOT_CLUSTER_THRESHOLD`   | `1_000_000` | bp distance for pivot-X inverted clustering       |
+| `PIVOT_CLUSTER_THRESHOLD`   | `1e6`       | bp distance for pivot-X inverted clustering       |
 | `SCORE_DIFF_TOL`            | `0.03`      | adjacent-score merge tolerance                    |
 | `STRAY_MAX_EVENTS`          | `50`        | event-count cap for the sandwiched-stray filter   |
 

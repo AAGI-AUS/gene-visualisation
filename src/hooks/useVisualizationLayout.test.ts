@@ -1,16 +1,16 @@
 import { renderHook } from "@testing-library/react";
+import type { VisualizationLayout } from "@/src/hooks/useVisualizationLayout";
+import type { PairInput, Track } from "@/src/hooks/useVisualizationLayout";
 import {
   applyGlobalExtension,
   buildTracks,
   computeGroupBounds,
   partitionTracksByChrSet,
   useVisualizationLayout,
-  VisualizationLayout,
-  type PairInput,
-  type Track,
 } from "@/src/hooks/useVisualizationLayout";
 import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
-import { CHROM_THICKNESS, OthersMode, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
+import type { OthersMode } from "@/src/constants";
+import { CHROM_THICKNESS, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
 import type { ChrBar } from "@/types";
 import { makeChunk, makeContiguousRow, makeRow, makeTranslocationRow } from "@/src/test/factories";
 
@@ -197,7 +197,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
         pairs,
         o.baseLabel ?? "base",
         o.trackW ?? 1000,
-        o.gapBp ?? 1_000_000,
+        o.gapBp ?? 1e6,
         o.othersMode ?? "show",
         o.hiddenThreshold ?? 0,
         o.commonIds ?? new Set<number>(),
@@ -382,7 +382,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
   describe("intraRelabel", () => {
     // Five single-row intra-chr chunks with q = [0, 1, 4, 2, 3]: idx2 is the stray
     // sandwiched between near-backbones, hard-labeled by the stray pre-filter.
-    const mbp = 1_000_000;
+    const mbp = 1e6;
     const intraRow = (id: number, baseM: number, queryM: number) =>
       makeRow({
         id,

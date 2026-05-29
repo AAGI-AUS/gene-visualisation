@@ -1,4 +1,4 @@
-import { BedRow, CentromereData, ResultRow, MainEvent } from "../types";
+import type { BedRow, CentromereData, ResultRow, MainEvent } from "../types";
 import { LINE_MAPPING } from "./constants";
 
 export const min = <T extends number | string>(...array: T[]): T => {
@@ -141,7 +141,7 @@ export const parseCentromere = (text: string): CentromereData => {
       if (!raw) continue;
       const mbp = Number(raw);
       if (!Number.isFinite(mbp)) continue;
-      const bp = mbp * 1_000_000;
+      const bp = mbp * 1e6;
       const chr = chrs[j];
       const positions = chrMap.get(chr);
       if (positions) positions.push(bp);

@@ -1,3 +1,4 @@
+import type { SlotSpec } from "@/src/components/visualizationTab/utils";
 import {
   bpToPx,
   buildBaseRow,
@@ -12,7 +13,6 @@ import {
   pct,
   ribbonPath,
   rowCategory,
-  SlotSpec,
   zeroCounts,
 } from "@/src/components/visualizationTab/utils";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";

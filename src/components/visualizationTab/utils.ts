@@ -1,5 +1,6 @@
 import type { QuerySlotLookup, ResultRow } from "@/types";
-import { CHR_GAP_PX, CHROM_THICKNESS, ChunkEvent, OTHERS_W, OthersMode, PAD, ROW_GAP } from "@/src/constants";
+import type { ChunkEvent, OthersMode } from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
 import { withinThreshold } from "@/src/utils";
 

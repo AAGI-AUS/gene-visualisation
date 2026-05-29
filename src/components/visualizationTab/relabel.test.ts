@@ -1,8 +1,9 @@
-import { relabelIntraChunks, type IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
+import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
+import { relabelIntraChunks } from "@/src/components/visualizationTab/relabel";
 import { counts, makeChunk } from "@/src/test/factories";
 import type { Chunk } from "@/types";
 
-const M = 1_000_000;
+const M = 1e6;
 
 const config: IntraScoreConfig = {
   minLocalEvents: 500,

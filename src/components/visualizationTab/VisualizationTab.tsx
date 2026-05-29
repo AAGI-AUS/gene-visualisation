@@ -5,7 +5,7 @@ import { Controls } from "@/src/components/visualizationTab/Controls";
 import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
 import { CHROM_THICKNESS, ROW_GAP, SVG_H, TOOLTIP_SPACING } from "@/src/constants";
 import { ChunkTooltip } from "@/src/components/visualizationTab/ChunkTooltip";
-import { Result } from "@/src/store/useAppStore";
+import type { Result } from "@/src/store/useAppStore";
 import { registerSvgEl } from "@/src/components/visualizationTab/batchExport";
 
 interface VisualizationTabProps {
