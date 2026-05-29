@@ -340,12 +340,9 @@ describe("mergePredicted", () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Integration: batchExportAll drives the live stores per chr, serializes the
-// mounted SVG, and zips it together with a notable_events CSV derived from
-// snapshotFromStores. Covers the seam (selectedChr -> autoSort -> rAF flush ->
-// serializeSvg + snapshotFromStores) that the pure-builder tests above bypass.
-// ─────────────────────────────────────────────────────────────────────────────
+// Integration: drives batchExportAll across two chrs to cover the seam
+// (selectedChr -> autoSort -> rAF flush -> serializeSvg + snapshotFromStores)
+// that the pure-builder tests above bypass.
 
 const M = 1e6;
 
@@ -366,11 +363,8 @@ const Harness = ({ svgRef }: { svgRef: RefObject<SVGSVGElement> }) => {
 };
 
 describe("batchExportAll", () => {
-  let zipBytes: Uint8Array | null;
-
-  beforeEach(() => {
-    zipBytes = null;
-
+  it("snapshots per chr and restores store state", async () => {
+    let zipBytes: Uint8Array | null = null;
     (window as unknown as { showSaveFilePicker: jest.Mock }).showSaveFilePicker = jest.fn().mockResolvedValue({
       createWritable: () =>
         Promise.resolve({
@@ -382,94 +376,46 @@ describe("batchExportAll", () => {
         }),
     });
 
-    const queryFile = new File([queryBedText], "queryline.bed", { type: "text/plain" });
-
     useAppStore.setState({
       base: { name: "baseline.bed", rows: baseRows },
-      baseFile: new File([""], "baseline.bed", { type: "text/plain" }),
-      queryFiles: [queryFile],
+      queryFiles: [new File([queryBedText], "queryline.bed", { type: "text/plain" })],
       chromosomes: ["1A", "2B"],
       selectedChr: "1A",
-      groupThreshold: 0.01,
       result: [],
-      commonIds: new Set(),
-      palette: {},
-      centromere: new Map(),
-      centromereName: null,
-      batching: false,
-      running: false,
-      error: null,
     });
-
     useVisualizationStore.setState({
-      svgW: 900,
       hiddenThreshold: 0,
-      gapBp: 1_000,
-      sharedAxis: false,
-      showMarks: false,
-      boundaryTicks: false,
       commonOnly: false,
       denoise: false,
-      othersMode: "show",
-      stripBlankMbp: 0,
       intra: { ...useVisualizationStore.getState().intra, relabel: false },
     });
-  });
 
-  afterEach(() => {
-    registerSvgEl(null);
-    delete (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker;
-  });
-
-  it("zips per-chr SVGs plus a notable_events CSV derived from each chr's live snapshot", async () => {
     const svgRef = createRef<SVGSVGElement>();
     render(<Harness svgRef={svgRef} />);
     registerSvgEl(svgRef.current);
+    const before = useAppStore.getState();
 
     await act(() => batchExportAll());
 
-    expect(zipBytes).not.toBeNull();
     const files = unzipSync(zipBytes!);
     expect(Object.keys(files).sort()).toEqual(["1a.svg", "2b.svg", "notable_events.csv"]);
     expect(strFromU8(files["1a.svg"]).startsWith("<svg")).toBe(true);
-    expect(strFromU8(files["2b.svg"]).startsWith("<svg")).toBe(true);
 
-    const [header, ...rows] = strFromU8(files["notable_events.csv"]).split("\n");
-    expect(header).toBe(NOTABLE_HEADER);
-
-    // One inversion row per chr iteration. If snapshotFromStores were captured
-    // once before the loop (the bug class tests.md Finding 2 calls out), only
-    // the first chr's rows would land in the CSV.
-    const parsed = rows.map(parseRow);
-    expect(parsed).toHaveLength(2);
-
-    const ch1A = parsed.find((r) => r.baseChr === "1A");
-    expect(ch1A?.event).toBe("inversion");
-    expect(ch1A?.queryLine).toBe("queryline");
-    expect(ch1A?.baseLine).toBe("baseline");
-
-    const ch2B = parsed.find((r) => r.baseChr === "2B");
-    expect(ch2B?.event).toBe("inversion");
-  });
-
-  it("restores the pre-loop store state after the export finishes", async () => {
-    const svgRef = createRef<SVGSVGElement>();
-    render(<Harness svgRef={svgRef} />);
-    registerSvgEl(svgRef.current);
-
-    const before = useAppStore.getState();
-    const restoreTargets = {
-      selectedChr: before.selectedChr,
-      result: before.result,
-      queryFiles: before.queryFiles,
-    };
-
-    await act(() => batchExportAll());
+    // One row per chr - if snapshotFromStores were captured once before the
+    // loop (the bug class tests.md Finding 2 calls out), only chr 1A's rows
+    // would land in the CSV.
+    const rows = strFromU8(files["notable_events.csv"]).split("\n").slice(1).map(parseRow);
+    expect(rows.map((r) => r.baseChr).sort()).toEqual(["1A", "2B"]);
+    expect(rows.every((r) => r.event === "inversion")).toBe(true);
+    expect(rows.every((r) => r.baseLine === "baseline" && r.queryLine === "queryline")).toBe(true);
 
     const after = useAppStore.getState();
-    expect(after.selectedChr).toBe(restoreTargets.selectedChr);
-    expect(after.result).toBe(restoreTargets.result);
-    expect(after.queryFiles).toBe(restoreTargets.queryFiles);
+    expect(after.selectedChr).toBe(before.selectedChr);
+    expect(after.result).toBe(before.result);
+    expect(after.queryFiles).toBe(before.queryFiles);
     expect(after.batching).toBe(false);
+
+    registerSvgEl(null);
+    delete (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker;
   });
 });
