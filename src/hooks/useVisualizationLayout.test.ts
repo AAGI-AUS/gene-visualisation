@@ -12,7 +12,7 @@ import {
 import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
 import { CHROM_THICKNESS, OthersMode, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
 import type { ChrBar } from "@/types";
-import { makeChunk, makeRow, makeTranslocationRow } from "@/src/test/factories";
+import { makeChunk, makeContiguousRow, makeRow, makeTranslocationRow } from "@/src/test/factories";
 
 // Track with only chrOrder set (enough for partitioning).
 const orderTrack = (chrOrder: string[]): Track => ({
@@ -210,11 +210,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       )
     ).result.current;
 
-  // Synteny row at bp [id*100, (id+1)*100) on base and query - chain rows by id alone.
-  const contiguous = (id: number) =>
-    makeRow({ id, p1Base: id * 100, p2Base: (id + 1) * 100, p1Query: id * 100, p2Query: (id + 1) * 100 });
-
-  const syntenyRows = [contiguous(0), contiguous(1)];
+  const syntenyRows = [makeContiguousRow(0), makeContiguousRow(1)];
 
   // Two translocations to a rare chr, grouped as "others" - a chunk with isOthers === true.
   const othersRows = [
@@ -290,8 +286,8 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
   describe("commonOnly", () => {
     // pair1 ids {0,1,2}, pair2 ids {1,2,3} - intersection is {1,2}.
     const pairs = [
-      { queryLabel: "q1", data: [contiguous(0), contiguous(1), contiguous(2)] },
-      { queryLabel: "q2", data: [contiguous(1), contiguous(2), contiguous(3)] },
+      { queryLabel: "q1", data: [makeContiguousRow(0), makeContiguousRow(1), makeContiguousRow(2)] },
+      { queryLabel: "q2", data: [makeContiguousRow(1), makeContiguousRow(2), makeContiguousRow(3)] },
     ];
 
     it("restricts every pair to ids in commonIds when enabled", () => {
