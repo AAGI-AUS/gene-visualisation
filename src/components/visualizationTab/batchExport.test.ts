@@ -1,9 +1,8 @@
+import type { PredictedByLine, VisibleChunkPair } from "@/src/components/visualizationTab/batchExport";
 import {
   buildNotableEventsCsv,
   buildCentromeresCsv,
   mergePredicted,
-  type PredictedByLine,
-  type VisibleChunkPair,
 } from "@/src/components/visualizationTab/batchExport";
 import type { Chunk } from "@/types";
 import { counts, makeChunk } from "@/src/test/factories";

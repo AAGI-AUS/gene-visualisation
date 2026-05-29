@@ -1,40 +1,19 @@
-import { zip, type AsyncZippableFile } from "fflate";
+import type { AsyncZippableFile } from "fflate";
+import { zip } from "fflate";
 import { useAppStore } from "@/src/store/useAppStore";
 import { serializeSvg, svgToPngBlob, triggerDownload } from "@/src/components/visualizationTab/utils";
-import type { Chunk } from "@/types";
 import type { ChunkEvent } from "@/src/constants";
+import type { VisibleChunkPair } from "@/src/components/visualizationTab/snapshot";
+import { snapshotFromStores } from "@/src/components/visualizationTab/snapshot";
+import type { PredictedByLine } from "@/src/components/visualizationTab/predicted";
+
+export type { VisibleChunkPair };
+export type { PredictedByLine };
 
 let svgEl: SVGSVGElement | null = null;
 
 export const registerSvgEl = (el: SVGSVGElement | null): void => {
   svgEl = el;
-};
-
-export interface VisibleChunkPair {
-  queryLabel: string;
-  chunks: Chunk[];
-}
-
-export type PredictedByLine = Map<string, Map<string, number>>;
-
-// Live snapshot bridging the rendered canvas to the export routines that live outside its
-// subtree: the single-CSV button (under Controls) and the async batchExportAll loop, which
-// drives a render-per-chromosome loop and harvests each frame. SyntenyCanvas writes this
-// after each render via setVisibleExport. The CSV builders below take this data as explicit
-// arguments rather than reading it implicitly, so they stay pure and unit-testable.
-interface VisibleExport {
-  pairs: VisibleChunkPair[];
-  predicted: PredictedByLine;
-}
-
-let visibleExport: VisibleExport = { pairs: [], predicted: new Map() };
-
-export const setVisibleExport = (snapshot: VisibleExport): void => {
-  visibleExport = snapshot;
-};
-
-export const clearVisibleExport = (): void => {
-  visibleExport = { pairs: [], predicted: new Map() };
 };
 
 const NOTABLE_EVENTS: ReadonlySet<ChunkEvent> = new Set<ChunkEvent>([
@@ -104,9 +83,9 @@ const SYNTENY_MAP: Record<ChunkEvent, ChunkEvent> = {
   "translocation+inversion": "inversion",
 };
 
-// Build CSV rows for the currently registered visible chunks. Within each
-// pair, sort notable chunks by (chrBase, bp1Base), then merge a run of
-// consecutive same-event chunks sharing the same chrBase and chrQuery.
+// Build CSV rows for the given visible chunks. Within each pair, sort notable
+// chunks by (chrBase, bp1Base), then merge a run of consecutive same-event
+// chunks sharing the same chrBase and chrQuery.
 const collectCsvRows = (pairs: VisibleChunkPair[], baseName: string): string[] => {
   const rows: string[] = [];
   let baseLabel = baseName;
@@ -157,10 +136,12 @@ const collectCsvRows = (pairs: VisibleChunkPair[], baseName: string): string[] =
 export const buildNotableEventsCsv = (pairs: VisibleChunkPair[], baseName: string): string =>
   [CSV_HEADER, ...collectCsvRows(pairs, baseName)].join("\n");
 
-const currentBaseName = (): string => useAppStore.getState().base?.name.split(".")[0] ?? "";
-
-export const downloadNotableEventsCsv = (filename: string): void => {
-  const csv = buildNotableEventsCsv(visibleExport.pairs, currentBaseName());
+export const downloadNotableEventsCsv = (
+  pairs: VisibleChunkPair[],
+  baseName: string,
+  filename: string
+): void => {
+  const csv = buildNotableEventsCsv(pairs, baseName);
   triggerDownload(new Blob([csv], { type: "text/csv" }), filename);
 };
 
@@ -243,12 +224,12 @@ interface SaveFilePickerWindow {
   }) => Promise<{ createWritable: () => Promise<ZipWritable> }>;
 }
 
-export const downloadPredictedCentromeresCsv = (filename = "predicted_centromeres.csv"): void => {
-  if (!visibleExport.predicted.size) return;
-  const blob = new Blob([buildCentromeresCsv(visibleExport.predicted)], {
-    type: "text/csv;charset=utf-8",
-  });
-  triggerDownload(blob, filename);
+export const downloadPredictedCentromeresCsv = (
+  predicted: PredictedByLine,
+  filename = "predicted_centromeres.csv"
+): void => {
+  if (!predicted.size) return;
+  triggerDownload(new Blob([buildCentromeresCsv(predicted)], { type: "text/csv;charset=utf-8" }), filename);
 };
 
 let currentAbortController: AbortController | null = null;
@@ -261,8 +242,6 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
   const store = useAppStore.getState();
   const { chromosomes, autoSort } = store;
   if (!chromosomes.length || currentAbortController) return;
-
-  const baseName = store.base?.name.split(".")[0] ?? "";
 
   let writable: ZipWritable;
   try {
@@ -280,7 +259,7 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
   currentAbortController = controller;
   useAppStore.setState({ batching: true });
 
-  const snapshot = {
+  const restore = {
     selectedChr: store.selectedChr,
     queryFiles: store.queryFiles,
     result: store.result,
@@ -307,11 +286,12 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
       const png = await svgToPngBlob(svgEl);
       if (png) files[`${base}.png`] = [await blobToBytes(png), { level: 0 }];
 
-      csvRows.push(...collectCsvRows(visibleExport.pairs, baseName));
-      mergePredicted(predictedAcc, visibleExport.predicted);
+      const snap = snapshotFromStores();
+      csvRows.push(...collectCsvRows(snap.pairs, snap.baseName));
+      mergePredicted(predictedAcc, snap.predicted);
     }
   } finally {
-    useAppStore.setState(snapshot);
+    useAppStore.setState(restore);
     useAppStore.setState({ batching: false });
     currentAbortController = null;
   }

@@ -1,64 +1,20 @@
-import { useEffect, useMemo, type RefObject } from "react";
+import type { RefObject } from "react";
+import { useMemo } from "react";
 import styles from "./VisualizationTab.module.css";
-import { Result, useAppStore } from "@/src/store/useAppStore";
+import type { Result } from "@/src/store/useAppStore";
+import { useAppStore } from "@/src/store/useAppStore";
 import { LinePair } from "@/src/components/visualizationTab/LinePair";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { PAD } from "@/src/constants";
-import {
-  useVisualizationLayout,
-  type PairInput,
-  type VisualizationLayout,
-} from "@/src/hooks/useVisualizationLayout";
-import {
-  setVisibleExport,
-  clearVisibleExport,
-  type PredictedByLine,
-} from "@/src/components/visualizationTab/batchExport";
-import {
-  findLargestGapCenter,
-  getPredictingLines,
-  getPredictingRange,
-} from "@/src/components/visualizationTab/utils";
-import type { CentromereData, ChrBar } from "@/types";
+import type { PairInput } from "@/src/hooks/useVisualizationLayout";
+import { useVisualizationLayout } from "@/src/hooks/useVisualizationLayout";
+import { buildPredictedPerPair } from "@/src/components/visualizationTab/predicted";
+import type { CentromereData } from "@/types";
 
 const EMPTY_POSITIONS: Map<string, number[]> = new Map();
 
 const getCentromere = (centromere: CentromereData, label: string): Map<string, number[]> =>
   centromere.get(label.toLowerCase()) ?? EMPTY_POSITIONS;
-
-const collectIntervals = (
-  layout: VisualizationLayout,
-  side: "base" | "query"
-): Map<string, [number, number][]> => {
-  const out = new Map<string, [number, number][]>();
-  for (const rib of layout.ribbons) {
-    const c = rib.chunk;
-    const chr = side === "base" ? c.chrBase : c.chrQuery;
-    if (!chr) continue;
-    const p1 = side === "base" ? c.bp1Base : c.bp1Query;
-    const p2 = side === "base" ? c.bp2Base : c.bp2Query;
-    const arr = out.get(chr);
-    if (arr) arr.push([p1, p2]);
-    else out.set(chr, [[p1, p2]]);
-  }
-  return out;
-};
-
-const buildPredicted = (
-  bars: readonly ChrBar[],
-  lineKey: string,
-  intervalsByChr: Map<string, [number, number][]>
-): Map<string, number[]> => {
-  const out = new Map<string, number[]>();
-  if (!lineKey) return out;
-  for (const bar of bars) {
-    if (!getPredictingLines(bar.chr).includes(lineKey)) continue;
-    const { lo, hi } = getPredictingRange(bar.chr, lineKey);
-    const center = findLargestGapCenter(intervalsByChr.get(bar.chr) ?? [], lo * 1_000_000, hi * 1_000_000);
-    if (center !== null) out.set(bar.chr, [center]);
-  }
-  return out;
-};
 
 interface SyntenyCanvasProps {
   data: Result;
@@ -105,46 +61,9 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   );
 
   const predictedPerPair = useMemo(
-    () =>
-      layouts.map((layout, i) => {
-        const queryLineKey = pairs[i].queryLabel.toLowerCase();
-        const querySlotBars = layout.queryRow.slots.filter((s): s is ChrBar => s.kind === "chr");
-        const queryPredicted = buildPredicted(querySlotBars, queryLineKey, collectIntervals(layout, "query"));
-        const basePredicted =
-          i === 0
-            ? buildPredicted(layout.baseRow.bars, baseLabel, collectIntervals(layout, "base"))
-            : EMPTY_POSITIONS;
-        return { basePredicted, queryPredicted, queryLineKey };
-      }),
+    () => buildPredictedPerPair(layouts, pairs, baseLabel),
     [layouts, pairs, baseLabel]
   );
-
-  useEffect(() => {
-    const visiblePairs = layouts.map((l, i) => ({
-      queryLabel: pairs[i].queryLabel.toLowerCase(),
-      chunks: l.ribbons.map((r) => r.chunk),
-    }));
-
-    const predicted: PredictedByLine = new Map();
-    const merge = (line: string, positions: Map<string, number[]>) => {
-      if (!line || positions.size === 0) return;
-      let into = predicted.get(line);
-      if (!into) {
-        into = new Map();
-        predicted.set(line, into);
-      }
-      positions.forEach((bps, chr) => {
-        if (bps.length) into!.set(chr, bps[0]);
-      });
-    };
-    predictedPerPair.forEach(({ basePredicted, queryPredicted, queryLineKey }, i) => {
-      if (i === 0) merge(baseLabel, basePredicted);
-      merge(queryLineKey, queryPredicted);
-    });
-
-    setVisibleExport({ pairs: visiblePairs, predicted });
-    return () => clearVisibleExport();
-  }, [layouts, pairs, predictedPerPair, baseLabel]);
 
   return (
     <svg ref={svgRef} className={styles.svgCanvas} width={width} height={height}>

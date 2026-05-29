@@ -1,4 +1,4 @@
-import { BedRow, CentromereData, ResultRow, MainEvent } from "../types";
+import type { BedRow, CentromereData, ResultRow, MainEvent } from "../types";
 import { LINE_MAPPING } from "./constants";
 
 export const min = <T extends number | string>(...array: T[]): T => {

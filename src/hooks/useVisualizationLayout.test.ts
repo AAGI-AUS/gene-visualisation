@@ -1,16 +1,16 @@
 import { renderHook } from "@testing-library/react";
+import type { VisualizationLayout } from "@/src/hooks/useVisualizationLayout";
+import type { PairInput, Track } from "@/src/hooks/useVisualizationLayout";
 import {
   applyGlobalExtension,
   buildTracks,
   computeGroupBounds,
   partitionTracksByChrSet,
   useVisualizationLayout,
-  VisualizationLayout,
-  type PairInput,
-  type Track,
 } from "@/src/hooks/useVisualizationLayout";
 import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
-import { CHROM_THICKNESS, OthersMode, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
+import type { OthersMode } from "@/src/constants";
+import { CHROM_THICKNESS, PAD, RIBBON_GAP, ROW_GAP } from "@/src/constants";
 import type { ChrBar } from "@/types";
 import { makeChunk, makeContiguousRow, makeRow, makeTranslocationRow } from "@/src/test/factories";
 

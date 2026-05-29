@@ -5,11 +5,22 @@ import {
   downloadNotableEventsCsv,
   downloadPredictedCentromeresCsv,
 } from "@/src/components/visualizationTab/batchExport";
+import { snapshotFromStores } from "@/src/components/visualizationTab/snapshot";
 
 interface ExportButtonsProps {
   svgRef: RefObject<SVGSVGElement | null>;
   filenameBase: string;
 }
+
+const onCsvClick = (filenameBase: string) => {
+  const { pairs, baseName } = snapshotFromStores();
+  downloadNotableEventsCsv(pairs, baseName, `${filenameBase}.csv`);
+};
+
+const onPredictedClick = (filenameBase: string) => {
+  const { predicted } = snapshotFromStores();
+  downloadPredictedCentromeresCsv(predicted, `${filenameBase}_predicted.csv`);
+};
 
 export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => (
   <div className={styles.exportGroup}>
@@ -27,18 +38,10 @@ export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => (
     >
       ↓ PNG
     </button>
-    <button
-      className={styles.exportBtn}
-      onClick={() => downloadNotableEventsCsv(`${filenameBase}.csv`)}
-      type="button"
-    >
+    <button className={styles.exportBtn} onClick={() => onCsvClick(filenameBase)} type="button">
       ↓ CSV
     </button>
-    <button
-      className={styles.exportBtn}
-      onClick={() => downloadPredictedCentromeresCsv(`${filenameBase}_predicted.csv`)}
-      type="button"
-    >
+    <button className={styles.exportBtn} onClick={() => onPredictedClick(filenameBase)} type="button">
       ↓ predicted
     </button>
   </div>

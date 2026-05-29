@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { BedFile, CentromereData, FilesHandler, ResultRow } from "@/types";
+import type { BedFile, CentromereData, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
 

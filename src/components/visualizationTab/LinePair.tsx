@@ -1,4 +1,5 @@
-import { useCallback, type MouseEvent } from "react";
+import type { MouseEvent } from "react";
+import { useCallback } from "react";
 import { CHROM_THICKNESS, PAD, ROW_GAP, SVG_H } from "@/src/constants";
 import type { Chunk, ChunkRibbon } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";

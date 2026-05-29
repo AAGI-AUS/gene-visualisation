@@ -1,4 +1,5 @@
-import { relabelIntraChunks, type IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
+import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
+import { relabelIntraChunks } from "@/src/components/visualizationTab/relabel";
 import { counts, makeChunk } from "@/src/test/factories";
 import type { Chunk } from "@/types";
 

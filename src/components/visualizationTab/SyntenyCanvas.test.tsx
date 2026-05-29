@@ -2,7 +2,8 @@
 import { createRef } from "react";
 import { render } from "@testing-library/react";
 import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
-import { useAppStore, type Result } from "@/src/store/useAppStore";
+import type { Result } from "@/src/store/useAppStore";
+import { useAppStore } from "@/src/store/useAppStore";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { CHROM_THICKNESS, PAD, ROW_GAP } from "@/src/constants";
 import { makeContiguousRow, makeTranslocationRow } from "@/src/test/factories";

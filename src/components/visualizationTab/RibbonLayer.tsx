@@ -1,4 +1,4 @@
-import { type MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { CHUNK_COLOR } from "@/src/constants";
 import type { Chunk, ChunkRibbon } from "@/types";
 import { ribbonPath } from "@/src/components/visualizationTab/utils";

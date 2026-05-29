@@ -1,6 +1,7 @@
-import { Chunk } from "@/types";
+import type { Chunk } from "@/types";
 import styles from "./VisualizationTab.module.css";
-import { CHUNK_COLOR, ChunkEvent, OTHERS_COL } from "@/src/constants";
+import type { ChunkEvent } from "@/src/constants";
+import { CHUNK_COLOR, OTHERS_COL } from "@/src/constants";
 import { DistributionRow } from "@/src/components/visualizationTab/DistributionRow";
 
 const TOOLTIP_W = 300;
