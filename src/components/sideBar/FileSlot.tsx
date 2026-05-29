@@ -22,7 +22,7 @@ export const FileSlot = ({ filename, onFilesLoad, onClear, onSwap, ...inputProps
             type="button"
             title="Use as baseline (swap with current base)"
           >
-            🡅<a>make base</a>
+            🡅<span>make base</span>
           </button>
         )}
         <button className={styles.clearBtn} onClick={onClear} type="button">
