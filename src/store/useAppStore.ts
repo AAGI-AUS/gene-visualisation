@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { BedFile, CentromereData, FilesHandler, ResultRow } from "@/types";
+import type { BedFile, BedRow, CentromereData, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
+import { defaultWorkerCount, isCached, parseQueryInWorker, setPoolSize } from "@/src/store/workerPool";
 
 export type Result = {
   name: string;
@@ -23,6 +24,7 @@ interface AppState {
   palette: Record<string, string>;
   centromereName: string | null;
   centromere: CentromereData;
+  workerCount: number;
 }
 
 interface AppActions {
@@ -42,6 +44,30 @@ interface AppActions {
 
 export type AppStore = AppState & AppActions;
 
+const fingerprintOf = (f: File) => `${f.name}|${f.size}|${f.lastModified}`;
+const parseFilesInParallel = async <T>(
+  files: File[],
+  ids: Set<number>,
+  workerCount: number,
+  transform: (index: number, rows: BedRow[]) => T
+): Promise<T[]> => {
+  const out: T[] = new Array(files.length);
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(workerCount, files.length) }, async () => {
+      while (cursor < files.length) {
+        const i = cursor++;
+        const file = files[i];
+        const cacheKey = fingerprintOf(file);
+        const queryText = isCached(cacheKey) ? undefined : await fileToText(file);
+        const res = await parseQueryInWorker({ ids, queryText, cacheKey });
+        out[i] = transform(i, res.rows);
+      }
+    })
+  );
+  return out;
+};
+
 export const useAppStore = create<AppStore>((set, get) => ({
   // ── state ──────────────────────────────────────────────────────────────
   base: null,
@@ -58,6 +84,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   palette: {},
   centromereName: null,
   centromere: new Map(),
+  workerCount: defaultWorkerCount,
 
   // ── actions ────────────────────────────────────────────────────────────
   setBase: async (files) => {
@@ -123,27 +150,34 @@ export const useAppStore = create<AppStore>((set, get) => ({
   runAnalysis: async () => {
     set({ running: true });
     try {
-      const { base, queryFiles, selectedChr, groupThreshold } = get();
+      const { base, queryFiles, selectedChr, groupThreshold, workerCount } = get();
       if (!base || !selectedChr) return;
+      setPoolSize(workerCount);
 
       const filteredBase = base.rows.filter((r) => r.chromosome === selectedChr);
       const ids = new Set(filteredBase.map((r) => r.id));
-      const queries = await Promise.all(
-        queryFiles.map(async (f) => parseBED(await fileToText(f)).filter((r) => ids.has(r.id)))
-      );
-      if (!queries.length) return;
+      if (!queryFiles.length) return;
 
       try {
+        const parsed: (BedRow[] | undefined)[] = await parseFilesInParallel(
+          queryFiles,
+          ids,
+          workerCount,
+          (_, rows) => rows
+        );
+
         const allChroms: string[] = [];
-        const result = queries.map((query, i) => {
-          const { rows, chromosomes } = queryGene(
-            i === 0 ? filteredBase : queries[i - 1],
-            new Map(query.map((r) => [r.id, r])),
-            groupThreshold
-          );
+        const result: Result = new Array(parsed.length);
+        for (let i = 0; i < parsed.length; i++) {
+          const queryRows = parsed[i]!;
+          const baseRows = i === 0 ? filteredBase : parsed[i - 1]!;
+          const queryMap = new Map(queryRows.map((r) => [r.id, r]));
+          const { rows, chromosomes } = queryGene(baseRows, queryMap, groupThreshold);
           allChroms.push(...chromosomes);
-          return { name: queryFiles[i].name, rows };
-        });
+          result[i] = { name: queryFiles[i].name, rows };
+          if (i > 0) parsed[i - 1] = undefined;
+        }
+        parsed[parsed.length - 1] = undefined;
 
         set({
           result,
@@ -162,21 +196,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
   autoSort: async () => {
     set({ running: true });
     try {
-      const { base, queryFiles, selectedChr, groupThreshold } = get();
+      const { base, queryFiles, selectedChr, groupThreshold, workerCount } = get();
       if (!base || !selectedChr || !queryFiles.length) return;
+      setPoolSize(workerCount);
 
       const filteredBase = base.rows.filter((r) => r.chromosome === selectedChr);
       const ids = new Set(filteredBase.map((r) => r.id));
-      const parsed = await Promise.all(
-        queryFiles.map(async (f) => ({
-          file: f,
-          rows: parseBED(await fileToText(f)).filter((r) => ids.has(r.id)),
-        }))
-      );
 
       try {
-        const remaining = [...parsed];
-        const remainingMaps = remaining.map((p) => new Map(p.rows.map((r) => [r.id, r])));
+        const remaining = await parseFilesInParallel(queryFiles, ids, workerCount, (i, rows) => ({
+          file: queryFiles[i],
+          rows,
+          map: new Map(rows.map((r) => [r.id, r])),
+        }));
+
         const sortedResult: Result = [];
         const sortedFiles: File[] = [];
         const allChroms: string[] = [];
@@ -185,9 +218,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         while (remaining.length) {
           let bestIdx = 0;
           let bestPct = -1;
-
           for (let i = 0; i < remaining.length; i++) {
-            const map = remainingMaps[i];
+            const map = remaining[i].map;
             let joined = 0;
             let synteny = 0;
             for (const b of prev) {
@@ -204,13 +236,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
 
           const winner = remaining[bestIdx];
-          const { rows, chromosomes } = queryGene(prev, remainingMaps[bestIdx], groupThreshold);
+          const { rows, chromosomes } = queryGene(prev, winner.map, groupThreshold);
           sortedResult.push({ name: winner.file.name, rows });
           sortedFiles.push(winner.file);
           allChroms.push(...chromosomes);
           prev = winner.rows;
           remaining.splice(bestIdx, 1);
-          remainingMaps.splice(bestIdx, 1);
         }
 
         set({

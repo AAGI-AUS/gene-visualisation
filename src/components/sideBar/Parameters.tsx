@@ -64,6 +64,7 @@ const RunActions = () => {
 
 export const Parameters = () => {
   const groupThreshold = useAppStore((s) => s.groupThreshold);
+  const workerCount = useAppStore((s) => s.workerCount);
   const setAppState = useAppStore((s) => s.setAppState);
 
   return (
@@ -82,6 +83,18 @@ export const Parameters = () => {
             max="1"
             value={groupThreshold}
             onChange={(e) => setAppState({ groupThreshold: parseFloat(e.target.value) })}
+          />
+        </div>
+
+        <div className={styles.thresholdRow}>
+          <label className={styles.thresholdLabel}>Workers</label>
+          <input
+            className={styles.thresholdInput}
+            type="number"
+            step="1"
+            min="1"
+            value={workerCount}
+            onChange={(e) => setAppState({ workerCount: Math.max(1, Math.floor(Number(e.target.value) || 1)) })}
           />
         </div>
 
