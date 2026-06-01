@@ -23,7 +23,6 @@ export const withinThreshold = (a: number, b: number, threshold = 0.1) => {
 
 /**
  * Parse a raw BED file string into typed rows.
- * Mirrors Python's loadBed(): tab-separated, no header, id = row index.
  */
 export const parseBED = (text: string): BedRow[] => {
   return text

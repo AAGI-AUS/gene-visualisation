@@ -2,7 +2,13 @@ import { create } from "zustand";
 import type { BedFile, BedRow, CentromereData, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
-import { defaultWorkerCount, isCached, parseQueryInWorker, setPoolSize } from "@/src/store/workerPool";
+import {
+  clearWorkerCaches,
+  defaultWorkerCount,
+  isCached,
+  parseQueryInWorker,
+  setPoolSize,
+} from "@/src/store/workerPool";
 
 export type Result = {
   name: string;
@@ -105,7 +111,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),
   clearBase: () => set({ base: null, baseFile: null, result: [], commonIds: new Set(), error: null }),
-  clearQuery: (i) => set((state) => ({ queryFiles: state.queryFiles.filter((_, j) => i !== j), error: null })),
+  clearQuery: (i) =>
+    set((state) => {
+      clearWorkerCaches();
+      return { queryFiles: state.queryFiles.filter((_, j) => i !== j), error: null };
+    }),
   reorderQuery: (from, to) =>
     set((state) => {
       if (from === to) return state;
@@ -135,6 +145,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } else {
       nextQueries.splice(i, 1);
     }
+    clearWorkerCaches();
     set({
       base: { name: incoming.name, rows },
       baseFile: incoming,

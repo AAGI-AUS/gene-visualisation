@@ -1,5 +1,6 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import * as storeUtils from "@/src/store/utils";
+import { makeBedFile as bed } from "@/src/test/factories";
 import type { BedRow } from "@/types";
 
 const initialState = useAppStore.getState();
@@ -9,10 +10,6 @@ const get = useAppStore.getState;
 afterEach(reset);
 afterEach(() => jest.restoreAllMocks());
 
-// Each row is [chromosome, p1, p2, sign, id]; cells are tab-joined, rows newline-joined.
-type Cell = string | number;
-const bed = (name: string, rows: Cell[][]) =>
-  new File([rows.map((r) => r.join("\t")).join("\n")], name, { type: "text/plain" });
 const fileList = (...files: File[]): FileList => files as unknown as FileList;
 
 const baseRows: BedRow[] = [

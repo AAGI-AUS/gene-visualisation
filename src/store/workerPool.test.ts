@@ -5,8 +5,7 @@ import {
   parseQueryInWorker,
   setPoolSize,
 } from "@/src/store/workerPool";
-
-const bed = (rows: (string | number)[][]) => rows.map((r) => r.join("\t")).join("\n");
+import { makeBedText as bedText } from "@/src/test/factories";
 
 describe("defaultWorkerCount", () => {
   it("is a positive integer", () => {
@@ -23,7 +22,7 @@ describe("isCached", () => {
   it("stays false after a serial-fallback dispatch (serial path doesn't mark cache)", async () => {
     await parseQueryInWorker({
       ids: new Set([0]),
-      queryText: bed([["1A", 0, 100, "+", 0]]),
+      queryText: bedText([["1A", 0, 100, "+", 0]]),
       cacheKey: "serial-fp",
     });
     expect(isCached("serial-fp")).toBe(false);
@@ -53,7 +52,7 @@ describe("setPoolSize", () => {
 
 describe("parseQueryInWorker (serial fallback)", () => {
   it("parses queryText and filters by ids, returning a unique jobId per call", async () => {
-    const text = bed([
+    const text = bedText([
       ["1A", 0, 100, "+", 0],
       ["1A", 100, 200, "+", 1],
       ["2B", 200, 300, "-", 2],

@@ -8,6 +8,7 @@ import {
   queryGene,
   withinThreshold,
 } from "@/src/utils";
+import { makeBedText as bedText, type Cell } from "@/src/test/factories";
 import type { BedRow } from "@/types";
 
 describe("min / max", () => {
@@ -48,38 +49,40 @@ describe("withinThreshold", () => {
 });
 
 describe("parseBED", () => {
-  const baseRows = ["1A\t100\t200\t+\t0", "1B\t300\t400\t-\t1"];
+  const baseRowCells: Cell[][] = [
+    ["1A", 100, 200, "+", 0],
+    ["1B", 300, 400, "-", 1],
+  ];
   const baseExpectedRows: BedRow[] = [
     { id: 0, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
     { id: 1, chromosome: "1B", p1: 300, p2: 400, sign: "-" },
   ];
 
   it("parses tab-separated rows with positional ids", () => {
-    const text = baseRows.join("\n");
-    const rows = parseBED(text);
-    expect(rows).toEqual(baseExpectedRows);
+    expect(parseBED(bedText(baseRowCells))).toEqual(baseExpectedRows);
   });
 
   it("skips comment lines and blank lines", () => {
-    const text = ["# header", "", baseRows[0], "# another", baseRows[1]].join("\n");
-    const rows = parseBED(text);
-    expect(rows.map((r) => r.chromosome)).toEqual(["1A", "1B"]);
+    const text = bedText([["# header"], [""], baseRowCells[0], ["# another"], baseRowCells[1]]);
+    expect(parseBED(text).map((r) => r.chromosome)).toEqual(["1A", "1B"]);
   });
 
   it("drops rows whose chromosome name is not exactly two characters", () => {
-    const text = ["chr1A\t10\t20\t+\t2", ...baseRows].join("\n");
+    const text = bedText([["chr1A", 10, 20, "+", 2], ...baseRowCells]);
     expect(parseBED(text)).toEqual(baseExpectedRows);
   });
 
   it("drops rows where p1 >= p2", () => {
-    const text = ["1A\t200\t100\t+\t2", "1A\t100\t100\t+\t3", ...baseRows].join("\n");
+    const text = bedText([["1A", 200, 100, "+", 2], ["1A", 100, 100, "+", 3], ...baseRowCells]);
     expect(parseBED(text)).toEqual(baseExpectedRows);
   });
 
   it("falls back to the row index when the id column is missing or zero", () => {
-    const text = ["1A\t10\t20\t+", "1A\t50\t60\t+\t9"].join("\n");
-    const rows = parseBED(text);
-    expect(rows.map((r) => r.id)).toEqual([0, 9]);
+    const text = bedText([
+      ["1A", 10, 20, "+"],
+      ["1A", 50, 60, "+", 9],
+    ]);
+    expect(parseBED(text).map((r) => r.id)).toEqual([0, 9]);
   });
 
   it("returns an empty array for empty input", () => {

@@ -18,7 +18,7 @@ export type PackedCache = {
   p1: Float64Array;
   p2: Float64Array;
   sign: Uint8Array;
-  chrIdx: Uint8Array;
+  chrIdx: Uint16Array;
   chrDict: string[];
 };
 
@@ -28,7 +28,7 @@ export const packParsed = (rows: BedRow[]): PackedCache => {
   const p1 = new Float64Array(n);
   const p2 = new Float64Array(n);
   const sign = new Uint8Array(n);
-  const chrIdx = new Uint8Array(n);
+  const chrIdx = new Uint16Array(n);
   const chrDict: string[] = [];
   const chrLookup = new Map<string, number>();
   for (let i = 0; i < n; i++) {
@@ -67,6 +67,7 @@ export const filterPacked = (cache: PackedCache, ids: Set<number>): BedRow[] => 
 
 export const parseFiltered = (req: ParseRequest): ParseResponse => {
   if (req.queryText === undefined) return { jobId: req.jobId, rows: [] };
+
   const parsed = parseBED(req.queryText);
   const rows = parsed.filter((r) => req.ids.has(r.id));
   return { jobId: req.jobId, rows };
