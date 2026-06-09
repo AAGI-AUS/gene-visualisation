@@ -1,6 +1,6 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import * as storeUtils from "@/src/store/utils";
-import { clearWorkerCaches } from "@/src/store/workerPool";
+import { clearWorkerCaches, isCached, packFile } from "@/src/store/workerPool";
 import { makeBedFile as bed } from "@/src/test/factories";
 import type { BedRow } from "@/types";
 
@@ -88,6 +88,29 @@ describe("query file mutations", () => {
     const before = get().queryFiles;
     get().reorderQuery(1, 1);
     expect(get().queryFiles).toBe(before);
+  });
+
+  // Removing a file must flush worker-side packed caches so they don't accumulate forever.
+  it("clearQuery flushes the worker cache", async () => {
+    useAppStore.setState({ queryFiles: [syntenyFile, lowSyntenyFile] });
+    await packFile("cached", "1A\t0\t100\t+\t0");
+    expect(isCached("cached")).toBe(true);
+
+    get().clearQuery(0);
+    expect(isCached("cached")).toBe(false);
+  });
+
+  it("swapBaseWithQuery flushes the worker cache", async () => {
+    useAppStore.setState({
+      base: { name: "base.bed", rows: baseRows },
+      baseFile: bed("base.bed", [["1A", 0, 100, "+", 0]]),
+      queryFiles: [syntenyFile, lowSyntenyFile],
+    });
+    await packFile("cached", "1A\t0\t100\t+\t0");
+    expect(isCached("cached")).toBe(true);
+
+    await get().swapBaseWithQuery(0);
+    expect(isCached("cached")).toBe(false);
   });
 });
 
