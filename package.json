@@ -36,8 +36,15 @@
   },
   "jest": {
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
-    }
+      "^@/(.*)$": "<rootDir>/$1",
+      "^.+/createAnalysisWorker$": "<rootDir>/src/store/createAnalysisWorker.testStub.ts"
+    },
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/src/store/createAnalysisWorker\\.ts$",
+      "/src/store/createAnalysisWorker\\.testStub\\.ts$",
+      "/src/store/analysis\\.worker\\.ts$"
+    ]
   },
   "browserslist": {
     "production": [

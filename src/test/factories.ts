@@ -2,6 +2,13 @@
 // override only what a test cares about. Scenario fixtures stay local to each suite.
 import type { Chunk, EventCounts, ResultRow } from "@/types";
 
+export type Cell = string | number;
+
+export const makeBedText = (rows: Cell[][]): string => rows.map((r) => r.join("\t")).join("\n");
+
+export const makeBedFile = (name: string, rows: Cell[][]) =>
+  new File([makeBedText(rows)], name, { type: "text/plain" });
+
 export const counts = (overrides: Partial<EventCounts> = {}): EventCounts => ({
   synteny: 0,
   inversion: 0,

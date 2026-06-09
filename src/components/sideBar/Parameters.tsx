@@ -1,6 +1,8 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
 import { abortBatchExport, batchExportAll } from "@/src/components/visualizationTab/batchExport";
+import { MAX_WORKERS } from "@/src/store/workerPool";
+import { clamp } from "@/src/utils";
 
 const ChrSelect = () => {
   // Unique chromosomes in order of first appearance
@@ -64,7 +66,11 @@ const RunActions = () => {
 
 export const Parameters = () => {
   const groupThreshold = useAppStore((s) => s.groupThreshold);
+  const workerCount = useAppStore((s) => s.workerCount);
   const setAppState = useAppStore((s) => s.setAppState);
+
+  const handleWorkers = (n: string) =>
+    setAppState({ workerCount: clamp(Math.floor(Number(n) || 1), 1, MAX_WORKERS) });
 
   return (
     <div className={styles.panel}>
@@ -82,6 +88,19 @@ export const Parameters = () => {
             max="1"
             value={groupThreshold}
             onChange={(e) => setAppState({ groupThreshold: parseFloat(e.target.value) })}
+          />
+        </div>
+
+        <div className={styles.thresholdRow}>
+          <label className={styles.thresholdLabel}>Workers</label>
+          <input
+            className={styles.thresholdInput}
+            type="number"
+            step="1"
+            min="1"
+            max={MAX_WORKERS}
+            value={workerCount}
+            onChange={(e) => handleWorkers(e.target.value)}
           />
         </div>
 
