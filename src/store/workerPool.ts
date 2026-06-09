@@ -1,72 +1,33 @@
-import { parseFiltered } from "./analysisJob";
+import { clamp, parseBED } from "@/src/utils";
+import { packParsed } from "./analysisJob";
 import { createAnalysisWorker } from "./createAnalysisWorker";
-import type { ParseRequest, ParseResponse } from "./analysisJob";
+import type { PackRequest, PackResponse, PackedCache } from "./analysisJob";
 
-export const defaultWorkerCount = Math.max(
-  1,
-  Math.min(4, (typeof navigator !== "undefined" ? (navigator.hardwareConcurrency ?? 4) : 4) - 1)
-);
+export const MAX_WORKERS = 16;
+
+const hardwareConcurrency = (typeof navigator !== "undefined" ? (navigator.hardwareConcurrency ?? 4) : 4) - 1;
+export const defaultWorkerCount = clamp(hardwareConcurrency, 1, 4);
 
 let targetSize = defaultWorkerCount;
-
-type QueuedJob = {
-  full: ParseRequest;
-  resolve: (res: ParseResponse) => void;
-};
-
-type Slot = {
-  worker: Worker;
-  busy: boolean;
-  queue: QueuedJob[];
-};
-
-let slots: Slot[] | null = null;
+let slots: Worker[] | null = null;
 let unavailable = false;
 let nextJobId = 0;
-let nextSlotForNew = 0;
-const fingerprintToSlot = new Map<string, number>();
-const knownCached = new Set<string>();
-const pending = new Map<number, (res: ParseResponse) => void>();
+let nextWorker = 0;
 
-const tearDown = () => {
-  slots?.forEach((s) => s.worker.terminate());
+const packedByKey = new Map<string, PackedCache>();
+const inFlight = new Map<string, Promise<PackedCache>>();
+const pending = new Map<number, { resolve: (p: PackedCache) => void; reject: (e: unknown) => void }>();
+
+const tearDown = (reason: unknown) => {
+  slots?.forEach((w) => w.terminate());
   slots = null;
+  pending.forEach((p) => p.reject(reason));
   pending.clear();
-  fingerprintToSlot.clear();
-  knownCached.clear();
-  nextSlotForNew = 0;
+  inFlight.clear();
+  nextWorker = 0;
 };
 
-const dispatchOn = (slot: Slot) => {
-  const job = slot.queue.shift();
-  if (!job) {
-    slot.busy = false;
-    return;
-  }
-  slot.busy = true;
-  pending.set(job.full.jobId, (res) => {
-    job.resolve(res);
-    dispatchOn(slot);
-  });
-  slot.worker.postMessage(job.full);
-};
-
-const slotIndexFor = (key: string | undefined): number => {
-  if (key === undefined) {
-    const i = nextSlotForNew;
-    nextSlotForNew = (nextSlotForNew + 1) % targetSize;
-    return i;
-  }
-  let idx = fingerprintToSlot.get(key);
-  if (idx === undefined) {
-    idx = nextSlotForNew;
-    nextSlotForNew = (nextSlotForNew + 1) % targetSize;
-    fingerprintToSlot.set(key, idx);
-  }
-  return idx;
-};
-
-const tryInitPool = (): Slot[] | null => {
+const tryInitPool = (): Worker[] | null => {
   if (slots) return slots;
   if (unavailable) return null;
   if (typeof Worker === "undefined") {
@@ -75,21 +36,22 @@ const tryInitPool = (): Slot[] | null => {
   }
 
   try {
-    slots = Array.from({ length: targetSize }, (): Slot => {
+    slots = Array.from({ length: targetSize }, () => {
       const w = createAnalysisWorker();
-      const slot: Slot = { worker: w, busy: false, queue: [] };
-      w.onmessage = (e: MessageEvent<ParseResponse>) => {
-        const resolve = pending.get(e.data.jobId);
-        if (!resolve) return;
+      w.onmessage = (e: MessageEvent<PackResponse>) => {
+        const job = pending.get(e.data.jobId);
+        if (!job) return;
         pending.delete(e.data.jobId);
-        resolve(e.data);
+        job.resolve(e.data.packed);
       };
+
       w.onerror = () => {
         unavailable = true;
-        tearDown();
+        tearDown(new Error("analysis worker crashed"));
       };
-      return slot;
+      return w;
     });
+
     return slots;
   } catch {
     unavailable = true;
@@ -97,38 +59,53 @@ const tryInitPool = (): Slot[] | null => {
   }
 };
 
-const runSerial = (req: ParseRequest): ParseResponse => parseFiltered(req);
-
-export const parseQueryInWorker = (req: Omit<ParseRequest, "jobId">): Promise<ParseResponse> => {
+const dispatchPack = (pool: Worker[], text: string): Promise<PackedCache> => {
   const jobId = nextJobId++;
-  const full: ParseRequest = { ...req, jobId };
-  const pool = tryInitPool();
-  if (!pool) return Promise.resolve(runSerial(full));
+  const worker = pool[nextWorker];
+  nextWorker = (nextWorker + 1) % pool.length;
 
-  return new Promise<ParseResponse>((resolve) => {
-    const slot = pool[slotIndexFor(req.cacheKey)];
-    const wrapped = (res: ParseResponse) => {
-      if (req.cacheKey !== undefined) knownCached.add(req.cacheKey);
-      resolve(res);
-    };
-    slot.queue.push({ full, resolve: wrapped });
-    if (!slot.busy) dispatchOn(slot);
+  return new Promise<PackedCache>((resolve, reject) => {
+    pending.set(jobId, { resolve, reject });
+    worker.postMessage({ jobId, text } satisfies PackRequest);
   });
 };
 
-export const isCached = (key: string): boolean => knownCached.has(key);
+export const getCachedPacked = (key: string) => packedByKey.get(key);
+export const isCached = (key: string) => packedByKey.has(key);
+
+export const packFile = (key: string, text: string): Promise<PackedCache> => {
+  const cached = packedByKey.get(key);
+  if (cached) return Promise.resolve(cached);
+
+  const flying = inFlight.get(key);
+  if (flying) return flying;
+
+  const pool = tryInitPool();
+  const parsing = pool ? dispatchPack(pool, text) : Promise.resolve(packParsed(parseBED(text)));
+  const tracked = parsing.then(
+    (packed) => {
+      packedByKey.set(key, packed);
+      inFlight.delete(key);
+      return packed;
+    },
+    (err) => {
+      inFlight.delete(key);
+      throw err;
+    }
+  );
+
+  inFlight.set(key, tracked);
+  return tracked;
+};
 
 export const setPoolSize = (n: number) => {
-  const size = Math.max(1, Math.floor(n));
+  const size = clamp(Math.floor(n), 1, MAX_WORKERS);
   if (size === targetSize) return;
   targetSize = size;
-  if (slots) tearDown();
+  if (slots) tearDown(new Error("worker pool resized"));
 };
 
 export const clearWorkerCaches = () => {
-  knownCached.clear();
-  if (!slots) return;
-  for (const slot of slots) slot.worker.postMessage({ type: "clear" });
+  packedByKey.clear();
+  inFlight.clear();
 };
-
-export const isWorkerPoolActive = () => slots !== null && !unavailable;

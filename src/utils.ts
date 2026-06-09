@@ -17,6 +17,8 @@ export const max = <T extends number | string>(...array: T[]): T => {
   return Math.max(...(array as number[])) as T;
 };
 
+export const clamp = (value: number, lo: number, hi: number): number => Math.min(Math.max(value, lo), hi);
+
 export const withinThreshold = (a: number, b: number, threshold = 0.1) => {
   return Math.abs(a / b - 1) < threshold;
 };

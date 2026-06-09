@@ -3,6 +3,7 @@ import styles from "./VisualizationTab.module.css";
 import type { ChunkEvent } from "@/src/constants";
 import { CHUNK_COLOR, OTHERS_COL } from "@/src/constants";
 import { DistributionRow } from "@/src/components/visualizationTab/DistributionRow";
+import { clamp } from "@/src/utils";
 
 const TOOLTIP_W = 300;
 const TOOLTIP_PAD = 16; // px from canvas edge
@@ -58,7 +59,7 @@ export const ChunkTooltip = ({ chunk, ribbonMidX, topY, canvasW }: ChunkTooltipP
 
   // Horizontally centre on the ribbon, clamped to canvas bounds
   const rawLeft = ribbonMidX - TOOLTIP_W / 2;
-  const clampedLeft = Math.min(Math.max(rawLeft, TOOLTIP_PAD), canvasW - TOOLTIP_W - TOOLTIP_PAD);
+  const clampedLeft = clamp(rawLeft, TOOLTIP_PAD, canvasW - TOOLTIP_W - TOOLTIP_PAD);
 
   // Derived stats
   const baseSpan = bp2Base - bp1Base;

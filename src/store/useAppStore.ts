@@ -2,11 +2,12 @@ import { create } from "zustand";
 import type { BedFile, BedRow, CentromereData, FilesHandler, ResultRow } from "@/types";
 import { getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
+import { filterPacked } from "@/src/store/analysisJob";
 import {
   clearWorkerCaches,
   defaultWorkerCount,
-  isCached,
-  parseQueryInWorker,
+  getCachedPacked,
+  packFile,
   setPoolSize,
 } from "@/src/store/workerPool";
 
@@ -64,13 +65,13 @@ const parseFilesInParallel = async <T>(
       while (cursor < files.length) {
         const i = cursor++;
         const file = files[i];
-        const cacheKey = fingerprintOf(file);
-        const queryText = isCached(cacheKey) ? undefined : await fileToText(file);
-        const res = await parseQueryInWorker({ ids, queryText, cacheKey });
-        out[i] = transform(i, res.rows);
+        const key = fingerprintOf(file);
+        const packed = getCachedPacked(key) ?? (await packFile(key, await fileToText(file)));
+        out[i] = transform(i, filterPacked(packed, ids));
       }
     })
   );
+
   return out;
 };
 

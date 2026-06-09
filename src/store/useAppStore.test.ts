@@ -1,5 +1,6 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import * as storeUtils from "@/src/store/utils";
+import { clearWorkerCaches } from "@/src/store/workerPool";
 import { makeBedFile as bed } from "@/src/test/factories";
 import type { BedRow } from "@/types";
 
@@ -8,6 +9,7 @@ const reset = () => useAppStore.setState(initialState, true);
 const get = useAppStore.getState;
 
 afterEach(reset);
+afterEach(clearWorkerCaches);
 afterEach(() => jest.restoreAllMocks());
 
 const fileList = (...files: File[]): FileList => files as unknown as FileList;

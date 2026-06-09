@@ -1,16 +1,13 @@
-import { parseBED } from "@/src/utils";
 import type { BedRow } from "@/types";
 
-export type ParseRequest = {
+export type PackRequest = {
   jobId: number;
-  cacheKey?: string;
-  ids: Set<number>;
-  queryText?: string;
+  text: string;
 };
 
-export type ParseResponse = {
+export type PackResponse = {
   jobId: number;
-  rows: BedRow[];
+  packed: PackedCache;
 };
 
 export type PackedCache = {
@@ -31,6 +28,7 @@ export const packParsed = (rows: BedRow[]): PackedCache => {
   const chrIdx = new Uint16Array(n);
   const chrDict: string[] = [];
   const chrLookup = new Map<string, number>();
+
   for (let i = 0; i < n; i++) {
     const r = rows[i];
     ids[i] = r.id;
@@ -45,6 +43,7 @@ export const packParsed = (rows: BedRow[]): PackedCache => {
     }
     chrIdx[i] = ci;
   }
+
   return { ids, p1, p2, sign, chrIdx, chrDict };
 };
 
@@ -54,6 +53,7 @@ export const filterPacked = (cache: PackedCache, ids: Set<number>): BedRow[] => 
   for (let i = 0; i < n; i++) {
     const id = cache.ids[i];
     if (!ids.has(id)) continue;
+
     out.push({
       id,
       chromosome: cache.chrDict[cache.chrIdx[i]],
@@ -62,13 +62,14 @@ export const filterPacked = (cache: PackedCache, ids: Set<number>): BedRow[] => 
       sign: cache.sign[i] === 1 ? "-" : "+",
     });
   }
+
   return out;
 };
 
-export const parseFiltered = (req: ParseRequest): ParseResponse => {
-  if (req.queryText === undefined) return { jobId: req.jobId, rows: [] };
-
-  const parsed = parseBED(req.queryText);
-  const rows = parsed.filter((r) => req.ids.has(r.id));
-  return { jobId: req.jobId, rows };
-};
+export const transferables = (packed: PackedCache): Transferable[] => [
+  packed.ids.buffer,
+  packed.p1.buffer,
+  packed.p2.buffer,
+  packed.sign.buffer,
+  packed.chrIdx.buffer,
+];

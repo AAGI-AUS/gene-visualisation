@@ -1,4 +1,5 @@
 import {
+  clamp,
   fileToText,
   getChromosomes,
   max,
@@ -29,6 +30,28 @@ describe("min / max", () => {
     expect(max("banana", "apple", "cherry")).toBe("cherry");
     expect(min("10", "2", "1")).toBe("1");
     expect(max("10", "2", "1")).toBe("2");
+  });
+});
+
+describe("clamp", () => {
+  it("returns the value when it is within range", () => {
+    expect(clamp(5, 1, 16)).toBe(5);
+    expect(clamp(0.5, 0, 1)).toBe(0.5);
+  });
+
+  it("clamps to the lower bound", () => {
+    expect(clamp(-3, 1, 16)).toBe(1);
+    expect(clamp(-0.2, 0, 1)).toBe(0);
+  });
+
+  it("clamps to the upper bound", () => {
+    expect(clamp(100, 1, 16)).toBe(16);
+    expect(clamp(1.4, 0, 1)).toBe(1);
+  });
+
+  it("returns the bounds themselves unchanged", () => {
+    expect(clamp(1, 1, 16)).toBe(1);
+    expect(clamp(16, 1, 16)).toBe(16);
   });
 });
 

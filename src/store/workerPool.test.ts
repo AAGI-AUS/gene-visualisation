@@ -1,11 +1,21 @@
 import {
   clearWorkerCaches,
   defaultWorkerCount,
+  getCachedPacked,
   isCached,
-  parseQueryInWorker,
+  packFile,
   setPoolSize,
 } from "@/src/store/workerPool";
+import { filterPacked } from "@/src/store/analysisJob";
 import { makeBedText as bedText } from "@/src/test/factories";
+
+afterEach(() => clearWorkerCaches());
+
+const text = bedText([
+  ["1A", 0, 100, "+", 0],
+  ["1A", 100, 200, "+", 1],
+  ["2B", 200, 300, "-", 2],
+]);
 
 describe("defaultWorkerCount", () => {
   it("is a positive integer", () => {
@@ -14,23 +24,38 @@ describe("defaultWorkerCount", () => {
   });
 });
 
-describe("isCached", () => {
-  it("returns false for unknown keys in the serial-fallback test env", () => {
-    expect(isCached("nothing-here")).toBe(false);
+describe("packFile (serial fallback)", () => {
+  it("parses text into a packed cache and caches it by key", async () => {
+    expect(isCached("fp-1")).toBe(false);
+
+    const packed = await packFile("fp-1", text);
+    expect(packed.ids.length).toBe(3);
+    expect(isCached("fp-1")).toBe(true);
+    expect(getCachedPacked("fp-1")).toBe(packed);
   });
 
-  it("stays false after a serial-fallback dispatch (serial path doesn't mark cache)", async () => {
-    await parseQueryInWorker({
-      ids: new Set([0]),
-      queryText: bedText([["1A", 0, 100, "+", 0]]),
-      cacheKey: "serial-fp",
-    });
-    expect(isCached("serial-fp")).toBe(false);
+  it("returns the cached pack on a repeat call without re-parsing", async () => {
+    const first = await packFile("fp-2", bedText([["1A", 0, 100, "+", 0]]));
+    const second = await packFile("fp-2", "ignored-because-cached");
+    expect(second).toBe(first);
+  });
+
+  it("supports filtering the cached pack by different id sets", async () => {
+    const packed = await packFile("fp-3", text);
+    expect(filterPacked(packed, new Set([0, 2])).map((r) => r.id)).toEqual([0, 2]);
+    expect(filterPacked(packed, new Set([1])).map((r) => r.id)).toEqual([1]);
   });
 });
 
 describe("clearWorkerCaches", () => {
-  it("is a no-op when the pool hasn't been built", () => {
+  it("drops cached packs", async () => {
+    await packFile("fp-clear", bedText([["1A", 0, 100, "+", 0]]));
+    expect(isCached("fp-clear")).toBe(true);
+    clearWorkerCaches();
+    expect(isCached("fp-clear")).toBe(false);
+  });
+
+  it("is a no-op when nothing is cached", () => {
     expect(() => clearWorkerCaches()).not.toThrow();
   });
 });
@@ -41,31 +66,15 @@ describe("setPoolSize", () => {
     expect(() => setPoolSize(-5)).not.toThrow();
   });
 
+  it("clamps oversized requests without throwing", () => {
+    expect(() => setPoolSize(1000)).not.toThrow();
+  });
+
   it("accepts a no-op resize without throwing", () => {
     expect(() => setPoolSize(defaultWorkerCount)).not.toThrow();
   });
 
   it("accepts a fractional input (floored internally)", () => {
     expect(() => setPoolSize(2.7)).not.toThrow();
-  });
-});
-
-describe("parseQueryInWorker (serial fallback)", () => {
-  it("parses queryText and filters by ids, returning a unique jobId per call", async () => {
-    const text = bedText([
-      ["1A", 0, 100, "+", 0],
-      ["1A", 100, 200, "+", 1],
-      ["2B", 200, 300, "-", 2],
-    ]);
-    const a = await parseQueryInWorker({ ids: new Set([0, 2]), queryText: text });
-    const b = await parseQueryInWorker({ ids: new Set([1]), queryText: text });
-    expect(a.rows.map((r) => r.id)).toEqual([0, 2]);
-    expect(b.rows.map((r) => r.id)).toEqual([1]);
-    expect(a.jobId).not.toBe(b.jobId);
-  });
-
-  it("returns empty rows when queryText is omitted in the serial-fallback path", async () => {
-    const res = await parseQueryInWorker({ ids: new Set([0]), cacheKey: "miss" });
-    expect(res.rows).toEqual([]);
   });
 });

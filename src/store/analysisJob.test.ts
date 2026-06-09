@@ -1,5 +1,4 @@
-import { packParsed, filterPacked, parseFiltered } from "@/src/store/analysisJob";
-import { makeBedText as bedText } from "@/src/test/factories";
+import { packParsed, filterPacked, transferables } from "@/src/store/analysisJob";
 import type { BedRow } from "@/types";
 
 type Row = (id: number, chromosome: string, sign?: "+" | "-", p1?: number, p2?: number) => BedRow;
@@ -69,21 +68,16 @@ describe("filterPacked", () => {
   });
 });
 
-describe("parseFiltered", () => {
-  it("parses queryText and filters rows by the supplied ids", () => {
-    const queryText = bedText([
-      ["1A", 0, 100, "+", 0],
-      ["1A", 100, 200, "+", 1],
-      ["2B", 200, 300, "-", 2],
+describe("transferables", () => {
+  it("lists the buffers of every typed array in the packed cache", () => {
+    const packed = packParsed(rows);
+    const buffers = transferables(packed);
+    expect(buffers).toEqual([
+      packed.ids.buffer,
+      packed.p1.buffer,
+      packed.p2.buffer,
+      packed.sign.buffer,
+      packed.chrIdx.buffer,
     ]);
-    const res = parseFiltered({ jobId: 7, ids: new Set([0, 2]), queryText });
-
-    expect(res.jobId).toBe(7);
-    expect(res.rows.map((r) => r.id)).toEqual([0, 2]);
-  });
-
-  it("returns an empty rows array when queryText is undefined", () => {
-    const res = parseFiltered({ jobId: 3, ids: new Set([0]) });
-    expect(res).toEqual({ jobId: 3, rows: [] });
   });
 });

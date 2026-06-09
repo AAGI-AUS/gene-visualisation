@@ -2,7 +2,7 @@ import type { QuerySlotLookup, ResultRow } from "@/types";
 import type { ChunkEvent, OthersMode } from "@/src/constants";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
-import { withinThreshold } from "@/src/utils";
+import { clamp, withinThreshold } from "@/src/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event classification
@@ -330,7 +330,7 @@ export const buildQueryRow = (
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const bpToPx = (bar: ChrBar, bp: number): number => {
-  const frac = Math.min(Math.max((bp - bar.p1) / bar.bpLen, 0), 1);
+  const frac = clamp((bp - bar.p1) / bar.bpLen, 0, 1);
   return bar.px + frac * bar.pw;
 };
 
