@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
 import { DistributionTab } from "@/src/components/DistributionTab";
 import { VisualizationTab } from "@/src/components/visualizationTab/VisualizationTab";
+import { SummaryTab } from "@/src/components/summaryTab/SummaryTab";
+import { Controls } from "@/src/components/visualizationTab/Controls";
 import { Sidebar } from "@/src/components/sideBar/Sidebar";
 
-type Tab = "Visualization" | "Distribution";
-const TABS: Tab[] = ["Visualization", "Distribution"];
+type Tab = "Visualization" | "Summary" | "Distribution";
+const TABS: Tab[] = ["Visualization", "Summary", "Distribution"];
 
 const App = () => {
   const result = useAppStore((s) => s.result);
   const error = useAppStore((s) => s.error);
   const [tab, setTab] = useState<Tab>("Visualization");
+  const svgRef = useRef<SVGSVGElement>(null);
 
   return (
     <div className={styles.app}>
@@ -43,14 +46,27 @@ const App = () => {
           <div className={styles.contentBody}>
             {error && <div className={styles.errorBox}>⚠ {error}</div>}
 
+            {tab === "Visualization" && result.length > 0 && <Controls svgRef={svgRef} />}
+
             {tab === "Visualization" &&
               (result.length ? (
-                <VisualizationTab data={result} />
+                <VisualizationTab data={result} svgRef={svgRef} />
               ) : (
                 <div className={styles.emptyState}>
                   <span className={styles.emptyIcon}>◈</span>
                   <span className={styles.emptyTitle}>Load both BED files and run analysis</span>
                   <span className={styles.emptySub}>Synteny ribbons will appear here</span>
+                </div>
+              ))}
+
+            {tab === "Summary" &&
+              (result.length ? (
+                <SummaryTab />
+              ) : (
+                <div className={styles.emptyState}>
+                  <span className={styles.emptyIcon}>▥</span>
+                  <span className={styles.emptyTitle}>Run an analysis first</span>
+                  <span className={styles.emptySub}>Baseline gene-density bars will appear here</span>
                 </div>
               ))}
 

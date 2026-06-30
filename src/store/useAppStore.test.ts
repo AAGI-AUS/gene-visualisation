@@ -241,3 +241,77 @@ describe("autoSort", () => {
     expect(get().running).toBe(false);
   });
 });
+
+describe("buildSummaryBar", () => {
+  it("returns empty chunks when there are no query files", async () => {
+    useAppStore.setState({ base: { name: "base.bed", rows: baseRows }, chromosomes: ["1A"], queryFiles: [] });
+    expect(await get().buildSummaryBar("1A", 1000, 0)).toEqual({ chr: "1A", chunks: [] });
+  });
+
+  it("builds a chromosome's chunks with coverage = gene span / chunk span", async () => {
+    const summaryBase: BedRow[] = [
+      { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
+      { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
+      // gap (200..300 empty) under the 1000bp gap threshold keeps it one chunk
+      { id: 2, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
+      { id: 3, chromosome: "2B", p1: 500, p2: 600, sign: "+" },
+    ];
+    const queryAll = bed("qa.bed", [
+      ["1A", 0, 100, "+", 0],
+      ["1A", 100, 200, "+", 1],
+      ["1A", 300, 400, "+", 2],
+      ["2B", 500, 600, "+", 3],
+    ]);
+
+    useAppStore.setState({
+      base: { name: "base.bed", rows: summaryBase },
+      chromosomes: ["1A", "2B"],
+      groupThreshold: 0.01,
+      queryFiles: [queryAll],
+    });
+
+    const bar1a = await get().buildSummaryBar("1A", 1000, 0);
+    expect(bar1a.chunks).toHaveLength(1);
+    expect(bar1a.chunks[0]).toMatchObject({ bp1: 0, bp2: 400 });
+    expect(bar1a.chunks[0].coverage).toBeCloseTo(300 / 400); // 3 genes x100bp over a 400bp span
+
+    const bar2b = await get().buildSummaryBar("2B", 1000, 0);
+    expect(bar2b.chunks).toHaveLength(1);
+    expect(bar2b.chunks[0].coverage).toBeCloseTo(1); // lone gene fills its chunk
+  });
+
+  it("keeps only genes common to every query: one missing in a query drops from the core", async () => {
+    const summaryBase: BedRow[] = [
+      { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
+      { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
+      { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" },
+      { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
+    ];
+    const queryFull = bed("qfull.bed", [
+      ["1A", 0, 100, "+", 0],
+      ["1A", 100, 200, "+", 1],
+      ["1A", 200, 300, "+", 2],
+      ["1A", 300, 400, "+", 3],
+    ]);
+    // omits id 2, so id 2 is not part of the core shared by both queries
+    const queryGap = bed("qgap.bed", [
+      ["1A", 0, 100, "+", 0],
+      ["1A", 100, 200, "+", 1],
+      ["1A", 300, 400, "+", 3],
+    ]);
+
+    useAppStore.setState({
+      base: { name: "base.bed", rows: summaryBase },
+      chromosomes: ["1A"],
+      groupThreshold: 0.01,
+      queryFiles: [queryFull, queryGap],
+    });
+
+    // queryFull alone would tile 0..400 for coverage 1; the missing id 2 leaves a
+    // gene-free 200..300 stretch inside the single chunk, dropping coverage to 3/4.
+    const bar = await get().buildSummaryBar("1A", 1000, 0);
+    expect(bar.chunks).toHaveLength(1);
+    expect(bar.chunks[0]).toMatchObject({ bp1: 0, bp2: 400 });
+    expect(bar.chunks[0].coverage).toBeCloseTo(300 / 400);
+  });
+});
