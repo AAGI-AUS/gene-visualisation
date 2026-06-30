@@ -165,30 +165,6 @@
   color: var(--text-strong);
 }
 
-/* ── Legend ── */
-.legend {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.legendItem {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
-.legendSwatch {
-  width: 14px;
-  height: 8px;
-  border-radius: 2px;
-  opacity: 0.8;
-}
-
 /* ── Canvas ── */
 .canvasWrap {
   background: var(--surface);

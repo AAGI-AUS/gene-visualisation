@@ -1,8 +1,7 @@
 import type { RefObject } from "react";
 import styles from "./VisualizationTab.module.css";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
-import type { ChunkEvent } from "@/src/constants";
-import { CHUNK_COLOR, COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
+import { COMMON_CHR_THRESHOLD, OTHERS_CYCLE, OTHERS_LABEL } from "@/src/constants";
 import { useAppStore } from "@/src/store/useAppStore";
 import { NumberControl } from "@/src/components/visualizationTab/NumberControl";
 import { ExportButtons } from "@/src/components/visualizationTab/ExportButtons";
@@ -12,13 +11,6 @@ import { IntraRelabelControls } from "@/src/components/visualizationTab/IntraRel
 interface ControlsProps {
   svgRef: RefObject<SVGSVGElement | null>;
 }
-
-const EVENTS: Array<{ key: ChunkEvent; short: string }> = [
-  { key: "synteny", short: "synt" },
-  { key: "inversion", short: "inv" },
-  { key: "translocation", short: "trans" },
-  { key: "translocation+inversion", short: "t+inv" },
-];
 
 export const Controls = ({ svgRef }: ControlsProps) => {
   const selectedChr = useAppStore((s) => s.selectedChr);
@@ -86,16 +78,6 @@ export const Controls = ({ svgRef }: ControlsProps) => {
 
       <div className={styles.rowBreak} />
       <IntraRelabelControls />
-
-      {/* legend */}
-      <div className={styles.legend}>
-        {EVENTS.map(({ key, short }) => (
-          <div className={styles.legendItem} key={key}>
-            <div className={styles.legendSwatch} style={{ background: CHUNK_COLOR[key] }} />
-            {short}
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
