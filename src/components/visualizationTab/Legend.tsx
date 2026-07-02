@@ -1,6 +1,7 @@
 import { Group } from "@visx/group";
 import { CHUNK_COLOR, FONT, LEGEND_H, chunkEvents } from "@/src/constants";
 import type { ChunkEvent } from "@/src/constants";
+import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 
 const ITEM_LABEL: Record<ChunkEvent, string> = {
   synteny: "Synteny",
@@ -20,6 +21,7 @@ const CROSS_ITEMS = [
 ];
 
 export const Legend = ({ width, fontSize }: LegendProps) => {
+  const showMarks = useVisualizationStore((s) => s.showMarks);
   const swatch = Math.max(11, fontSize - 2);
   const swatchGap = fontSize * 0.45;
   const itemGap = 8;
@@ -31,7 +33,7 @@ export const Legend = ({ width, fontSize }: LegendProps) => {
       color: CHUNK_COLOR[event],
       label: ITEM_LABEL[event],
     })),
-    ...CROSS_ITEMS.map((it) => ({ kind: "cross" as const, ...it })),
+    ...(showMarks ? CROSS_ITEMS.map((it) => ({ kind: "cross" as const, ...it })) : []),
   ].map((item) => ({ ...item, w: swatch + swatchGap + item.label.length * charW }));
 
   const total = items.reduce((sum, item) => sum + item.w, 0) + itemGap * (items.length - 1);

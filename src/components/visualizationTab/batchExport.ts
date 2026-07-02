@@ -1,6 +1,7 @@
 import type { AsyncZippableFile } from "fflate";
 import { zip } from "fflate";
 import { useAppStore } from "@/src/store/useAppStore";
+import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { serializeSvg, svgToPngBlob, triggerDownload } from "@/src/components/visualizationTab/utils";
 import type { ChunkEvent } from "@/src/constants";
 import type { VisibleChunkPair } from "@/src/components/visualizationTab/snapshot";
@@ -243,6 +244,8 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
   const { chromosomes, autoSort } = store;
   if (!chromosomes.length || currentAbortController) return;
 
+  const { showMarks } = useVisualizationStore.getState();
+
   let writable: ZipWritable;
   try {
     const handle = await (window as unknown as SaveFilePickerWindow).showSaveFilePicker({
@@ -288,7 +291,7 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
 
       const snap = snapshotFromStores();
       csvRows.push(...collectCsvRows(snap.pairs, snap.baseName));
-      mergePredicted(predictedAcc, snap.predicted);
+      if (showMarks) mergePredicted(predictedAcc, snap.predicted);
     }
   } finally {
     useAppStore.setState(restore);

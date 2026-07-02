@@ -89,7 +89,7 @@ const parseFilesInParallel = async <T>(
         const i = cursor++;
         const file = files[i];
         const key = fingerprintOf(file);
-        const packed = getCachedPacked(key) ?? (await packFile(key, await fileToText(file)));
+        const packed = getCachedPacked(key) ?? (await packFile(key, await fileToText(file), file.name));
         out[i] = transform(i, filterPacked(packed, ids));
       }
     })
@@ -250,7 +250,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!file) return set({ base: null, baseFile: null });
 
     const text = await fileToText(file);
-    const rows = parseBED(text);
+    const rows = parseBED(text, file.name);
     const chromosomes = getChromosomes(rows).sort();
     clearAutoSortCache();
     set({ base: { name: file.name, rows }, baseFile: file, chromosomes, selectedChr: chromosomes[0] });
@@ -295,7 +295,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!incoming) return;
 
     const text = await fileToText(incoming);
-    const rows = parseBED(text);
+    const rows = parseBED(text, incoming.name);
     const chromosomes = getChromosomes(rows).sort();
     const nextQueries = [...queryFiles];
     if (baseFile) {

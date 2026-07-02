@@ -2,7 +2,7 @@ import type { QuerySlotLookup, ResultRow } from "@/types";
 import type { ChunkEvent, OthersMode } from "@/src/constants";
 import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
-import { clamp, withinThreshold } from "@/src/utils";
+import { clamp, closeTo } from "@/src/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Event classification
@@ -168,7 +168,7 @@ export const chunkRows = (rows: ResultRow[], gapBp: number, lineName: string): C
         // Additional check: query span must stay proportional to base span
         const baseLen = cur.p2Base - first.p1Base;
         const queryLen = Math.max(Math.abs(cur.p2Query - first.p1Query), Math.abs(cur.p1Query - first.p2Query));
-        ok = withinThreshold(queryLen, baseLen);
+        ok = closeTo(queryLen, baseLen);
         if (!cur.isInvert && cur.p2Query < first.p1Query) ok = false;
       }
 

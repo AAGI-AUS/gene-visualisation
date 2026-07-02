@@ -190,14 +190,10 @@ interface PercentCoreAxisProps {
   fontSize: number;
 }
 
-// Left "% of core" axis: rotated label, axis line, and fractional ticks.
+const rotate90 = `translate(${PAD_X - 2}, ${LEGEND_H + BAR_H / 2}) rotate(-90)`;
 const PercentCoreAxis = ({ fontSize }: PercentCoreAxisProps) => (
   <>
-    <text
-      transform={`translate(${PAD_X - 2}, ${LEGEND_H + BAR_H / 2}) rotate(-90)`}
-      textAnchor="middle"
-      fill={CORE_COLOR}
-    >
+    <text transform={rotate90} textAnchor="middle" fill={CORE_COLOR}>
       % of core
     </text>
     <line x1={axisX} x2={axisX} y1={yScale(1)} y2={yScale(0)} stroke={CORE_COLOR} strokeWidth={1} />
