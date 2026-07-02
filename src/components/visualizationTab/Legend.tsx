@@ -59,14 +59,7 @@ export const Legend = ({ width, fontSize }: LegendProps) => {
                 <line x1={0} x2={swatch - xSizeOffset} y1={midY + xH} y2={midY - xH} />
               </g>
             )}
-            <text
-              x={swatch + swatchGap}
-              y={midY}
-              dominantBaseline="central"
-              fontFamily={FONT}
-              fontSize={fontSize}
-              fill="#1f2937"
-            >
+            <text x={swatch + swatchGap} y={midY} dominantBaseline="central" fontSize={fontSize} fill="#1f2937">
               {item.label}
             </text>
           </Group>
