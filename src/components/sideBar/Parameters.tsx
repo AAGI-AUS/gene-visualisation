@@ -1,5 +1,6 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import styles from "./Sidebar.module.css";
+import { RunButton } from "@/src/components/sideBar/RunButton";
 import { abortBatchExport, batchExportAll } from "@/src/components/visualizationTab/batchExport";
 import { MAX_WORKERS } from "@/src/store/workerPool";
 import { clamp } from "@/src/utils";
@@ -36,7 +37,6 @@ const RunActions = () => {
   const chromosomes = useAppStore((s) => s.chromosomes);
   const running = useAppStore((s) => s.running);
   const batching = useAppStore((s) => s.batching);
-  const runAnalysis = useAppStore((s) => s.runAnalysis);
   const autoSort = useAppStore((s) => s.autoSort);
 
   const canRun = Boolean(base && queryFiles?.[0]) && !running;
@@ -51,9 +51,7 @@ const RunActions = () => {
 
   return (
     <>
-      <button className={styles.runBtn} disabled={!canRun || batching} onClick={runAnalysis} type="button">
-        {running ? "RUNNING..." : "▶ RUN"}
-      </button>
+      <RunButton />
       <button className={styles.runBtn} disabled={!canRun || batching} onClick={autoSort} type="button">
         {running ? "RUNNING..." : "▶ AUTOSORT"}
       </button>

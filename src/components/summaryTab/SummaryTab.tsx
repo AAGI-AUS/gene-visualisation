@@ -280,7 +280,7 @@ const OverallBar = ({ x, coreFraction, fontSize }: OverallBarProps) => {
         fill="grey"
         fontSize={labelSize}
       />
-      <text x={centerX} y={LEGEND_H + BAR_H - fontSize} fontSize={bigFont} fontWeight="bold" fill="white">
+      <text x={centerX} y={LEGEND_H + BAR_H - 18} fontSize={bigFont} fontWeight="bold" fill="white">
         {corePct}%
       </text>
       <SVGText t="Core" x={centerX} y={LEGEND_H + BAR_H - 6} fill="white" fontSize={labelSize} />
