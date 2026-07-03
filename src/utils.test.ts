@@ -9,7 +9,7 @@ import {
   queryGene,
   closeTo,
 } from "@/src/utils";
-import { makeBedText as bedText, type Cell } from "@/src/test/factories";
+import { makeBedRow, makeBedText as bedText, type Cell } from "@/src/test/factories";
 import type { BedRow } from "@/types";
 
 describe("min / max", () => {
@@ -122,18 +122,12 @@ describe("parseBED", () => {
 
 describe("queryGene", () => {
   const rowsToMap = (rows: BedRow[]) => new Map(rows.map((r) => [r.id, r]));
-  const baseRows: BedRow[] = [
-    { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
-    { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
-    { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" },
-    { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
-  ];
-
+  const baseRows: BedRow[] = [0, 1, 2, 3].map((id) => makeBedRow({ id }));
   const queryRows: BedRow[] = [
-    { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
-    { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "-" },
-    { id: 2, chromosome: "2B", p1: 0, p2: 100, sign: "+" },
-    { id: 3, chromosome: "2B", p1: 100, p2: 200, sign: "-" },
+    makeBedRow({ id: 0 }),
+    makeBedRow({ id: 1, sign: "-" }),
+    makeBedRow({ id: 2, chromosome: "2B", p1: 0 }),
+    makeBedRow({ id: 3, chromosome: "2B", p1: 100, sign: "-" }),
   ];
 
   it("classifies synteny, inversion, and translocation per row", () => {
@@ -166,7 +160,7 @@ describe("queryGene", () => {
   });
 
   it("ignores query ids that have no matching base row", () => {
-    const nonMatchingRow: BedRow = { id: 99, chromosome: "1A", p1: 900, p2: 1000, sign: "+" };
+    const nonMatchingRow: BedRow = makeBedRow({ id: 99, p1: 900 });
     const queryMap = rowsToMap([queryRows[1], queryRows[2], nonMatchingRow]);
     const { rows } = queryGene(baseRows, queryMap, 0);
     expect(rows.map((r) => r.id)).toEqual([1, 2]);
@@ -238,12 +232,12 @@ describe("parseCentromere", () => {
 describe("getChromosomes", () => {
   it("returns each chromosome once in first-seen order", () => {
     const rows: BedRow[] = [
-      { id: 0, chromosome: "1A", p1: 0, p2: 1, sign: "+" },
-      { id: 1, chromosome: "1A", p1: 1, p2: 2, sign: "+" },
-      { id: 2, chromosome: "2B", p1: 0, p2: 1, sign: "+" },
-      { id: 3, chromosome: "1A", p1: 2, p2: 3, sign: "+" },
+      makeBedRow({ id: 0, chromosome: "3C" }),
+      makeBedRow({ id: 1 }),
+      makeBedRow({ id: 2, chromosome: "2B" }),
+      makeBedRow({ id: 3 }),
     ];
-    expect(getChromosomes(rows)).toEqual(["1A", "2B"]);
+    expect(getChromosomes(rows)).toEqual(["3C", "1A", "2B"]);
   });
 
   it("returns an empty array for empty input", () => {

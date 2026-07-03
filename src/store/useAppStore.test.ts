@@ -1,7 +1,7 @@
 import { useAppStore } from "@/src/store/useAppStore";
 import * as storeUtils from "@/src/store/utils";
 import { clearWorkerCaches, isCached, packFile } from "@/src/store/workerPool";
-import { makeBedFile as bed } from "@/src/test/factories";
+import { makeBedFile as bed, makeBedRow } from "@/src/test/factories";
 import type { BedRow } from "@/types";
 
 const initialState = useAppStore.getState();
@@ -13,13 +13,7 @@ afterEach(clearWorkerCaches);
 afterEach(() => jest.restoreAllMocks());
 
 const fileList = (...files: File[]): FileList => files as unknown as FileList;
-
-const baseRows: BedRow[] = [
-  { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
-  { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
-  { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" },
-  { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
-];
+const baseRows: BedRow[] = [0, 1, 2, 3].map((id) => makeBedRow({ id }));
 
 // Full synteny
 const syntenyFile = bed("q1.bed", [
@@ -250,11 +244,11 @@ describe("buildSummaryBar", () => {
 
   it("builds a chromosome's chunks with coverage = gene span / chunk span", async () => {
     const summaryBase: BedRow[] = [
-      { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
-      { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
+      makeBedRow({ id: 0 }),
+      makeBedRow({ id: 1 }),
       // gap (200..300 empty) under the 1000bp gap threshold keeps it one chunk
-      { id: 2, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
-      { id: 3, chromosome: "2B", p1: 500, p2: 600, sign: "+" },
+      makeBedRow({ id: 2, p1: 300 }),
+      makeBedRow({ id: 3, chromosome: "2B", p1: 500 }),
     ];
     const queryAll = bed("qa.bed", [
       ["1A", 1, 100, "+", 0],
@@ -281,18 +275,13 @@ describe("buildSummaryBar", () => {
   });
 
   it("keeps only genes common to every query: one missing in a query drops from the core", async () => {
-    const summaryBase: BedRow[] = [
-      { id: 0, chromosome: "1A", p1: 0, p2: 100, sign: "+" },
-      { id: 1, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
-      { id: 2, chromosome: "1A", p1: 200, p2: 300, sign: "+" },
-      { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
-    ];
     const queryFull = bed("qfull.bed", [
       ["1A", 1, 100, "+", 0],
       ["1A", 100, 200, "+", 1],
       ["1A", 200, 300, "+", 2],
       ["1A", 300, 400, "+", 3],
     ]);
+
     // omits id 2, so id 2 is not part of the core shared by both queries
     const queryGap = bed("qgap.bed", [
       ["1A", 1, 100, "+", 0],
@@ -301,7 +290,7 @@ describe("buildSummaryBar", () => {
     ]);
 
     useAppStore.setState({
-      base: { name: "base.bed", rows: summaryBase },
+      base: { name: "base.bed", rows: baseRows },
       chromosomes: ["1A"],
       groupThreshold: 0.01,
       queryFiles: [queryFull, queryGap],

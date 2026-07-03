@@ -14,7 +14,7 @@ import { SyntenyCanvas } from "@/src/components/visualizationTab/SyntenyCanvas";
 import { useAppStore } from "@/src/store/useAppStore";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import type { BedRow, Chunk } from "@/types";
-import { counts, makeChunk } from "@/src/test/factories";
+import { counts, makeBedRow, makeChunk } from "@/src/test/factories";
 
 // jsdom can't decode an SVG image, so HTMLImageElement.decode rejects inside
 // svgToPngBlob. Stub to null - the export pipeline already treats null as
@@ -341,18 +341,16 @@ describe("mergePredicted", () => {
 });
 
 // Integration: drives batchExportAll across two chrs to cover the seam
-// (selectedChr -> autoSort -> rAF flush -> serializeSvg + snapshotFromStores)
-// that the pure-builder tests above bypass.
 
 const M = 1e6;
 
 // Two contiguous rows per chr, all sign-flipped in the query so chunkRows
 // merges each chr's rows into a single inversion chunk - guaranteed notable.
 const baseRows: BedRow[] = [
-  { id: 0, chromosome: "1A", p1: 0, p2: 40 * M, sign: "+" },
-  { id: 1, chromosome: "1A", p1: 40 * M, p2: 80 * M, sign: "+" },
-  { id: 2, chromosome: "2B", p1: 0, p2: 40 * M, sign: "+" },
-  { id: 3, chromosome: "2B", p1: 40 * M, p2: 80 * M, sign: "+" },
+  makeBedRow({ id: 0, p1: 0, p2: 40 * M }),
+  makeBedRow({ id: 1, p1: 40 * M, p2: 80 * M }),
+  makeBedRow({ id: 2, chromosome: "2B", p1: 0, p2: 40 * M }),
+  makeBedRow({ id: 3, chromosome: "2B", p1: 40 * M, p2: 80 * M }),
 ];
 
 const queryBedText = baseRows.map((r) => [r.chromosome, r.p1, r.p2, "-", r.id].join("\t")).join("\n");

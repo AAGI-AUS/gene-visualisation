@@ -1,6 +1,6 @@
 // Shared test data builders (object-mother pattern). Neutral defaults; pass a Partial to
 // override only what a test cares about. Scenario fixtures stay local to each suite.
-import type { Chunk, EventCounts, ResultRow } from "@/types";
+import type { BedRow, Chunk, EventCounts, ResultRow } from "@/types";
 
 export type Cell = string | number;
 
@@ -35,6 +35,20 @@ export const makeChunk = (overrides: Partial<Chunk> = {}): Chunk => ({
   isInvert: false,
   isOthers: false,
   ...overrides,
+});
+
+export const makeBedRow = ({
+  id = 0,
+  chromosome = "1A",
+  p1 = 100 * id,
+  p2 = p1 + 100,
+  sign = "+",
+}: Partial<BedRow>): BedRow => ({
+  id,
+  chromosome,
+  sign,
+  p1,
+  p2,
 });
 
 export const makeRow = (overrides: Partial<ResultRow> = {}): ResultRow => ({
