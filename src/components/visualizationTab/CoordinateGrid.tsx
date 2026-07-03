@@ -1,4 +1,4 @@
-import { TICK_INTERVAL_BP } from "@/src/constants";
+import { COLOR, TICK_INTERVAL_BP } from "@/src/constants";
 import type { ChrBar } from "@/types";
 import { bpToPx } from "@/src/components/visualizationTab/utils";
 
@@ -70,7 +70,7 @@ const TickLabels = ({ ticks, y, keyPrefix, side }: TickLabelProps) => (
         key={`${keyPrefix}-${t.key}`}
         x={side === "top" ? t.xTop : t.xBottom}
         y={y}
-        fill="grey"
+        fill={COLOR.muted}
         textAnchor="middle"
       >
         {t.label}

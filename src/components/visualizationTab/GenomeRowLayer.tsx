@@ -1,5 +1,5 @@
 import { SVGText } from "@/src/components/base/svg";
-import { CHROM_THICKNESS, LINE_LABEL_GAP, OTHERS_COL } from "@/src/constants";
+import { CHROM_THICKNESS, COLOR, LINE_LABEL_GAP, OTHERS_COL } from "@/src/constants";
 import type { BaseRow, QueryRow } from "@/types";
 
 interface LineLabelProps extends React.SVGProps<SVGTextElement> {
@@ -13,7 +13,7 @@ const LineLabel = ({ y, text, ...props }: LineLabelProps) => (
     x={-LINE_LABEL_GAP}
     y={y + CHROM_THICKNESS / 2 + 4}
     textAnchor="end"
-    fill="dimgrey"
+    fill={COLOR.muted}
     {...props}
   />
 );

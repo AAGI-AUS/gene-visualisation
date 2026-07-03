@@ -1,5 +1,5 @@
 import { Group } from "@visx/group";
-import { CHUNK_COLOR, LEGEND_H, chunkEvents } from "@/src/constants";
+import { CHUNK_COLOR, COLOR, LEGEND_H, chunkEvents } from "@/src/constants";
 import type { ChunkEvent } from "@/src/constants";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 
@@ -24,6 +24,7 @@ export const Legend = ({ width, fontSize }: LegendProps) => {
   const showMarks = useVisualizationStore((s) => s.showMarks);
   const swatch = Math.max(11, fontSize - 2);
   const swatchGap = fontSize * 0.45;
+  const textX = swatch + swatchGap;
   const itemGap = 8;
   const charW = fontSize * 0.6;
 
@@ -59,7 +60,7 @@ export const Legend = ({ width, fontSize }: LegendProps) => {
                 <line x1={0} x2={swatch - xSizeOffset} y1={midY + xH} y2={midY - xH} />
               </g>
             )}
-            <text x={swatch + swatchGap} y={midY} dominantBaseline="central" fontSize={fontSize} fill="#1f2937">
+            <text x={textX} y={midY} dominantBaseline="central" fontSize={fontSize} fill={COLOR.muted}>
               {item.label}
             </text>
           </Group>

@@ -24,6 +24,9 @@ export const CHR_PALETTE = [
 ];
 
 export const OTHERS_COL = "#94a3b8";
+export const COLOR = {
+  muted: "dimgrey",
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout constants
