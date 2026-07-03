@@ -103,8 +103,11 @@ describe("SyntenyCanvas", () => {
     const data: Result = [basePair, { ...basePair, name: "q2.bed" }];
     const { container } = renderCanvas(data);
 
-    // svg's direct g children are the per-pair Groups emitted by LinePair.
-    const pairGroups = container.querySelectorAll("svg > g");
+    // Per-pair Groups emitted by LinePair are translated by PAD.left; the
+    // legend is also a direct child of the svg, so filter it out by transform.
+    const pairGroups = Array.from(container.querySelectorAll("svg > g")).filter((g) =>
+      g.getAttribute("transform")?.startsWith(`translate(${PAD.left},`)
+    );
     expect(pairGroups).toHaveLength(2);
     expect(pairGroups[0].getAttribute("transform")).toBe(`translate(${PAD.left}, 0)`);
     expect(pairGroups[1].getAttribute("transform")).toBe(

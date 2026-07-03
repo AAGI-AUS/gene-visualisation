@@ -12,6 +12,7 @@
   gap: 8px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  margin-bottom: 14px;
 }
 
 .controlGroup {
@@ -349,17 +350,7 @@
   color: var(--muted);
 }
 
-.emptyIcon {
-  font-size: 36px;
-  opacity: 0.25;
-}
-
 .emptyTitle {
   font-size: 13px;
   color: var(--text-dim);
-}
-
-.emptySub {
-  font-size: 11px;
-  opacity: 0.6;
 }

@@ -1,18 +1,17 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import "./global.css";
 import styles from "./App.module.css";
 import { useAppStore } from "@/src/store/useAppStore";
-import { DistributionTab } from "@/src/components/DistributionTab";
 import { VisualizationTab } from "@/src/components/visualizationTab/VisualizationTab";
+import { SummaryTab } from "@/src/components/summaryTab/SummaryTab";
 import { Sidebar } from "@/src/components/sideBar/Sidebar";
-
-type Tab = "Visualization" | "Distribution";
-const TABS: Tab[] = ["Visualization", "Distribution"];
+import { RunButton } from "@/src/components/sideBar/RunButton";
 
 const App = () => {
   const result = useAppStore((s) => s.result);
   const error = useAppStore((s) => s.error);
   const [tab, setTab] = useState<Tab>("Visualization");
+  const svgRef = useRef<SVGSVGElement>(null);
 
   return (
     <div className={styles.app}>
@@ -42,27 +41,13 @@ const App = () => {
 
           <div className={styles.contentBody}>
             {error && <div className={styles.errorBox}>⚠ {error}</div>}
-
-            {tab === "Visualization" &&
-              (result.length ? (
-                <VisualizationTab data={result} />
-              ) : (
-                <div className={styles.emptyState}>
-                  <span className={styles.emptyIcon}>◈</span>
-                  <span className={styles.emptyTitle}>Load both BED files and run analysis</span>
-                  <span className={styles.emptySub}>Synteny ribbons will appear here</span>
-                </div>
-              ))}
-
-            {tab === "Distribution" &&
-              (result.length ? (
-                <DistributionTab data={result[0].rows} />
-              ) : (
-                <div className={styles.emptyState}>
-                  <span className={styles.emptyIcon}>▦</span>
-                  <span className={styles.emptyTitle}>Run an analysis first</span>
-                </div>
-              ))}
+            {result.length === 0 ? (
+              <EmptyState />
+            ) : tab === "Visualization" ? (
+              <VisualizationTab data={result} svgRef={svgRef} />
+            ) : (
+              <SummaryTab />
+            )}
           </div>
         </div>
       </div>
@@ -71,3 +56,15 @@ const App = () => {
 };
 
 export default App;
+
+const TABS = ["Visualization", "Summary"] as const;
+type Tab = (typeof TABS)[number];
+
+const EmptyState = () => (
+  <div className={styles.emptyState}>
+    <span className={styles.emptyTitle}>Load BED files and run analysis</span>
+    <div className={styles.emptyAction}>
+      <RunButton />
+    </div>
+  </div>
+);

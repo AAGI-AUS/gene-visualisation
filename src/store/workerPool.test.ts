@@ -12,7 +12,7 @@ import { makeBedText as bedText } from "@/src/test/factories";
 afterEach(() => clearWorkerCaches());
 
 const text = bedText([
-  ["1A", 0, 100, "+", 0],
+  ["1A", 1, 100, "+", 0],
   ["1A", 100, 200, "+", 1],
   ["2B", 200, 300, "-", 2],
 ]);

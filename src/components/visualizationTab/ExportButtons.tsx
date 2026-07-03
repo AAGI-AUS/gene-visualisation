@@ -6,6 +6,7 @@ import {
   downloadPredictedCentromeresCsv,
 } from "@/src/components/visualizationTab/batchExport";
 import { snapshotFromStores } from "@/src/components/visualizationTab/snapshot";
+import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 
 interface ExportButtonsProps {
   svgRef: RefObject<SVGSVGElement | null>;
@@ -22,27 +23,32 @@ const onPredictedClick = (filenameBase: string) => {
   downloadPredictedCentromeresCsv(predicted, `${filenameBase}_predicted.csv`);
 };
 
-export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => (
-  <div className={styles.exportGroup}>
-    <button
-      className={styles.exportBtn}
-      onClick={() => svgRef.current && exportSvg(svgRef.current, `${filenameBase}.svg`)}
-      type="button"
-    >
-      ↓ SVG
-    </button>
-    <button
-      className={styles.exportBtn}
-      onClick={() => svgRef.current && exportPng(svgRef.current, `${filenameBase}.png`)}
-      type="button"
-    >
-      ↓ PNG
-    </button>
-    <button className={styles.exportBtn} onClick={() => onCsvClick(filenameBase)} type="button">
-      ↓ CSV
-    </button>
-    <button className={styles.exportBtn} onClick={() => onPredictedClick(filenameBase)} type="button">
-      ↓ predicted
-    </button>
-  </div>
-);
+export const ExportButtons = ({ svgRef, filenameBase }: ExportButtonsProps) => {
+  const showMarks = useVisualizationStore((s) => s.showMarks);
+  return (
+    <div className={styles.exportGroup}>
+      <button
+        className={styles.exportBtn}
+        onClick={() => svgRef.current && exportSvg(svgRef.current, `${filenameBase}.svg`)}
+        type="button"
+      >
+        ↓ SVG
+      </button>
+      <button
+        className={styles.exportBtn}
+        onClick={() => svgRef.current && exportPng(svgRef.current, `${filenameBase}.png`)}
+        type="button"
+      >
+        ↓ PNG
+      </button>
+      <button className={styles.exportBtn} onClick={() => onCsvClick(filenameBase)} type="button">
+        ↓ CSV
+      </button>
+      {showMarks && (
+        <button className={styles.exportBtn} onClick={() => onPredictedClick(filenameBase)} type="button">
+          ↓ predicted
+        </button>
+      )}
+    </div>
+  );
+};

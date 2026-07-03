@@ -95,18 +95,12 @@
   color: var(--text-dim);
 }
 
-.emptyIcon {
-  font-size: 40px;
-  opacity: 0.3;
-}
-
 .emptyTitle {
   font-size: 14px;
 }
 
-.emptySub {
-  font-size: 11px;
-  opacity: 0.6;
+.emptyAction {
+  width: 160px;
 }
 
 /* ── Error box ── */
