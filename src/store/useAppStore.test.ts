@@ -23,7 +23,7 @@ const baseRows: BedRow[] = [
 
 // Full synteny
 const syntenyFile = bed("q1.bed", [
-  ["1A", 0, 100, "+", 0],
+  ["1A", 1, 100, "+", 0],
   ["1A", 100, 200, "+", 1],
   ["1A", 200, 300, "+", 2],
   ["1A", 300, 400, "+", 3],
@@ -31,7 +31,7 @@ const syntenyFile = bed("q1.bed", [
 
 // Low synteny: ids 0/1 translocate to 2B, id 2 inverts, only id 3 stays synteny.
 const lowSyntenyFile = bed("q2.bed", [
-  ["2B", 0, 100, "+", 0],
+  ["2B", 1, 100, "+", 0],
   ["2B", 100, 200, "+", 1],
   ["1A", 200, 300, "-", 2],
   ["1A", 300, 400, "+", 3],
@@ -42,7 +42,7 @@ const namesOf = (files: File[]) => files.map((f) => f.name);
 describe("setBase", () => {
   it("parses the file, sorts chromosomes, and selects the first", async () => {
     const rows = [
-      ["2B", 0, 100, "+", 0],
+      ["2B", 1, 100, "+", 0],
       ["1A", 100, 200, "+", 1],
     ];
     await get().setBase(fileList(bed("base.bed", rows)));
@@ -93,7 +93,7 @@ describe("query file mutations", () => {
   // Removing a file must flush worker-side packed caches so they don't accumulate forever.
   it("clearQuery flushes the worker cache", async () => {
     useAppStore.setState({ queryFiles: [syntenyFile, lowSyntenyFile] });
-    await packFile("cached", "1A\t0\t100\t+\t0");
+    await packFile("cached", "1A\t1\t100\t+\t0");
     expect(isCached("cached")).toBe(true);
 
     get().clearQuery(0);
@@ -103,10 +103,10 @@ describe("query file mutations", () => {
   it("swapBaseWithQuery flushes the worker cache", async () => {
     useAppStore.setState({
       base: { name: "base.bed", rows: baseRows },
-      baseFile: bed("base.bed", [["1A", 0, 100, "+", 0]]),
+      baseFile: bed("base.bed", [["1A", 1, 100, "+", 0]]),
       queryFiles: [syntenyFile, lowSyntenyFile],
     });
-    await packFile("cached", "1A\t0\t100\t+\t0");
+    await packFile("cached", "1A\t1\t100\t+\t0");
     expect(isCached("cached")).toBe(true);
 
     await get().swapBaseWithQuery(0);
@@ -116,7 +116,7 @@ describe("query file mutations", () => {
 
 describe("swapBaseWithQuery", () => {
   it("promotes a query file to base and demotes the old base file into its slot", async () => {
-    const oldBase = bed("base.bed", [["1A", 0, 100, "+", 0]]);
+    const oldBase = bed("base.bed", [["1A", 1, 100, "+", 0]]);
     useAppStore.setState({
       base: { name: "base.bed", rows: baseRows },
       baseFile: oldBase,
@@ -257,7 +257,7 @@ describe("buildSummaryBar", () => {
       { id: 3, chromosome: "2B", p1: 500, p2: 600, sign: "+" },
     ];
     const queryAll = bed("qa.bed", [
-      ["1A", 0, 100, "+", 0],
+      ["1A", 1, 100, "+", 0],
       ["1A", 100, 200, "+", 1],
       ["1A", 300, 400, "+", 2],
       ["2B", 500, 600, "+", 3],
@@ -288,14 +288,14 @@ describe("buildSummaryBar", () => {
       { id: 3, chromosome: "1A", p1: 300, p2: 400, sign: "+" },
     ];
     const queryFull = bed("qfull.bed", [
-      ["1A", 0, 100, "+", 0],
+      ["1A", 1, 100, "+", 0],
       ["1A", 100, 200, "+", 1],
       ["1A", 200, 300, "+", 2],
       ["1A", 300, 400, "+", 3],
     ]);
     // omits id 2, so id 2 is not part of the core shared by both queries
     const queryGap = bed("qgap.bed", [
-      ["1A", 0, 100, "+", 0],
+      ["1A", 1, 100, "+", 0],
       ["1A", 100, 200, "+", 1],
       ["1A", 300, 400, "+", 3],
     ]);

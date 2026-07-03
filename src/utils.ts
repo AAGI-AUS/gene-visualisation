@@ -19,10 +19,9 @@ export const max = <T extends number | string>(...array: T[]): T => {
 
 export const clamp = (value: number, lo: number, hi: number): number => Math.min(Math.max(value, lo), hi);
 export const closeTo = (a: number, b: number, threshold = 0.1) => Math.abs(a / b - 1) < threshold;
-/** Strip a "<prefix>_chr" or "<prefix>_" lead from a chromosome (e.g. "asdf_chr1A" -> "1A"). */
-const cleanChr = (chr: string, prefix: string) => {
-  return !prefix ? chr : chr.replace(`${prefix}_chr`, "").replace(`${prefix}_`, "");
-};
+
+const cleanChr = (chr: string, prefix: string) =>
+  !prefix ? chr : chr.replace(`${prefix}_chr`, "").replace(`${prefix}_`, "");
 
 /**
  * Parse a raw BED file string into typed rows.
@@ -39,13 +38,14 @@ export const parseBED = (text: string, fileName = ""): BedRow[] =>
       const p2 = Number(p2Raw) ?? 0;
       const id = Number(idRaw);
       const chromosome = cleanChr(chromosomeRaw, fileName.split(".")[0]);
-      if (validChromosomes(chromosome) && p1 < p2) {
+      if (validChromosomes(chromosome) && p1 < p2 && p1 >= 0) {
         rows.push({ id: !isNaN(id) ? id : idx, chromosome, p1, p2, sign: sign as "+" | "-" });
       }
       return rows;
     }, []);
 
-const validChromosomes = (chr: string) => chr.length === 2;
+const invalidChromosomes = new Set(["un"]);
+const validChromosomes = (chr: string) => chr.length === 2 && !invalidChromosomes.has(chr.toLowerCase());
 
 /**
  * Mirrors Python's queryGene().
