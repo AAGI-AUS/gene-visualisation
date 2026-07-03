@@ -2,12 +2,12 @@ import { create } from "zustand";
 import type { BedFile, BedRow, CentromereData, FilesHandler, ResultRow } from "@/types";
 import { clamp, getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
-import type { AutoSortSnapshot } from "@/src/store/autoSortCache";
+import type { SortSnapshot } from "@/src/store/autoSortCache";
 import {
-  autoSortCacheKey,
-  clearAutoSortCache,
-  getAutoSortSnapshot,
-  setAutoSortSnapshot,
+  sortCacheKey,
+  clearSortCache,
+  getSortSnapshot,
+  setSortSnapshot,
   getCommonIds,
   setCommonIds,
 } from "@/src/store/autoSortCache";
@@ -74,7 +74,7 @@ interface AppActions {
 
 export type AppStore = AppState & AppActions;
 
-const fingerprintOf = (f: File) => `${f.name}|${f.size}|${f.lastModified}`;
+const makeKey = (f: File) => `${f.name}|${f.size}|${f.lastModified}`;
 const parseFilesInParallel = async <T>(
   files: File[],
   ids: Set<number>,
@@ -88,7 +88,7 @@ const parseFilesInParallel = async <T>(
       while (cursor < files.length) {
         const i = cursor++;
         const file = files[i];
-        const key = fingerprintOf(file);
+        const key = makeKey(file);
         const packed = getCachedPacked(key) ?? (await packFile(key, await fileToText(file), file.name));
         out[i] = transform(i, filterPacked(packed, ids));
       }
@@ -101,19 +101,19 @@ const parseFilesInParallel = async <T>(
 // Cache-aware autoSort for one chromosome. Pure: never mutates store state, so
 // the summary tab can run it across every chromosome without disturbing the
 // active visualization. Reuses the snapshot cache populated by the autoSort action.
-const computeAutoSortSnapshot = async (
+const computeSortSnapshot = async (
   base: BedFile,
   baseFile: File | null,
   queryFiles: File[],
   chr: string,
   groupThreshold: number,
   workerCount: number
-): Promise<AutoSortSnapshot> => {
+): Promise<SortSnapshot> => {
   const cacheKey = baseFile
-    ? autoSortCacheKey(fingerprintOf(baseFile), chr, groupThreshold, queryFiles.map(fingerprintOf))
+    ? sortCacheKey(makeKey(baseFile), chr, groupThreshold, queryFiles.map(makeKey))
     : null;
   if (cacheKey) {
-    const cached = getAutoSortSnapshot(cacheKey);
+    const cached = getSortSnapshot(cacheKey);
     if (cached) return cached;
   }
 
@@ -161,13 +161,13 @@ const computeAutoSortSnapshot = async (
     remaining.splice(bestIdx, 1);
   }
 
-  const snapshot: AutoSortSnapshot = {
-    order: sortedFiles.map(fingerprintOf),
+  const snapshot: SortSnapshot = {
+    order: sortedFiles.map(makeKey),
     result: sortedResult,
     commonIds: computeCommonIds(sortedResult),
     palette: buildPalette(chr, allChroms),
   };
-  if (cacheKey) setAutoSortSnapshot(cacheKey, snapshot);
+  if (cacheKey) setSortSnapshot(cacheKey, snapshot);
   return snapshot;
 };
 
@@ -184,10 +184,10 @@ const commonIdsForChr = async (
   workerCount: number
 ): Promise<Set<number>> => {
   const cacheKey = baseFile
-    ? autoSortCacheKey(fingerprintOf(baseFile), chr, groupThreshold, queryFiles.map(fingerprintOf))
+    ? sortCacheKey(makeKey(baseFile), chr, groupThreshold, queryFiles.map(makeKey))
     : null;
   if (cacheKey) {
-    const snapshot = getAutoSortSnapshot(cacheKey);
+    const snapshot = getSortSnapshot(cacheKey);
     if (snapshot) return snapshot.commonIds;
     const cached = getCommonIds(cacheKey);
     if (cached) return cached;
@@ -252,12 +252,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const text = await fileToText(file);
     const rows = parseBED(text, file.name);
     const chromosomes = getChromosomes(rows).sort();
-    clearAutoSortCache();
+    clearSortCache();
     set({ base: { name: file.name, rows }, baseFile: file, chromosomes, selectedChr: chromosomes[0] });
   },
   setQueryFiles: (file) => {
     if (!file) return;
-    clearAutoSortCache();
+    clearSortCache();
     set((state) => ({
       queryFiles: [...state.queryFiles, ...file],
     }));
@@ -265,13 +265,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setGroupThreshold: (groupThreshold) => set({ groupThreshold }),
   setAppState: (state) => set(state),
   clearBase: () => {
-    clearAutoSortCache();
+    clearSortCache();
     set({ base: null, baseFile: null, result: [], commonIds: new Set(), error: null });
   },
   clearQuery: (i) =>
     set((state) => {
       clearWorkerCaches();
-      clearAutoSortCache();
+      clearSortCache();
       return { queryFiles: state.queryFiles.filter((_, j) => i !== j), error: null };
     }),
   reorderQuery: (from, to) =>
@@ -304,7 +304,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       nextQueries.splice(i, 1);
     }
     clearWorkerCaches();
-    clearAutoSortCache();
+    clearSortCache();
     set({
       base: { name: incoming.name, rows },
       baseFile: incoming,
@@ -370,7 +370,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (!base || !selectedChr || !queryFiles.length) return;
 
       try {
-        const snapshot = await computeAutoSortSnapshot(
+        const snapshot = await computeSortSnapshot(
           base,
           baseFile,
           queryFiles,
@@ -379,7 +379,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           workerCount
         );
 
-        const byFp = new Map(queryFiles.map((f) => [fingerprintOf(f), f]));
+        const byFp = new Map(queryFiles.map((f) => [makeKey(f), f]));
         const sortedFiles = snapshot.order.map((fp) => byFp.get(fp));
         set({
           queryFiles: sortedFiles.every((f): f is File => f !== undefined) ? sortedFiles : queryFiles,

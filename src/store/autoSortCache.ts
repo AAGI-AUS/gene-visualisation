@@ -1,8 +1,6 @@
 import type { Result } from "@/src/store/useAppStore";
 
-// Everything needed to recreate the synteny SVG for one autoSort run, so a
-// repeat trigger (same inputs) skips parsing, greedy sorting, and queryGene.
-export interface AutoSortSnapshot {
+export interface SortSnapshot {
   order: string[];
   result: Result;
   commonIds: Set<number>;
@@ -11,10 +9,12 @@ export interface AutoSortSnapshot {
 
 const MAX_ENTRIES = 64;
 
+// lru: least recently used
 // LRU get: touch on hit so the most-recently-used entry survives eviction.
 const lruGet = <T>(cache: Map<string, T>, key: string) => {
   const hit = cache.get(key);
   if (hit === undefined) return undefined;
+
   cache.delete(key);
   cache.set(key, hit);
   return hit;
@@ -28,27 +28,24 @@ const lruSet = <T>(cache: Map<string, T>, key: string, value: T) => {
   }
 };
 
-const snapshotCache = new Map<string, AutoSortSnapshot>();
+const snapshotCache = new Map<string, SortSnapshot>();
 const commonIdsCache = new Map<string, Set<number>>();
 
 // Order-independent in the query set: autoSort re-derives ordering itself.
-export const autoSortCacheKey = (
-  baseFp: string,
+export const sortCacheKey = (
+  baseKey: string,
   selectedChr: string,
   groupThreshold: number,
-  queryFps: string[]
-) => [baseFp, selectedChr, groupThreshold, [...queryFps].sort().join("")].join(" ");
+  queryKeys: string[]
+) => [baseKey, selectedChr, groupThreshold, [...queryKeys].sort().join("")].join(" ");
 
-export const getAutoSortSnapshot = (key: string) => lruGet(snapshotCache, key);
-export const setAutoSortSnapshot = (key: string, snapshot: AutoSortSnapshot) =>
-  lruSet(snapshotCache, key, snapshot);
+export const getSortSnapshot = (key: string) => lruGet(snapshotCache, key);
+export const setSortSnapshot = (key: string, snapshot: SortSnapshot) => lruSet(snapshotCache, key, snapshot);
 
-// Core gene ids for one chromosome, cached separately from full snapshots: the
-// summary tab needs only this set and never the greedy ordering or palette.
 export const getCommonIds = (key: string) => lruGet(commonIdsCache, key);
 export const setCommonIds = (key: string, ids: Set<number>) => lruSet(commonIdsCache, key, ids);
 
-export const clearAutoSortCache = () => {
+export const clearSortCache = () => {
   snapshotCache.clear();
   commonIdsCache.clear();
 };
