@@ -1,5 +1,5 @@
 import { Group } from "@visx/group";
-import { CHUNK_COLOR, FONT, LEGEND_H, chunkEvents } from "@/src/constants";
+import { CHUNK_COLOR, LEGEND_H, chunkEvents } from "@/src/constants";
 import type { ChunkEvent } from "@/src/constants";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 
