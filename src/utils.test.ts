@@ -7,7 +7,7 @@ import {
   parseBED,
   parseCentromere,
   queryGene,
-  withinThreshold,
+  closeTo,
 } from "@/src/utils";
 import { makeBedText as bedText, type Cell } from "@/src/test/factories";
 import type { BedRow } from "@/types";
@@ -55,19 +55,19 @@ describe("clamp", () => {
   });
 });
 
-describe("withinThreshold", () => {
+describe("closeTo", () => {
   it("identical values are within threshold", () => {
-    expect(withinThreshold(100, 100)).toBe(true);
+    expect(closeTo(100, 100)).toBe(true);
   });
 
   it("uses the 10% default threshold", () => {
-    expect(withinThreshold(105, 100)).toBe(true);
-    expect(withinThreshold(120, 100)).toBe(false);
+    expect(closeTo(105, 100)).toBe(true);
+    expect(closeTo(120, 100)).toBe(false);
   });
 
   it("respects a custom threshold", () => {
-    expect(withinThreshold(150, 100, 0.5)).toBe(false);
-    expect(withinThreshold(149, 100, 0.5)).toBe(true);
+    expect(closeTo(150, 100, 0.5)).toBe(false);
+    expect(closeTo(149, 100, 0.5)).toBe(true);
   });
 });
 
@@ -76,9 +76,10 @@ describe("parseBED", () => {
     ["1A", 100, 200, "+", 0],
     ["1B", 300, 400, "-", 1],
   ];
+  // Input is 1-based inclusive; parseBED normalizes p1 to 0-based half-open (p1 - 1).
   const baseExpectedRows: BedRow[] = [
-    { id: 0, chromosome: "1A", p1: 100, p2: 200, sign: "+" },
-    { id: 1, chromosome: "1B", p1: 300, p2: 400, sign: "-" },
+    { id: 0, chromosome: "1A", p1: 99, p2: 200, sign: "+" },
+    { id: 1, chromosome: "1B", p1: 299, p2: 400, sign: "-" },
   ];
 
   it("parses tab-separated rows with positional ids", () => {
@@ -95,9 +96,14 @@ describe("parseBED", () => {
     expect(parseBED(text)).toEqual(baseExpectedRows);
   });
 
-  it("drops rows where p1 >= p2", () => {
-    const text = bedText([["1A", 200, 100, "+", 2], ["1A", 100, 100, "+", 3], ...baseRowCells]);
+  it("drops rows where the normalized p1 >= p2", () => {
+    const text = bedText([["1A", 200, 100, "+", 2], ["1A", 100, 50, "+", 3], ...baseRowCells]);
     expect(parseBED(text)).toEqual(baseExpectedRows);
+  });
+
+  it("keeps a single-base 1-based feature (raw p1 == p2)", () => {
+    const text = bedText([["1A", 100, 100, "+", 5]]);
+    expect(parseBED(text)).toEqual([{ id: 5, chromosome: "1A", p1: 99, p2: 100, sign: "+" }]);
   });
 
   it("falls back to the row index when the id column is missing or zero", () => {

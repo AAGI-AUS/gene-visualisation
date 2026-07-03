@@ -4,8 +4,9 @@ import styles from "./VisualizationTab.module.css";
 import type { Result } from "@/src/store/useAppStore";
 import { useAppStore } from "@/src/store/useAppStore";
 import { LinePair } from "@/src/components/visualizationTab/LinePair";
+import { Legend } from "@/src/components/visualizationTab/Legend";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
-import { PAD } from "@/src/constants";
+import { FONT, PAD } from "@/src/constants";
 import type { PairInput } from "@/src/hooks/useVisualizationLayout";
 import { useVisualizationLayout } from "@/src/hooks/useVisualizationLayout";
 import { buildPredictedPerPair } from "@/src/components/visualizationTab/predicted";
@@ -28,6 +29,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const commonIds = useAppStore((s) => s.commonIds);
   const centromere = useAppStore((s) => s.centromere);
   const svgW = useVisualizationStore((s) => s.svgW);
+  const fontSize = useVisualizationStore((s) => s.fontSize);
   const gapBp = useVisualizationStore((s) => s.gapBp);
   const hiddenThreshold = useVisualizationStore((s) => s.hiddenThreshold);
   const othersMode = useVisualizationStore((s) => s.othersMode);
@@ -66,8 +68,9 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   );
 
   return (
-    <svg ref={svgRef} className={styles.svgCanvas} width={width} height={height}>
+    <svg ref={svgRef} className={styles.svgCanvas} fontFamily={FONT} {...{ width, height, fontSize }}>
       <rect width={width} height={height} fill="white" />
+      <Legend width={width} fontSize={fontSize - 2} />
       {layouts.map((layout, i) => (
         <LinePair
           key={i}

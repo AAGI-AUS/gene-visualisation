@@ -1,19 +1,21 @@
-import { CHROM_THICKNESS, FONT, OTHERS_COL } from "@/src/constants";
+import { SVGText } from "@/src/components/base/svg";
+import { CHROM_THICKNESS, COLOR, LINE_LABEL_GAP, OTHERS_COL } from "@/src/constants";
 import type { BaseRow, QueryRow } from "@/types";
 
-type SVGTextProps = React.SVGTextElementAttributes<SVGTextElement>;
-
-const SVGText = ({ children, ...props }: SVGTextProps) => (
-  <text textAnchor="middle" fontFamily={FONT} {...props}>
-    {children}
-  </text>
-);
-type LineLabelProps = SVGTextProps & { y: number; text: string };
+interface LineLabelProps extends React.SVGProps<SVGTextElement> {
+  y: number;
+  text: string;
+}
 
 const LineLabel = ({ y, text, ...props }: LineLabelProps) => (
-  <SVGText x={-10} y={y + CHROM_THICKNESS / 2 + 4} textAnchor="end" fill="dimgrey" {...props}>
-    {text}
-  </SVGText>
+  <SVGText
+    t={text}
+    x={-LINE_LABEL_GAP}
+    y={y + CHROM_THICKNESS / 2 + 4}
+    textAnchor="end"
+    fill={COLOR.muted}
+    {...props}
+  />
 );
 
 type ChromLabelProps = LineLabelProps & { bg?: string };
@@ -28,9 +30,7 @@ const ChromLabel = ({ y, text, fill = "white", bg = "black", ...props }: ChromLa
   return (
     <g>
       <rect x={x - size / 2} y={yCalc - fontSize * 0.85 - 1} width={width} height={height} fill={bg} />
-      <SVGText y={yCalc} fill={fill} {...props}>
-        {text}
-      </SVGText>
+      <SVGText t={text} y={yCalc} textAnchor="middle" fill={fill} {...props} />
     </g>
   );
 };

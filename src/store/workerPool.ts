@@ -59,21 +59,21 @@ const tryInitPool = (): Worker[] | null => {
   }
 };
 
-const dispatchPack = (pool: Worker[], text: string): Promise<PackedCache> => {
+const dispatchPack = (pool: Worker[], text: string, fileName: string): Promise<PackedCache> => {
   const jobId = nextJobId++;
   const worker = pool[nextWorker];
   nextWorker = (nextWorker + 1) % pool.length;
 
   return new Promise<PackedCache>((resolve, reject) => {
     pending.set(jobId, { resolve, reject });
-    worker.postMessage({ jobId, text } satisfies PackRequest);
+    worker.postMessage({ jobId, text, fileName } satisfies PackRequest);
   });
 };
 
 export const getCachedPacked = (key: string) => packedByKey.get(key);
 export const isCached = (key: string) => packedByKey.has(key);
 
-export const packFile = (key: string, text: string): Promise<PackedCache> => {
+export const packFile = (key: string, text: string, fileName = ""): Promise<PackedCache> => {
   const cached = packedByKey.get(key);
   if (cached) return Promise.resolve(cached);
 
@@ -81,7 +81,9 @@ export const packFile = (key: string, text: string): Promise<PackedCache> => {
   if (flying) return flying;
 
   const pool = tryInitPool();
-  const parsing = pool ? dispatchPack(pool, text) : Promise.resolve(packParsed(parseBED(text)));
+  const parsing = pool
+    ? dispatchPack(pool, text, fileName)
+    : Promise.resolve(packParsed(parseBED(text, fileName)));
   const tracked = parsing.then(
     (packed) => {
       packedByKey.set(key, packed);

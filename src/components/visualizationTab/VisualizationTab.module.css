@@ -12,6 +12,7 @@
   gap: 8px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  margin-bottom: 14px;
 }
 
 .controlGroup {
@@ -163,30 +164,6 @@
 .statNum {
   font-weight: 600;
   color: var(--text-strong);
-}
-
-/* ── Legend ── */
-.legend {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.legendItem {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
-.legendSwatch {
-  width: 14px;
-  height: 8px;
-  border-radius: 2px;
-  opacity: 0.8;
 }
 
 /* ── Canvas ── */
@@ -373,17 +350,7 @@
   color: var(--muted);
 }
 
-.emptyIcon {
-  font-size: 36px;
-  opacity: 0.25;
-}
-
 .emptyTitle {
   font-size: 13px;
   color: var(--text-dim);
-}
-
-.emptySub {
-  font-size: 11px;
-  opacity: 0.6;
 }

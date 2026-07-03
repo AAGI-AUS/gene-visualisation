@@ -18,32 +18,34 @@ export const max = <T extends number | string>(...array: T[]): T => {
 };
 
 export const clamp = (value: number, lo: number, hi: number): number => Math.min(Math.max(value, lo), hi);
+export const closeTo = (a: number, b: number, threshold = 0.1) => Math.abs(a / b - 1) < threshold;
 
-export const withinThreshold = (a: number, b: number, threshold = 0.1) => {
-  return Math.abs(a / b - 1) < threshold;
-};
+const cleanChr = (chr: string, prefix: string) =>
+  !prefix ? chr : chr.replace(`${prefix}_chr`, "").replace(`${prefix}_`, "");
 
 /**
  * Parse a raw BED file string into typed rows.
  */
-export const parseBED = (text: string): BedRow[] => {
-  return text
+export const parseBED = (text: string, fileName = ""): BedRow[] =>
+  text
     .trim()
     .split("\n")
     .filter((line) => line && !line.startsWith("#"))
     .reduce<BedRow[]>((rows, line, idx) => {
-      const [chromosome = "", p1Raw = "0", p2Raw = "0", sign = "+", idRaw] = line.split("\t");
-      const p1 = Number(p1Raw) ?? 0;
+      const [chromosomeRaw = "", p1Raw = "0", p2Raw = "0", sign = "+", idRaw] = line.split("\t");
+      // Input is 1-based inclusive; normalize to 0-based half-open so p2 - p1 is the true span.
+      const p1 = (Number(p1Raw) ?? 0) - 1;
       const p2 = Number(p2Raw) ?? 0;
       const id = Number(idRaw);
-      if (validChromosomes(chromosome) && p1 < p2) {
+      const chromosome = cleanChr(chromosomeRaw, fileName.split(".")[0]);
+      if (validChromosomes(chromosome) && p1 < p2 && p1 >= 0) {
         rows.push({ id: !isNaN(id) ? id : idx, chromosome, p1, p2, sign: sign as "+" | "-" });
       }
       return rows;
     }, []);
-};
 
-const validChromosomes = (chr: string) => chr.length === 2;
+const invalidChromosomes = new Set(["un"]);
+const validChromosomes = (chr: string) => chr.length === 2 && !invalidChromosomes.has(chr.toLowerCase());
 
 /**
  * Mirrors Python's queryGene().

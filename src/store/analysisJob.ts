@@ -3,6 +3,7 @@ import type { BedRow } from "@/types";
 export type PackRequest = {
   jobId: number;
   text: string;
+  fileName: string;
 };
 
 export type PackResponse = {

@@ -1,18 +1,6 @@
-import { FONT, TICK_INTERVAL_BP } from "@/src/constants";
+import { COLOR, TICK_INTERVAL_BP } from "@/src/constants";
 import type { ChrBar } from "@/types";
 import { bpToPx } from "@/src/components/visualizationTab/utils";
-
-interface CoordinateGridProps {
-  baseBars: ChrBar[];
-  queryBars: ChrBar[];
-  lineTop: number;
-  lineBottom: number;
-  labelTopY: number | null;
-  labelBottomY: number | null;
-  fontSize: number;
-  nextBaseBars?: ChrBar[];
-  nextQueryBars?: ChrBar[];
-}
 
 interface Tick {
   xTop: number;
@@ -72,20 +60,17 @@ interface TickLabelProps {
   ticks: Tick[];
   y: number;
   keyPrefix: string;
-  fontSize: number;
   side: "top" | "bottom";
 }
 
-const TickLabels = ({ ticks, y, keyPrefix, fontSize, side }: TickLabelProps) => (
+const TickLabels = ({ ticks, y, keyPrefix, side }: TickLabelProps) => (
   <>
     {ticks.map((t) => (
       <text
         key={`${keyPrefix}-${t.key}`}
         x={side === "top" ? t.xTop : t.xBottom}
         y={y}
-        fontSize={fontSize}
-        fontFamily={FONT}
-        fill="grey"
+        fill={COLOR.muted}
         textAnchor="middle"
       >
         {t.label}
@@ -110,7 +95,7 @@ export const CoordinateGrid = ({
   const nextTicks = nextBaseBars && nextQueryBars ? collectTicks(nextBaseBars, nextQueryBars) : null;
   const bottomTicks = labelBottomY !== null ? bottomLabelTicks(ticks, nextTicks) : [];
   return (
-    <g>
+    <g fontSize={fontSize}>
       {ticks.map((t) =>
         t.drawLine ? (
           <line
@@ -125,12 +110,22 @@ export const CoordinateGrid = ({
           />
         ) : null
       )}
-      {labelTopY !== null && (
-        <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" fontSize={fontSize} side="top" />
-      )}
+      {labelTopY !== null && <TickLabels ticks={ticks} y={labelTopY} keyPrefix="tt" side="top" />}
       {labelBottomY !== null && bottomTicks.length > 0 && (
-        <TickLabels ticks={bottomTicks} y={labelBottomY} keyPrefix="tb" fontSize={fontSize} side="bottom" />
+        <TickLabels ticks={bottomTicks} y={labelBottomY + fontSize / 8} keyPrefix="tb" side="bottom" />
       )}
     </g>
   );
 };
+
+interface CoordinateGridProps {
+  baseBars: ChrBar[];
+  queryBars: ChrBar[];
+  lineTop: number;
+  lineBottom: number;
+  labelTopY: number | null;
+  labelBottomY: number | null;
+  fontSize: number;
+  nextBaseBars?: ChrBar[];
+  nextQueryBars?: ChrBar[];
+}

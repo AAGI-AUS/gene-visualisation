@@ -24,6 +24,9 @@ export const CHR_PALETTE = [
 ];
 
 export const OTHERS_COL = "#94a3b8";
+export const COLOR = {
+  muted: "dimgrey",
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layout constants
@@ -32,7 +35,9 @@ export const OTHERS_COL = "#94a3b8";
 export const CHROM_THICKNESS = 2;
 export const RIBBON_GAP = 0;
 export const ROW_GAP = 55;
-export const PAD = { top: 18, bottom: 18, left: 90, right: 13 } as const;
+export const LINE_LABEL_GAP = 5;
+export const LEGEND_H = 24;
+export const PAD = { top: 28 + LEGEND_H, bottom: 18, left: 112, right: 13 } as const;
 export const FONT = "IBM Plex Mono, monospace";
 export const CHR_GAP_PX = 3;
 export const OTHERS_W = 24;
