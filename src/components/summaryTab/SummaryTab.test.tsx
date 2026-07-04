@@ -109,4 +109,35 @@ describe("SummaryTab", () => {
     const build = useAppStore.getState().buildSummaryBar as jest.Mock;
     expect(build).toHaveBeenCalledWith("1A", 100 * 1000, 10);
   });
+
+  const coreMarkerY = (container: HTMLElement) => {
+    const marker = container.querySelector('line[stroke="red"][stroke-width="1.5"]');
+    return marker && Number(marker.getAttribute("y1"));
+  };
+
+  it("scales the bar to the chromosome's own max bp across all its base rows", async () => {
+    seed(["1A"], { "1A": 300 }, () => Promise.resolve({ chr: "1A", chunks: [chunk(0, 300, 0.5)] }));
+    // Two base rows for 1A; chrMax must be the max p2 (300), not the first/last (100).
+    const rows = [makeBedRow(), makeBedRow({ p2: 300 })];
+    useAppStore.setState({ base: { name: "base.bed", rows } });
+    const { container } = render(<SummaryTab />);
+
+    await screen.findByText("Overall");
+
+    // yScale(f) = LEGEND_H(44) + BAR_H(520) - f * BAR_H, so f = 0.5 -> 304.
+    expect(coreMarkerY(container)).toBeCloseTo(304, 5);
+  });
+
+  it("skips chunks that would render thinner than a pixel", async () => {
+    seed(["1A"], { "1A": 520_000 }, () =>
+      Promise.resolve({ chr: "1A", chunks: [chunk(0, 100, 0.5), chunk(100, 520_000, 0.5)] })
+    );
+    const { container } = render(<SummaryTab />);
+
+    await screen.findByText("Overall");
+    const grayRects = Array.from(container.querySelectorAll("rect")).filter((r) =>
+      r.getAttribute("fill")?.startsWith("rgb(")
+    );
+    expect(grayRects).toHaveLength(1);
+  });
 });

@@ -43,7 +43,7 @@ export const makeBedRow = ({
   p1 = 100 * id,
   p2 = p1 + 100,
   sign = "+",
-}: Partial<BedRow>): BedRow => ({
+}: Partial<BedRow> = {}): BedRow => ({
   id,
   chromosome,
   sign,
