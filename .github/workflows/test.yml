@@ -18,7 +18,7 @@ jobs:
       - run: yarn test --coverage --watchAll=false
         env:
           CI: true
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
