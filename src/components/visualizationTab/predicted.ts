@@ -45,6 +45,7 @@ const buildPredictedForBars = (bars: readonly ChrBar[], lineKey: string, interva
 
     const { lo, hi } = getPredictingRange(bar.chr, lineKey);
     const center = findLargestGapCenter(intervalsInChr.get(bar.chr) ?? [], lo * 1e6, hi * 1e6);
+    // array to match CentromereMarks' positions shape
     if (center !== null) out.set(bar.chr, [center]);
   }
   return out;
@@ -85,12 +86,13 @@ export const mergeIntoPredictedByLine = (perPair: PredictedPerPair[], baseLabel:
     }
 
     positions.forEach((bps, chr) => {
+      // on a duplicate line+chr (e.g. same query label across pairs) the last one wins
       if (bps.length) into!.set(chr, bps[0]);
     });
   };
 
-  perPair.forEach(({ basePredicted, queryPredicted, queryLineKey }, i) => {
-    if (i === 0) merge(baseLabel, basePredicted);
+  merge(baseLabel, perPair[0].basePredicted);
+  perPair.forEach(({ queryPredicted, queryLineKey }) => {
     merge(queryLineKey, queryPredicted);
   });
 
