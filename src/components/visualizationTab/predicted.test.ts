@@ -57,6 +57,21 @@ describe("buildPredictedPerPair", () => {
     expect(pair.queryPredicted.get("1A")).toEqual([(mid + hi) / 2]);
   });
 
+  it("picks the largest gap when multiple ribbons leave several gaps", () => {
+    const pairs: PairInput[] = [{ queryLabel: "paragon", data: [] }];
+    const { lo, hi } = rangeBp("1A", "paragon");
+    const ribbons = [
+      queryRibbon("1A", lo, lo + 5 * MBP),
+      // [lo+5M, lo+15M] gap
+      queryRibbon("1A", lo + 15 * MBP, lo + 20 * MBP),
+      // [lo+20M, lo+50M] gap
+      queryRibbon("1A", lo + 50 * MBP, hi),
+    ];
+    const [pair] = buildPredictedPerPair([layout({ querySlots: [chrBar("1A")], ribbons })], pairs, "base");
+
+    expect(pair.queryPredicted.get("1A")).toEqual([(lo + 20 * MBP + lo + 50 * MBP) / 2]);
+  });
+
   it("ignores non-chr query slots", () => {
     const pairs: PairInput[] = [{ queryLabel: "paragon", data: [] }];
     const [pair] = buildPredictedPerPair([layout({ querySlots: [othersBar, chrBar("1A")] })], pairs, "base");
