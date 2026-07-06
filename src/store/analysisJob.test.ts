@@ -1,9 +1,12 @@
 import { packParsed, filterPacked, transferables } from "@/src/store/analysisJob";
-import type { BedRow } from "@/types";
+import { makeBedRow } from "@/src/test/factories";
 
-type Row = (id: number, chromosome: string, sign?: "+" | "-", p1?: number, p2?: number) => BedRow;
-const row: Row = (id, chromosome, sign = "+", p1 = id * 10, p2 = p1 + 5) => ({ id, chromosome, p1, p2, sign });
-const rows = [row(0, "1A", "+"), row(11, "2B", "-"), row(2, "1A", "-"), row(3, "3D", "+")];
+const rows = [
+  makeBedRow({ id: 0 }),
+  makeBedRow({ id: 11, chromosome: "2B", sign: "-" }),
+  makeBedRow({ id: 2, sign: "-" }),
+  makeBedRow({ id: 3, chromosome: "3D" }),
+];
 const cache = packParsed(rows);
 
 describe("packParsed", () => {
@@ -28,7 +31,10 @@ describe("packParsed", () => {
   });
 
   it("preserves id, p1, p2", () => {
-    const cache = packParsed([row(7, "1A", "+", 100, 200), row(42, "2B", "-", 300, 400)]);
+    const cache = packParsed([
+      makeBedRow({ id: 7, p1: 100 }),
+      makeBedRow({ id: 42, chromosome: "2B", sign: "-", p1: 300 }),
+    ]);
     expect(Array.from(cache.ids)).toEqual([7, 42]);
     expect(Array.from(cache.p1)).toEqual([100, 300]);
     expect(Array.from(cache.p2)).toEqual([200, 400]);

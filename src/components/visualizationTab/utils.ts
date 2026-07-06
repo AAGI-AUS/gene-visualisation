@@ -554,6 +554,7 @@ const PREDICTING_OVERRIDES: Record<string, Record<string, number | { lo: number;
 export const getPredictingRange = (chr: string, label: string) => {
   const override = PREDICTING_OVERRIDES[chr]?.[label];
   if (typeof override === "object") return override;
+
   const mid = override ?? CHR_DEFAULT_MID[chr] ?? 300;
   return { lo: mid - PREDICT_HALF_WINDOW_MBP, hi: mid + PREDICT_HALF_WINDOW_MBP };
 };
