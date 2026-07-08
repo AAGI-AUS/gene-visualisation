@@ -542,6 +542,7 @@ const CHR_DEFAULT_MID: Record<string, number> = {
 // an object replaces the whole {lo, hi} window verbatim.
 const PREDICTING_OVERRIDES: Record<string, Record<string, number | { lo: number; hi: number }>> = {
   "2B": { paragon: { lo: 355, hi: 365 } },
+  "2D": { spelt: 260 },
   "4A": { cs: 250 },
   "4B": { norin61: { lo: 305, hi: 335 }, landmark: { lo: 255, hi: 285 }, spelt: 270 },
   "4D": { spelt: { lo: 200, hi: 205 } },
