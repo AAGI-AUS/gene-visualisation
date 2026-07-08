@@ -16,11 +16,7 @@ const App = () => {
   return (
     <div className={styles.app}>
       <header className={styles.topbar}>
-        <span className={styles.topbarLogo}>◈ BED SYNTENY</span>
-        <span className={styles.topbarSep}>│</span>
-        <span>GENOMIC COMPARISON TOOL</span>
-        <span className={styles.topbarSep}>│</span>
-        <span>v1.0</span>
+        <h1 className={styles.topbarLogo}>Synteny Graph Builder</h1>
       </header>
 
       <div className={styles.main}>
