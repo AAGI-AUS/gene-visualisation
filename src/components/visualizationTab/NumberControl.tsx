@@ -6,6 +6,7 @@ interface NumberControlProps
   label: string;
   onChange: (n: number) => void;
   fallback?: number;
+  onEmpty?: () => void;
   width?: number;
   min?: number;
   unit?: string;
@@ -17,6 +18,7 @@ export const NumberControl = ({
   width = 45,
   min = 0,
   fallback = min,
+  onEmpty,
   unit,
   ...rest
 }: NumberControlProps) => (
@@ -28,6 +30,7 @@ export const NumberControl = ({
       className={styles.controlInput}
       type="number"
       onChange={(e) => {
+        if (e.target.value === "" && onEmpty) return onEmpty();
         const parsed = parseFloat(e.target.value);
         onChange(Number.isNaN(parsed) ? fallback : parsed);
       }}
