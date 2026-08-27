@@ -24,6 +24,10 @@
   --text-dim: #64748b;
   --muted: #94a3b8;
 
+  /* Help bubbles */
+  --help-bg: #1e293b;
+  --help-text: #f1f5f9;
+
   /* Accents */
   --green: #00808b;
   --green-dim: #90ee90;
@@ -66,6 +70,80 @@ button {
 
 * {
   font-family: var(--mono);
+}
+
+/* ── Hover help bubbles (attributes come from src/help.ts) ── */
+[data-help] {
+  position: relative;
+  cursor: help;
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+
+[data-help]::before,
+[data-help]::after {
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+[data-help]::after {
+  content: attr(data-help);
+  position: absolute;
+  top: calc(100% + 8px);
+  width: max-content;
+  max-width: var(--help-max-w, 260px);
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  background: var(--help-bg);
+  color: var(--help-text);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  box-shadow: 0 1px 5px var(--shadow-mid);
+}
+
+[data-help]::before {
+  content: "";
+  position: absolute;
+  top: calc(100% - 1px);
+  border: 5px solid transparent;
+  border-bottom-color: var(--help-bg);
+}
+
+[data-help][data-help-align="start"]::after {
+  left: 0;
+}
+
+[data-help][data-help-align="start"]::before {
+  left: 12px;
+}
+
+[data-help][data-help-align="center"]::after,
+[data-help][data-help-align="center"]::before {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+[data-help][data-help-align="end"]::after {
+  right: 0;
+}
+
+[data-help][data-help-align="end"]::before {
+  right: 12px;
+}
+
+/* Mouse hover, or keyboard focus when the label itself is focusable */
+[data-help]:hover::before,
+[data-help]:hover::after,
+[data-help]:focus-visible::before,
+[data-help]:focus-visible::after {
+  visibility: visible;
 }
 
 /* Scrollbar */

@@ -58,6 +58,46 @@ export const OTHERS_LABEL: Record<OthersMode, string> = {
   show: "Show all",
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Hover help (see src/help.ts); an empty string renders no bubble
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const HELP = {
+  // Sidebar parameters
+  selectedChr: "",
+  groupThreshold:
+    "Query chromosomes holding this share or less of the genes are hidden. Higher = more chromosomes hidden.",
+  workerCount: "Number of CPU cores used. Higher = more CPU and RAM used.",
+
+  // Visualization toolbar
+  gapBp: "Genes further apart than this on the base start a new block. Higher = fewer, longer blocks.",
+  hiddenThreshold: "blocks with this many genes or fewer are hidden. Higher = fewer blocks drawn.",
+  stripBlankMbp:
+    "Largest leading blank kept when snapping a chromosome to the shared axis; wider blanks are trimmed instead. Higher = fewer trims, 0 = never trim.",
+  othersMode:
+    "Query chromosomes collapsed by the group threshold. Cycles hide → group into one slot → show every chromosome.",
+  commonOnly: "Keep only genes present in every query file.",
+  denoise: "Drop genes that survive blocking in some queries but not all.",
+  sharedAxis: "Give each chromosome one bp scale across all rows.",
+  boundaryTicks: "Label the axis at every row boundary instead of only the bottom row.",
+  showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
+  fontSize: "",
+  svgW: "",
+
+  intraRelabel:
+    "Relabel same-chromosome blocks to translocation where query position offset disagrees with the surrounding backbone.",
+  minLocalEvents: "Minimum genes around a region to be taken as its local backbone. Higher = wider backbone.",
+  gapStopMbp:
+    "The backbone stops at the first gap this wide. Higher = crossing bigger gaps for a distant reference.",
+  driftK:
+    "How far a block must drift from the local backbone to be re-labelled (0-1, after normalising). Higher = fewer re-labels.",
+  complexMin:
+    "Distinct score groups in a region before its chromosome gets another relabel pass. Higher = fewer passes.",
+
+  // Summary tab
+  coreOverride: "Override the computed genome-wide core fraction on the overall bar. Empty = computed.",
+};
+
 export const LINE_MAPPING = {
   "Chinese Spring (dataset 1)a": "cs",
   "Chinese Spring (dataset 2)a": "cs",
