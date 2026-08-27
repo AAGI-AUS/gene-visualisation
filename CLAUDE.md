@@ -28,6 +28,7 @@ src/
 ├── icons.tsx                 react-icons re-exports
 ├── constants.ts              layout constants, ChunkEvent colors, CHR_PALETTE, OthersMode, LINE_MAPPING
 ├── utils.ts                  parseBED, parseCentromere, queryGene, fileToText, getChromosomes
+├── help.ts                   helpProps / helpLabelProps for CSS-only hover help bubbles
 ├── global.css, App.module.css
 ├── components/
 │   ├── sideBar/              Sidebar (root), InputFiles (drag-drop + reorder), Parameters, FileSlot, DropZone
@@ -74,6 +75,17 @@ Keep parsing/analysis in `useAppStore` and hover/sizing/tooltip in `useVisualiza
 - Chromosome colors come from cycling `CHR_PALETTE` deterministically via `buildPalette` so renders stay stable across analyses.
 - Default to no comments; identifiers are descriptive. CSS lives in colocated `*.module.css` files.
 - Tests live next to source as `*.test.ts` (`src/utils.test.ts`, `src/store/utils.test.ts`, `src/components/visualizationTab/{utils,batchExport}.test.ts`). CI runs `yarn test --coverage --watchAll=false` and uploads to Codecov. Add tests next to the module you touch; don't introduce a separate `__tests__/` tree.
+
+## Hover help
+
+Control tooltips are CSS-only: `helpProps(text, align?)` from `src/help.ts` puts `data-help` / `data-help-align` on an element, and `global.css` draws the bubble with `[data-help]::after` plus a `::before` arrow. No JS, no state, nothing to inline for `build-one`.
+
+- Text lives in the `HELP` map in `constants.ts`, keyed by store field. An empty string renders no bubble, so unwritten entries are inert.
+- Spread `helpProps` onto the **label text only**, never the whole control - hovering a unit suffix or an input shouldn't trigger it.
+- `NumberControl` and `ToggleButton` take optional `help` / `helpAlign`; anywhere else (sidebar `thresholdRow`s), wrap the label text in a `<span>` and spread it there.
+- `align` is `"start"` (default) / `"center"` / `"end"` - use `"end"` for anything in `rightCluster` so the bubble doesn't run off-screen.
+- The bubble opens downward and its width is capped by `--help-max-w` (260px default, 185px on sidebar `.thresholdRow` since the sidebar clips horizontally).
+- Bubbles are DOM, not SVG, so they never reach SVG/PNG export.
 
 ## Shared-axis tick lines
 

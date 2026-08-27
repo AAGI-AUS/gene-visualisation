@@ -5,7 +5,7 @@ import type { SummaryChunk } from "@/src/store/useAppStore";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { exportSvg } from "@/src/components/visualizationTab/utils";
 import { NumberControl } from "@/src/components/visualizationTab/NumberControl";
-import { FONT } from "@/src/constants";
+import { FONT, HELP } from "@/src/constants";
 import { SVGText } from "@/src/components/base/svg";
 
 const BAR_W = 44;
@@ -115,14 +115,16 @@ export const SummaryTab = () => {
             step={10}
             min={10}
             width={55}
+            help={HELP.gapBp}
           />
           <NumberControl
             label="Hidden threshold"
             unit="genes"
             value={hiddenThreshold}
             onChange={setHiddenThreshold}
+            help={HELP.hiddenThreshold}
           />
-          <NumberControl label="Font" value={fontSize} onChange={setFontSize} min={6} />
+          <NumberControl label="Font" value={fontSize} onChange={setFontSize} min={6} help={HELP.fontSize} />
           <NumberControl
             label="Core fraction"
             value={coreOverride ?? ""}
@@ -131,6 +133,7 @@ export const SummaryTab = () => {
             step={0.1}
             max={1}
             width={55}
+            help={HELP.coreOverride}
           />
         </div>
         <button

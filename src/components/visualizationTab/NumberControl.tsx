@@ -1,5 +1,7 @@
 import type { InputHTMLAttributes } from "react";
 import styles from "./VisualizationTab.module.css";
+import type { HelpAlign } from "@/src/help";
+import { helpProps } from "@/src/help";
 
 interface NumberControlProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "onChange" | "className" | "style"> {
@@ -10,6 +12,8 @@ interface NumberControlProps
   width?: number;
   min?: number;
   unit?: string;
+  help?: string;
+  helpAlign?: HelpAlign;
 }
 
 export const NumberControl = ({
@@ -20,10 +24,14 @@ export const NumberControl = ({
   fallback = min,
   onEmpty,
   unit,
+  help,
+  helpAlign,
   ...rest
 }: NumberControlProps) => (
   <div className={styles.controlGroup}>
-    <span className={styles.controlLabel}>{label}</span>
+    <span className={styles.controlLabel} {...helpProps(help, helpAlign)}>
+      {label}
+    </span>
     <input
       {...rest}
       min={min}
