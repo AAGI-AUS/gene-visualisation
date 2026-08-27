@@ -49,6 +49,7 @@ export const SummaryTab = () => {
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [chunksByChr, setChunksByChr] = useState<Record<string, SummaryChunk[]>>({});
+  const [coreOverride, setCoreOverride] = useState<number | null>(null);
 
   // Each bar scales independently: that chromosome's own max bp (from the base
   // BED file) sits at the top of its bar.
@@ -96,6 +97,7 @@ export const SummaryTab = () => {
     maxBpSum += chrMaxBp[chr] || 0;
   }
   const overallCore = maxBpSum > 0 ? Math.min(coreBpSum / maxBpSum, 1) : 0;
+  const displayCore = coreOverride ?? overallCore;
 
   const overallX = barsRight + OVERALL_GAP;
   const width = Math.max(overallX + OVERALL_BAR_W + PAD_X, GRAD_W + 80);
@@ -121,6 +123,15 @@ export const SummaryTab = () => {
             onChange={setHiddenThreshold}
           />
           <NumberControl label="Font" value={fontSize} onChange={setFontSize} min={6} />
+          <NumberControl
+            label="Core fraction"
+            value={coreOverride ?? ""}
+            onChange={(n) => setCoreOverride(Math.min(Math.max(n, 0), 1))}
+            onEmpty={() => setCoreOverride(null)}
+            step={0.1}
+            max={1}
+            width={55}
+          />
         </div>
         <button
           className={styles.exportBtn}
@@ -139,7 +150,6 @@ export const SummaryTab = () => {
 
             <CoreDensityLegend width={width} fontSize={fontSize} />
             <PercentCoreAxis fontSize={fontSize} />
-
             {chromosomes.map((chr, k) => (
               <SummaryBar
                 key={chr}
@@ -151,7 +161,7 @@ export const SummaryTab = () => {
               />
             ))}
 
-            {!computing && <OverallBar x={overallX} coreFraction={overallCore} fontSize={fontSize} />}
+            {!computing && <OverallBar x={overallX} coreFraction={displayCore} fontSize={fontSize} />}
           </svg>
 
           {computing && (
