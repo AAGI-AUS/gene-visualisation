@@ -70,7 +70,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
     complexMin: 2,
   },
   boundaryTicks: false,
-  showMarks: true,
+  showMarks: false,
   stripBlankMbp: 300,
   svgW: 900,
   fontSize: 11,
