@@ -14,6 +14,17 @@ contiguous rows into chunks, and draws ribbons between chromosome bars.
 - `yarn build-one`: single self-contained HTML in `dist/` with CSS/JS inlined (requires the Python helper, see below)
 - `yarn test`: run the Jest suite (append `--coverage` for a coverage report)
 
+## Example data
+
+`examples/` holds a synthetic set: `base.bed` plus four query files, one per
+event type (synteny, inversion, intra-chromosomal translocation,
+inter-chromosomal translocation). Load `base.bed` as the base and all four
+queries, keep chromosome `1A`, and leave the parameters at their defaults.
+`examples/README.md` describes how each file was built and what it should draw.
+
+Every release also ships `examples.zip` alongside the single-file HTML, so a
+download of the app comes with data to open in it.
+
 ## `yarn build-one` prerequisites
 
 `build-one` runs `./touch-up.py` between the CRA build and the webpack inlining
