@@ -81,7 +81,7 @@ Keep parsing/analysis in `useAppStore` and hover/sizing/tooltip in `useVisualiza
 Control tooltips are CSS-only: `helpProps(text, align?)` from `src/help.ts` puts `data-help` / `data-help-align` on an element, and `global.css` draws the bubble with `[data-help]::after` plus a `::before` arrow. No JS, no state, nothing to inline for `build-one`.
 
 - Text lives in the `HELP` map in `constants.ts`, keyed by store field. An empty string renders no bubble, so unwritten entries are inert.
-- Spread `helpProps` onto the **label text only**, never the whole control - hovering a unit suffix or an input shouldn't trigger it.
+- Spread `helpProps` onto the label text only, never the whole control - hovering a unit suffix or an input shouldn't trigger it.
 - `NumberControl` and `ToggleButton` take optional `help` / `helpAlign`; anywhere else (sidebar `thresholdRow`s), wrap the label text in a `<span>` and spread it there.
 - `align` is `"start"` (default) / `"center"` / `"end"` - use `"end"` for anything in `rightCluster` so the bubble doesn't run off-screen.
 - The bubble opens downward and its width is capped by `--help-max-w` (260px default, 185px on sidebar `.thresholdRow` since the sidebar clips horizontally).
@@ -91,22 +91,22 @@ Control tooltips are CSS-only: `helpProps(text, align?)` from `src/help.ts` puts
 
 When `sharedAxis` is on, `CoordinateGrid` draws ribbon-style polylines, not straight verticals - one segment per pair, each segment computed with the same `bpToPx` logic ribbons use:
 
-- `xTop = bpToPx(baseBar_chr, bp)` against the pair's **base** bar.
-- `xBottom = bpToPx(queryBar_chr, bp)` against the pair's **query** bar.
+- `xTop = bpToPx(baseBar_chr, bp)` against the pair's base bar.
+- `xBottom = bpToPx(queryBar_chr, bp)` against the pair's query bar.
 - Segment slants inside a pair when base/query bar positions differ; pair P's `xBottom` and pair P+1's `xTop` share the same track data, so segments meet at pair boundaries.
-- Ticks step in **absolute bp** (`Math.ceil(max(p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP …`), not offsets - label `"100M"` always means absolute bp 100M.
+- Ticks step in absolute bp (`Math.ceil(max(p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP …`), not offsets - label `"100M"` always means absolute bp 100M.
 - A chr renders ticks only when it's in both `baseBars` and `queryBars` of the pair; tick range is bounded by `min(base+baseExtent, query+queryExtent)` so neither endpoint clamps.
 
-Per-pair bars are placed with a running cursor in `buildBaseRow` / `buildQueryRow` (utils.ts), so the same chr's `bar.px` can differ between rows if preceding chrs differ in width. That's why ticks sometimes need to slant rather than being strictly vertical.
+Per-pair bars are placed with a running cursor in `buildBaseRow` / `buildQueryRow` (utils.ts), so the same chr's `bar.px` can differ between rows if preceding chrs differ in width, which is what makes ticks slant instead of running straight down.
 
 ## Build pipeline notes
 
-`build-one` is the unusual path: CRA build → `touch-up.py` (post-processes the build output) → `webpack.config.js` runs `HtmlBundlerPlugin` to inline everything into one `dist/index.html`. If a change breaks the single-file build but works in `yarn dev`, suspect the inlining step (asset URLs, dynamic imports, web workers).
+`build-one` runs three steps: CRA build → `touch-up.py` (post-processes the build output) → `webpack.config.js` runs `HtmlBundlerPlugin` to inline everything into one `dist/index.html`. If a change breaks the single-file build but works in `yarn dev`, suspect the inlining step (asset URLs, dynamic imports, web workers).
 
 ## Pre-commit
 
 Husky runs `lint-staged`: prettier on html/ts/css/tsx, eslint --fix on ts/tsx. Don't bypass with `--no-verify` - fix the lint instead.
 
-## Commit Guidelines
+## Commit guidelines
 
 Use Conventional Commits (e.g., feat:, fix:, docs:, test:, chore:). Keep messages imperative and scoped.
