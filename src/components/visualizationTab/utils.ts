@@ -11,7 +11,7 @@ import {
   TICK_TARGET_EM,
   TICK_TARGET_PX,
 } from "@/src/constants";
-import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
+import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot, Tick } from "@/types";
 import { clamp, closeTo } from "@/src/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -335,6 +335,63 @@ export const formatBpLabel = (bp: number): string => {
   if (!unit) return `${Math.round(bp)}`;
   const scaled = (bp / unit.div).toFixed(3);
   return `${scaled.replace(/\.?0+$/, "")}${unit.suffix}`;
+};
+
+export const MAX_TICK_OFFSET_FRAC = 0.1;
+const MAX_TICKS_PER_BAR = 1000;
+
+const inRange = (bar: ChrBar, bp: number) => bp >= bar.p1 && bp <= bar.p1 + bar.bpLen;
+
+const barTicks = (bar: ChrBar, stepBp: number): { bp: number; x: number }[] => {
+  const startBp = Math.ceil(bar.p1 / stepBp) * stepBp;
+  const count = Math.min(Math.floor((bar.p1 + bar.bpLen - startBp) / stepBp) + 1, MAX_TICKS_PER_BAR);
+  const out: { bp: number; x: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const bp = startBp + i * stepBp;
+    out.push({ bp, x: bpToPx(bar, bp) });
+  }
+  return out;
+};
+
+// Ticks come from each bar's own extent, then pair up by chr + bp: a bp on both sides can carry a
+// connector, one on a single side still carries a mark and a label on that side.
+export const collectTicks = (
+  baseBars: ChrBar[],
+  queryBars: ChrBar[],
+  stepBp: number,
+  connect: boolean
+): Tick[] => {
+  const baseByChr = new Map(baseBars.map((b) => [b.chr, b]));
+  const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
+  const out: Tick[] = [];
+
+  for (const baseBar of baseBars) {
+    const queryBar = queryByChr.get(baseBar.chr);
+    for (const { bp, x } of barTicks(baseBar, stepBp)) {
+      const pairedBar = queryBar && inRange(queryBar, bp) ? queryBar : undefined;
+      const xBottom = pairedBar ? bpToPx(pairedBar, bp) : undefined;
+      const pw = pairedBar ? Math.min(baseBar.pw, pairedBar.pw) : baseBar.pw;
+      const drawLine =
+        connect && xBottom !== undefined && (pw <= 0 || Math.abs(x - xBottom) / pw <= MAX_TICK_OFFSET_FRAC);
+      out.push({ xTop: x, xBottom, label: formatBpLabel(bp), key: `${baseBar.chr}-${bp}`, drawLine, pw });
+    }
+  }
+
+  for (const queryBar of queryBars) {
+    const baseBar = baseByChr.get(queryBar.chr);
+    for (const { bp, x } of barTicks(queryBar, stepBp)) {
+      if (baseBar && inRange(baseBar, bp)) continue;
+      out.push({
+        xBottom: x,
+        label: formatBpLabel(bp),
+        key: `${queryBar.chr}-${bp}`,
+        drawLine: false,
+        pw: queryBar.pw,
+      });
+    }
+  }
+
+  return out;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

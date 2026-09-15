@@ -76,6 +76,16 @@ export interface QueryRow {
   y: number;
 }
 
+/** One shared-axis tick of a pair. `xTop`/`xBottom` are absent where that row has no such bp. */
+export interface Tick {
+  xTop?: number;
+  xBottom?: number;
+  label: string;
+  key: string;
+  drawLine: boolean;
+  pw: number;
+}
+
 export type QuerySlotLookup = {
   others: {
     left: OthersBar;

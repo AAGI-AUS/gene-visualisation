@@ -6,6 +6,7 @@ import {
   buildQueryRow,
   chunkRows,
   collectNoisyIds,
+  collectTicks,
   computeRibbons,
   findLargestGapCenter,
   formatBpLabel,
@@ -414,6 +415,63 @@ describe("formatBpLabel", () => {
   it("renders sub-kbp values as plain bp", () => {
     expect(formatBpLabel(0)).toBe("0");
     expect(formatBpLabel(250)).toBe("250");
+  });
+});
+
+describe("collectTicks", () => {
+  const bar = (chr: string, px: number, pw: number, p1: number, bpLen: number): ChrBar => ({
+    kind: "chr",
+    chr,
+    px,
+    pw,
+    bpLen,
+    p1,
+  });
+  const byKey = (ticks: ReturnType<typeof collectTicks>) => new Map(ticks.map((t) => [t.key, t]));
+
+  it("pairs a bp present on both rows and connects it", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, true);
+
+    expect(ticks.map((t) => t.key)).toEqual(["1A-0", "1A-100000000", "1A-200000000"]);
+    expect(ticks.every((t) => t.drawLine)).toBe(true);
+    expect(byKey(ticks).get("1A-100000000")).toMatchObject({ xTop: 100, xBottom: 100 });
+  });
+
+  it("emits a one-sided tick for a bp past the other row's bar, and for a chr it lacks", () => {
+    const ticks = collectTicks(
+      [bar("1A", 0, 200, 0, 2e8)],
+      [bar("1A", 0, 100, 0, 1e8), bar("2B", 103, 100, 0, 1e8)],
+      1e8,
+      true
+    );
+    const found = byKey(ticks);
+
+    // 200M is past the query bar's end, so it keeps a top x only.
+    expect(found.get("1A-200000000")).toMatchObject({ xTop: 200, xBottom: undefined, drawLine: false });
+    // 2B is missing from the base row, so its ticks carry a bottom x only.
+    expect(found.get("2B-0")).toMatchObject({ xBottom: 103, drawLine: false });
+    expect(found.get("2B-100000000")).toMatchObject({ xBottom: 203 });
+    expect(found.get("2B-0")?.xTop).toBeUndefined();
+  });
+
+  it("suppresses every connector when the rows are not on one scale", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, false);
+
+    expect(ticks.every((t) => t.drawLine)).toBe(false);
+    expect(ticks.every((t) => t.xTop !== undefined && t.xBottom !== undefined)).toBe(true);
+  });
+
+  it("suppresses a connector whose two ends drift too far apart", () => {
+    // the query bar starts 60px right of the base bar: 60 / 200 is well past MAX_TICK_OFFSET_FRAC.
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 60, 200, 0, 2e8)], 1e8, true);
+
+    expect(ticks.every((t) => t.drawLine)).toBe(false);
+  });
+
+  it("starts at the first step multiple inside the bar, not at its p1", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 1.2e8, 2e8)], [], 1e8, true);
+
+    expect(ticks.map((t) => t.label)).toEqual(["200M", "300M"]);
   });
 });
 

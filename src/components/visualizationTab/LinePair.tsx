@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
 import { CHROM_THICKNESS, PAD, ROW_GAP, SVG_H } from "@/src/constants";
-import type { Chunk, ChunkRibbon } from "@/types";
+import type { Chunk, ChunkRibbon, Tick } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { RibbonLayer } from "@/src/components/visualizationTab/RibbonLayer";
 import { BaseRowLayer, QueryRowLayer } from "@/src/components/visualizationTab/GenomeRowLayer";
@@ -15,13 +15,14 @@ interface LinePairProps {
   layout: VisualizationLayout;
   i: number;
   total: number;
-  nextLayout?: VisualizationLayout;
   prevSameScale?: boolean;
+  nextSameScale?: boolean;
   baseCentromere: Map<string, number[]>;
   queryCentromere: Map<string, number[]>;
   basePredicted: Map<string, number[]>;
   queryPredicted: Map<string, number[]>;
-  tickStepBp: number;
+  ticks: Tick[];
+  nextTicks: Tick[] | null;
 }
 
 const PREDICTED_COLOR = "blue";
@@ -30,13 +31,14 @@ export const LinePair = ({
   layout,
   i,
   total,
-  nextLayout,
   prevSameScale,
+  nextSameScale,
   baseCentromere,
   queryCentromere,
   basePredicted,
   queryPredicted,
-  tickStepBp,
+  ticks,
+  nextTicks,
 }: LinePairProps) => {
   const hoverChunk = useVisualizationStore((s) => s.hoverChunk);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
@@ -63,8 +65,13 @@ export const LinePair = ({
 
   const isFirst = i === 0;
   const isLast = i === total - 1;
-  // The base row starts a new scale run, so its ticks head an axis and belong above the bar.
+  // Every scale run is labelled at its last row, below the bar; boundaryTicks adds the rows between.
+  // A run that is one row wide takes the bottom placement only, so no row carries both label sets.
   const startsScale = isFirst || !prevSameScale;
+  const endsScale = !sameScale;
+  const nextEndsScale = isLast || !nextSameScale;
+  const labelsTop = isFirst || (boundaryTicks && startsScale && !endsScale);
+  const labelsBottom = nextEndsScale || (boundaryTicks && sameScale);
 
   return (
     <Group left={PAD.left} top={i * (CHROM_THICKNESS + ROW_GAP)}>
@@ -93,20 +100,13 @@ export const LinePair = ({
       )}
       {sharedAxis && (
         <CoordinateGrid
-          baseBars={baseRow.bars}
-          queryBars={queryRow.slots.filter((s) => s.kind === "chr")}
+          ticks={ticks}
+          nextTicks={nextTicks}
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
-          labelTopY={isFirst || (boundaryTicks && startsScale) ? baseRow.y - 6 : null}
-          labelBottomY={isLast || (boundaryTicks && sameScale) ? queryRow.y + CHROM_THICKNESS + 13 : null}
-          nextBaseBars={isLast || !boundaryTicks ? undefined : nextLayout?.baseRow.bars}
-          nextQueryBars={
-            isLast || !boundaryTicks ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
-          }
+          labelTopY={labelsTop ? baseRow.y - 6 : null}
+          labelBottomY={labelsBottom ? queryRow.y + CHROM_THICKNESS + 13 : null}
           fontSize={fontSize - 1}
-          stepBp={tickStepBp}
-          connect={sameScale}
-          nextConnect={nextLayout?.sameScale}
         />
       )}
     </Group>

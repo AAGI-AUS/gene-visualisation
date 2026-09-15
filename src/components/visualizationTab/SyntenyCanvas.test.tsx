@@ -40,6 +40,34 @@ const renderCanvas = (data: Result) => {
   return render(<SyntenyCanvas data={data} svgRef={svgRef} width={900} height={300} />);
 };
 
+// A translocated tail that puts a query-only 2B at 500-620M, breaking the shared scale.
+const twoBTail = [0, 1, 2].map((i) =>
+  makeTranslocationRow({
+    id: 10 + i,
+    chromosomeQuery: "2B",
+    groupedQuery: "2B",
+    p1Base: (200 + i * 40) * MBP,
+    p2Base: (240 + i * 40) * MBP,
+    p1Query: (500 + i * 40) * MBP,
+    p2Query: (540 + i * 40) * MBP,
+  })
+);
+
+const isTickLabel = (t: Element) => /^\d+(\.\d+)?[kMG]$/.test(t.textContent ?? "");
+
+const pairGroups = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll("svg > g")).filter((g) =>
+    g.getAttribute("transform")?.startsWith(`translate(${PAD.left},`)
+  );
+
+// Within a pair group, top labels sit above the base bar and bottom labels below the query bar.
+const labelSides = (g: Element) => {
+  const ys = Array.from(g.querySelectorAll("text"))
+    .filter(isTickLabel)
+    .map((t) => Number(t.getAttribute("y")));
+  return { top: ys.includes(PAD.top - 6), bottom: ys.some((y) => y > PAD.top) };
+};
+
 // Tick labels split into a top and a bottom run by their y; the smaller y is the base row's.
 const tickLabelsByRow = (container: HTMLElement) => {
   const labels = Array.from(container.querySelectorAll("text"))
@@ -113,19 +141,7 @@ describe("SyntenyCanvas", () => {
   });
 
   it("drops connectors when the rows carry different chrs, marking every tick instead", () => {
-    // 1A runs 0-200M on both sides; the translocated tail adds a query-only 2B at 500-620M.
-    const translocated = [0, 1, 2].map((i) =>
-      makeTranslocationRow({
-        id: 10 + i,
-        chromosomeQuery: "2B",
-        groupedQuery: "2B",
-        p1Base: (200 + i * 40) * MBP,
-        p2Base: (240 + i * 40) * MBP,
-        p1Query: (500 + i * 40) * MBP,
-        p2Query: (540 + i * 40) * MBP,
-      })
-    );
-    const { container } = renderCanvas([{ name: "q1.bed", rows: [...basePair.rows, ...translocated] }]);
+    const { container } = renderCanvas([{ name: "q1.bed", rows: [...basePair.rows, ...twoBTail] }]);
 
     const { top, bottom } = tickLabelsByRow(container);
     expect(bottom).toEqual(expect.arrayContaining(["500M", "600M"]));
@@ -147,37 +163,40 @@ describe("SyntenyCanvas", () => {
     }
   });
 
-  it("labels a new scale run above its bar, not below the row it broke from", () => {
-    // denoise would drop the pair-0-only ids that put 2B on the middle row.
-    useVisualizationStore.setState({ boundaryTicks: true, denoise: false });
-    const translocated = [0, 1, 2].map((i) =>
-      makeTranslocationRow({
-        id: 10 + i,
-        chromosomeQuery: "2B",
-        groupedQuery: "2B",
-        p1Base: (200 + i * 40) * MBP,
-        p2Base: (240 + i * 40) * MBP,
-        p1Query: (500 + i * 40) * MBP,
-        p2Query: (540 + i * 40) * MBP,
-      })
-    );
-    const { container } = renderCanvas([
-      { name: "q1.bed", rows: [...basePair.rows, ...translocated] },
+  describe("scale-run labels", () => {
+    // Four tracks: base{1A} | q1{1A,2B} | q2{1A} | q3{1A}, so the runs are [0], [1], [2,3].
+    const brokenThenPaired = (): Result => [
+      { name: "q1.bed", rows: [...basePair.rows, ...twoBTail] },
       { ...basePair, name: "q2.bed" },
-    ]);
+      { ...basePair, name: "q3.bed" },
+    ];
 
-    const pairGroups = Array.from(container.querySelectorAll("svg > g")).filter((g) =>
-      g.getAttribute("transform")?.startsWith(`translate(${PAD.left},`)
-    );
-    const tickYs = (g: Element) =>
-      Array.from(g.querySelectorAll("text"))
-        .filter((t) => /^\d+(\.\d+)?[kMG]$/.test(t.textContent ?? ""))
-        .map((t) => Number(t.getAttribute("y")));
+    it("heads a multi-row run above its bar and closes it below the last row", () => {
+      useVisualizationStore.setState({ boundaryTicks: true, denoise: false });
+      const sides = renderCanvas(brokenThenPaired()).container;
 
-    // 2B breaks the scale at pair 0, so pair 1's ticks head the new run above its base bar
-    // rather than hanging below pair 0's query bar.
-    expect(new Set(tickYs(pairGroups[0]))).toEqual(new Set([PAD.top - 6]));
-    expect(tickYs(pairGroups[1])).toEqual(expect.arrayContaining([PAD.top - 6]));
+      // run [2,3] heads above pair 2's base bar and closes below pair 2's query bar.
+      expect(labelSides(pairGroups(sides)[2])).toEqual({ top: true, bottom: true });
+    });
+
+    it("gives a one-row run the bottom placement only, never both", () => {
+      useVisualizationStore.setState({ boundaryTicks: true, denoise: false });
+      const groups = pairGroups(renderCanvas(brokenThenPaired()).container);
+
+      // run [1] is one row: pair 0 labels below it, and pair 1 adds nothing above it.
+      expect(labelSides(groups[0])).toEqual({ top: true, bottom: true });
+      expect(labelSides(groups[1])).toEqual({ top: false, bottom: false });
+    });
+
+    it("still closes every run with intra ticks off", () => {
+      useVisualizationStore.setState({ boundaryTicks: false, denoise: false });
+      const groups = pairGroups(renderCanvas(brokenThenPaired()).container);
+
+      // no run is left unlabelled: [0] heads the figure, [1] closes under pair 0, [2,3] under pair 2.
+      expect(labelSides(groups[0])).toEqual({ top: true, bottom: true });
+      expect(labelSides(groups[1])).toEqual({ top: false, bottom: false });
+      expect(labelSides(groups[2])).toEqual({ top: false, bottom: true });
+    });
   });
 
   it("stacks one Group per pair with the expected y offset and shares the middle row", () => {

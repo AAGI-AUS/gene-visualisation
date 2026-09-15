@@ -84,7 +84,8 @@ export const HELP = {
   sharedAxis: "Give each chromosome one bp scale across all rows.",
   tickIntervalMbp:
     "Spacing between shared-axis tick lines. 0 = pick a round spacing that fits the current width and font.",
-  boundaryTicks: "Label the axis at every row boundary instead of only the bottom row.",
+  boundaryTicks:
+    "Label the axis at every row boundary. Off, only the last row of each shared scale is labelled.",
   showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
   fontSize: "",
   svgW: "",
