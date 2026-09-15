@@ -16,6 +16,7 @@ interface LinePairProps {
   i: number;
   total: number;
   nextLayout?: VisualizationLayout;
+  prevSameScale?: boolean;
   baseCentromere: Map<string, number[]>;
   queryCentromere: Map<string, number[]>;
   basePredicted: Map<string, number[]>;
@@ -30,6 +31,7 @@ export const LinePair = ({
   i,
   total,
   nextLayout,
+  prevSameScale,
   baseCentromere,
   queryCentromere,
   basePredicted,
@@ -46,7 +48,7 @@ export const LinePair = ({
   const palette = useAppStore((s) => s.palette);
   const batching = useAppStore((s) => s.batching);
 
-  const { baseRow, queryRow, ribbons, y1bot, y2top } = layout;
+  const { baseRow, queryRow, ribbons, y1bot, y2top, sameScale } = layout;
 
   const onMove = useCallback(
     (_e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => {
@@ -61,6 +63,8 @@ export const LinePair = ({
 
   const isFirst = i === 0;
   const isLast = i === total - 1;
+  // The base row starts a new scale run, so its ticks head an axis and belong above the bar.
+  const startsScale = isFirst || !prevSameScale;
 
   return (
     <Group left={PAD.left} top={i * (CHROM_THICKNESS + ROW_GAP)}>
@@ -93,14 +97,16 @@ export const LinePair = ({
           queryBars={queryRow.slots.filter((s) => s.kind === "chr")}
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
-          labelTopY={isFirst ? baseRow.y - 6 : null}
-          labelBottomY={isLast || boundaryTicks ? queryRow.y + CHROM_THICKNESS + 13 : null}
+          labelTopY={isFirst || (boundaryTicks && startsScale) ? baseRow.y - 6 : null}
+          labelBottomY={isLast || (boundaryTicks && sameScale) ? queryRow.y + CHROM_THICKNESS + 13 : null}
           nextBaseBars={isLast || !boundaryTicks ? undefined : nextLayout?.baseRow.bars}
           nextQueryBars={
             isLast || !boundaryTicks ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
           }
           fontSize={fontSize - 1}
           stepBp={tickStepBp}
+          connect={sameScale}
+          nextConnect={nextLayout?.sameScale}
         />
       )}
     </Group>

@@ -30,7 +30,7 @@ const barTicks = (bar: ChrBar, stepBp: number): { bp: number; x: number }[] => {
 
 // Ticks come from each bar's own extent, then pair up by chr + bp: a bp on both sides can carry a
 // connector, one on a single side still carries a mark and a label on that side.
-const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[], stepBp: number): Tick[] => {
+const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[], stepBp: number, connect: boolean): Tick[] => {
   const baseByChr = new Map(baseBars.map((b) => [b.chr, b]));
   const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
   const out: Tick[] = [];
@@ -41,7 +41,8 @@ const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[], stepBp: number): 
       const pairedBar = queryBar && inRange(queryBar, bp) ? queryBar : undefined;
       const xBottom = pairedBar ? bpToPx(pairedBar, bp) : undefined;
       const pw = pairedBar ? Math.min(baseBar.pw, pairedBar.pw) : baseBar.pw;
-      const drawLine = xBottom !== undefined && (pw <= 0 || Math.abs(x - xBottom) / pw <= MAX_TICK_OFFSET_FRAC);
+      const drawLine =
+        connect && xBottom !== undefined && (pw <= 0 || Math.abs(x - xBottom) / pw <= MAX_TICK_OFFSET_FRAC);
       out.push({ xTop: x, xBottom, label: formatBpLabel(bp), key: `${baseBar.chr}-${bp}`, drawLine, pw });
     }
   }
@@ -112,12 +113,15 @@ export const CoordinateGrid = ({
   labelBottomY,
   fontSize,
   stepBp,
+  connect,
+  nextConnect,
   nextBaseBars,
   nextQueryBars,
 }: CoordinateGridProps) => {
-  const ticks = collectTicks(baseBars, queryBars, stepBp);
+  const ticks = collectTicks(baseBars, queryBars, stepBp, connect);
   if (!ticks.length) return null;
-  const nextTicks = nextBaseBars && nextQueryBars ? collectTicks(nextBaseBars, nextQueryBars, stepBp) : null;
+  const nextTicks =
+    nextBaseBars && nextQueryBars ? collectTicks(nextBaseBars, nextQueryBars, stepBp, !!nextConnect) : null;
   const bottomTicks = labelBottomY !== null ? bottomLabelTicks(ticks, nextTicks) : [];
   return (
     <g fontSize={fontSize}>
@@ -168,6 +172,9 @@ interface CoordinateGridProps {
   labelBottomY: number | null;
   fontSize: number;
   stepBp: number;
+  // Connectors are drawn only between rows on the same scale; a scale break gets marks and labels.
+  connect: boolean;
+  nextConnect?: boolean;
   nextBaseBars?: ChrBar[];
   nextQueryBars?: ChrBar[];
 }

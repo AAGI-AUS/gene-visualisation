@@ -20,6 +20,7 @@ export interface VisualizationLayout {
   ribbons: ChunkRibbon[];
   y1bot: number;
   y2top: number;
+  sameScale: boolean;
 }
 
 export interface PairInput {
@@ -227,10 +228,11 @@ export const computeVisualizationLayout = (
   // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
   // unify bounds within each group, then extend chrMin out to the global unified min unless
   // stripBlankBp would cut a leading blank. chrMax stays at group-max.
+  const groupOf = partitionTracksByChrSet(tracks);
+
   const finalAxes: Track[] = (() => {
     if (!sharedAxis) return tracks;
 
-    const groupOf = partitionTracksByChrSet(tracks);
     const { groupChrMin, groupChrMax } = computeGroupBounds(tracks, groupOf);
     const groupFinalChrMin = applyGlobalExtension(groupChrMin, unifiedAxis.chrMin, stripBlankBp);
 
@@ -291,7 +293,7 @@ export const computeVisualizationLayout = (
     const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
     const y2top = queryRow.y - RIBBON_GAP;
 
-    return { baseRow, queryRow, ribbons, y1bot, y2top };
+    return { baseRow, queryRow, ribbons, y1bot, y2top, sameScale: groupOf[p] === groupOf[p + 1] };
   });
 };
 

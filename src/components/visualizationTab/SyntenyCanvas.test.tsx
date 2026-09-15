@@ -112,7 +112,7 @@ describe("SyntenyCanvas", () => {
     }
   });
 
-  it("labels ticks on a query chr the base row doesn't carry, with marks instead of connectors", () => {
+  it("drops connectors when the rows carry different chrs, marking every tick instead", () => {
     // 1A runs 0-200M on both sides; the translocated tail adds a query-only 2B at 500-620M.
     const translocated = [0, 1, 2].map((i) =>
       makeTranslocationRow({
@@ -131,10 +131,53 @@ describe("SyntenyCanvas", () => {
     expect(bottom).toEqual(expect.arrayContaining(["500M", "600M"]));
     expect(top).not.toEqual(expect.arrayContaining(["500M", "600M"]));
 
-    // 1A lines up on both rows, so those ticks keep their connector; 2B's can only be marks.
-    expect(container.querySelectorAll('line[stroke-dasharray="5 3"]').length).toBeGreaterThan(0);
+    // 2B puts the rows on different scales, so nothing connects and every tick gets a mark.
+    expect(container.querySelectorAll('line[stroke-dasharray="5 3"]')).toHaveLength(0);
     const marks = container.querySelectorAll('line[stroke-width="0.5"]:not([stroke-dasharray])');
-    expect(marks.length).toBe(3);
+    expect(marks.length).toBe(9);
+  });
+
+  it("keeps connectors between rows that carry the same chrs", () => {
+    const { container } = renderCanvas([basePair, { ...basePair, name: "q2.bed" }]);
+
+    const connectors = container.querySelectorAll('line[stroke-dasharray="5 3"]');
+    expect(connectors.length).toBe(6);
+    for (const line of connectors) {
+      expect(Number(line.getAttribute("x1"))).toBeCloseTo(Number(line.getAttribute("x2")), 5);
+    }
+  });
+
+  it("labels a new scale run above its bar, not below the row it broke from", () => {
+    // denoise would drop the pair-0-only ids that put 2B on the middle row.
+    useVisualizationStore.setState({ boundaryTicks: true, denoise: false });
+    const translocated = [0, 1, 2].map((i) =>
+      makeTranslocationRow({
+        id: 10 + i,
+        chromosomeQuery: "2B",
+        groupedQuery: "2B",
+        p1Base: (200 + i * 40) * MBP,
+        p2Base: (240 + i * 40) * MBP,
+        p1Query: (500 + i * 40) * MBP,
+        p2Query: (540 + i * 40) * MBP,
+      })
+    );
+    const { container } = renderCanvas([
+      { name: "q1.bed", rows: [...basePair.rows, ...translocated] },
+      { ...basePair, name: "q2.bed" },
+    ]);
+
+    const pairGroups = Array.from(container.querySelectorAll("svg > g")).filter((g) =>
+      g.getAttribute("transform")?.startsWith(`translate(${PAD.left},`)
+    );
+    const tickYs = (g: Element) =>
+      Array.from(g.querySelectorAll("text"))
+        .filter((t) => /^\d+(\.\d+)?[kMG]$/.test(t.textContent ?? ""))
+        .map((t) => Number(t.getAttribute("y")));
+
+    // 2B breaks the scale at pair 0, so pair 1's ticks head the new run above its base bar
+    // rather than hanging below pair 0's query bar.
+    expect(new Set(tickYs(pairGroups[0]))).toEqual(new Set([PAD.top - 6]));
+    expect(tickYs(pairGroups[1])).toEqual(expect.arrayContaining([PAD.top - 6]));
   });
 
   it("stacks one Group per pair with the expected y offset and shares the middle row", () => {

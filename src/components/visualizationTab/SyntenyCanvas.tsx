@@ -88,6 +88,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
           i={i}
           total={layouts.length}
           nextLayout={layouts[i + 1]}
+          prevSameScale={layouts[i - 1]?.sameScale}
           baseCentromere={i === 0 ? getCentromere(centromere, baseLabel) : EMPTY_POSITIONS}
           queryCentromere={getCentromere(centromere, pairs[i].queryLabel)}
           basePredicted={predictedPerPair[i].basePredicted}
