@@ -1,6 +1,16 @@
 import type { QuerySlotLookup, ResultRow } from "@/types";
 import type { ChunkEvent, OthersMode } from "@/src/constants";
-import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
+import {
+  CHR_GAP_PX,
+  CHROM_THICKNESS,
+  DEFAULT_TICK_STEP_BP,
+  MAX_TICKS_PER_CHR,
+  OTHERS_W,
+  PAD,
+  ROW_GAP,
+  TICK_TARGET_EM,
+  TICK_TARGET_PX,
+} from "@/src/constants";
 import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
 import { clamp, closeTo } from "@/src/utils";
 
@@ -323,6 +333,51 @@ export const buildQueryRow = (
   }
 
   return { label, slots, y };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Axis ticks
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
+
+export const niceTickStep = (rawBp: number): number => {
+  const magnitude = 10 ** Math.floor(Math.log10(rawBp));
+  const normalized = rawBp / magnitude;
+  const multiple = TICK_MULTIPLES.find((m) => normalized <= m) ?? 10;
+  return multiple * magnitude;
+};
+
+export const resolveTickStepBp = (bars: ChrBar[], fontSize: number, manualMbp: number): number => {
+  if (manualMbp > 0) return manualMbp * 1e6;
+
+  let pxPerBp = Infinity;
+  let widestBpLen = 0;
+  for (const bar of bars) {
+    if (bar.pw <= 0 || bar.bpLen <= 0) continue;
+    const ratio = bar.pw / bar.bpLen;
+    if (ratio < pxPerBp) pxPerBp = ratio;
+    const span = bar.dataBpLen ?? bar.bpLen;
+    if (span > widestBpLen) widestBpLen = span;
+  }
+  if (!isFinite(pxPerBp)) return DEFAULT_TICK_STEP_BP;
+
+  const bySpacing = Math.max(TICK_TARGET_PX, TICK_TARGET_EM * fontSize) / pxPerBp;
+  const byCount = widestBpLen / MAX_TICKS_PER_CHR;
+  return niceTickStep(Math.max(bySpacing, byCount));
+};
+
+const BP_UNITS = [
+  { div: 1e9, suffix: "G" },
+  { div: 1e6, suffix: "M" },
+  { div: 1e3, suffix: "k" },
+];
+
+export const formatBpLabel = (bp: number): string => {
+  const unit = BP_UNITS.find((u) => Math.abs(bp) >= u.div);
+  if (!unit) return `${Math.round(bp)}`;
+  const scaled = (bp / unit.div).toFixed(3);
+  return `${scaled.replace(/\.?0+$/, "")}${unit.suffix}`;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

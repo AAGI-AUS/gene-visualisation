@@ -43,7 +43,10 @@ export const CHR_GAP_PX = 3;
 export const OTHERS_W = 24;
 export const TOOLTIP_SPACING = 233;
 export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD.bottom;
-export const TICK_INTERVAL_BP = 100_000_000;
+export const DEFAULT_TICK_STEP_BP = 100_000_000;
+export const TICK_TARGET_PX = 80;
+export const TICK_TARGET_EM = 7;
+export const MAX_TICKS_PER_CHR = 10;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];
@@ -79,6 +82,8 @@ export const HELP = {
   commonOnly: "Keep only genes present in every query file.",
   denoise: "Drop genes that survive blocking in some queries but not all.",
   sharedAxis: "Give each chromosome one bp scale across all rows.",
+  tickIntervalMbp:
+    "Spacing between shared-axis tick lines. 0 = pick a round spacing that fits the current width and font.",
   boundaryTicks: "Label the axis at every row boundary instead of only the bottom row.",
   showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
   fontSize: "",

@@ -26,6 +26,7 @@ const seedStores = () => {
     sharedAxis: true,
     showMarks: false,
     boundaryTicks: false,
+    tickIntervalMbp: 100,
   });
 };
 

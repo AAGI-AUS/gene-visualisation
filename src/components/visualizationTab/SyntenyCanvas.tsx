@@ -10,7 +10,8 @@ import { FONT, PAD } from "@/src/constants";
 import type { PairInput } from "@/src/hooks/useVisualizationLayout";
 import { useVisualizationLayout } from "@/src/hooks/useVisualizationLayout";
 import { buildPredictedPerPair } from "@/src/components/visualizationTab/predicted";
-import type { CentromereData } from "@/types";
+import { resolveTickStepBp } from "@/src/components/visualizationTab/utils";
+import type { CentromereData, ChrBar } from "@/types";
 
 const EMPTY_POSITIONS: Map<string, number[]> = new Map();
 
@@ -38,6 +39,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
   const { relabel, ...intra } = useVisualizationStore((s) => s.intra);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
+  const tickIntervalMbp = useVisualizationStore((s) => s.tickIntervalMbp);
 
   const pairs = useMemo<PairInput[]>(
     () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0] })),
@@ -67,6 +69,14 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     [layouts, pairs, baseLabel]
   );
 
+  const tickStepBp = useMemo(() => {
+    const bars = layouts.flatMap((l) => [
+      ...l.baseRow.bars,
+      ...l.queryRow.slots.filter((s): s is ChrBar => s.kind === "chr"),
+    ]);
+    return resolveTickStepBp(bars, fontSize - 1, tickIntervalMbp);
+  }, [layouts, fontSize, tickIntervalMbp]);
+
   return (
     <svg ref={svgRef} className={styles.svgCanvas} fontFamily={FONT} {...{ width, height, fontSize }}>
       <rect width={width} height={height} fill="white" />
@@ -82,6 +92,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
           queryCentromere={getCentromere(centromere, pairs[i].queryLabel)}
           basePredicted={predictedPerPair[i].basePredicted}
           queryPredicted={predictedPerPair[i].queryPredicted}
+          tickStepBp={tickStepBp}
         />
       ))}
     </svg>

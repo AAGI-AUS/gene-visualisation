@@ -1,6 +1,6 @@
-import { COLOR, TICK_INTERVAL_BP } from "@/src/constants";
+import { COLOR } from "@/src/constants";
 import type { ChrBar } from "@/types";
-import { bpToPx } from "@/src/components/visualizationTab/utils";
+import { bpToPx, formatBpLabel } from "@/src/components/visualizationTab/utils";
 
 interface Tick {
   xTop: number;
@@ -12,8 +12,9 @@ interface Tick {
 }
 
 const MAX_TICK_OFFSET_FRAC = 0.1;
+const MAX_TICKS_PER_BAR = 1000;
 
-const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
+const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[], stepBp: number): Tick[] => {
   const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
   const sharedBars = baseBars.filter((b) => queryByChr.has(b.chr));
   if (!sharedBars.length) return [];
@@ -24,17 +25,19 @@ const collectTicks = (baseBars: ChrBar[], queryBars: ChrBar[]): Tick[] => {
     const queryBar = queryByChr.get(baseBar.chr)!;
     const baseExtent = baseBar.dataBpLen ?? baseBar.bpLen;
     const queryExtent = queryBar.dataBpLen ?? queryBar.bpLen;
-    const startBp = Math.ceil(Math.max(baseBar.p1, queryBar.p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP;
+    const startBp = Math.ceil(Math.max(baseBar.p1, queryBar.p1) / stepBp) * stepBp;
     const endBp = Math.min(baseBar.p1 + baseExtent, queryBar.p1 + queryExtent);
     const refPw = Math.min(baseBar.pw, queryBar.pw);
-    for (let bp = startBp; bp <= endBp; bp += TICK_INTERVAL_BP) {
+    const count = Math.min(Math.floor((endBp - startBp) / stepBp) + 1, MAX_TICKS_PER_BAR);
+    for (let i = 0; i < count; i++) {
+      const bp = startBp + i * stepBp;
       const xTop = bpToPx(baseBar, bp);
       const xBottom = bpToPx(queryBar, bp);
       const drawLine = refPw <= 0 || Math.abs(xTop - xBottom) / refPw <= MAX_TICK_OFFSET_FRAC;
       out.push({
         xTop,
         xBottom,
-        label: `${bp / 1e6}M`,
+        label: formatBpLabel(bp),
         key: `${baseBar.chr}-${bp}`,
         drawLine,
         pw: refPw,
@@ -87,12 +90,13 @@ export const CoordinateGrid = ({
   labelTopY,
   labelBottomY,
   fontSize,
+  stepBp,
   nextBaseBars,
   nextQueryBars,
 }: CoordinateGridProps) => {
-  const ticks = collectTicks(baseBars, queryBars);
+  const ticks = collectTicks(baseBars, queryBars, stepBp);
   if (!ticks.length) return null;
-  const nextTicks = nextBaseBars && nextQueryBars ? collectTicks(nextBaseBars, nextQueryBars) : null;
+  const nextTicks = nextBaseBars && nextQueryBars ? collectTicks(nextBaseBars, nextQueryBars, stepBp) : null;
   const bottomTicks = labelBottomY !== null ? bottomLabelTicks(ticks, nextTicks) : [];
   return (
     <g fontSize={fontSize}>
@@ -126,6 +130,7 @@ interface CoordinateGridProps {
   labelTopY: number | null;
   labelBottomY: number | null;
   fontSize: number;
+  stepBp: number;
   nextBaseBars?: ChrBar[];
   nextQueryBars?: ChrBar[];
 }

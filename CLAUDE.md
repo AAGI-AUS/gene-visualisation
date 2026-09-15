@@ -94,8 +94,10 @@ When `sharedAxis` is on, `CoordinateGrid` draws ribbon-style polylines, not stra
 - `xTop = bpToPx(baseBar_chr, bp)` against the pair's base bar.
 - `xBottom = bpToPx(queryBar_chr, bp)` against the pair's query bar.
 - Segment slants inside a pair when base/query bar positions differ; pair P's `xBottom` and pair P+1's `xTop` share the same track data, so segments meet at pair boundaries.
-- Ticks step in absolute bp (`Math.ceil(max(p1) / TICK_INTERVAL_BP) * TICK_INTERVAL_BP …`), not offsets - label `"100M"` always means absolute bp 100M.
+- Ticks step in absolute bp (`Math.ceil(max(p1) / stepBp) * stepBp …`), not offsets - label `"100M"` always means absolute bp 100M.
 - A chr renders ticks only when it's in both `baseBars` and `queryBars` of the pair; tick range is bounded by `min(base+baseExtent, query+queryExtent)` so neither endpoint clamps.
+
+The step is one figure-wide value, resolved in `SyntenyCanvas` by `resolveTickStepBp(bars, fontSize - 1, tickIntervalMbp)` and threaded down through `LinePair` as `stepBp`. `tickIntervalMbp` (visualization store, toolbar `Ticks`) forces an interval; `0` means auto: snap the larger of two candidate steps up to the next 1 / 2 / 2.5 / 5 / 10 multiple - `max(TICK_TARGET_PX, TICK_TARGET_EM * fontSize) / pxPerBp` (spacing, where `pxPerBp` is the smallest `pw / bpLen` in the figure) and `widestBpLen / MAX_TICKS_PER_CHR` (count, against pre-stretch `dataBpLen`). Spacing binds on narrow or many-chr rows, the count cap binds on wide exports where spacing alone would draw dozens of ticks. It must stay figure-wide - `bottomLabelTicks` dedups pair P against pair P+1 by `${chr}-${bp}` key, which only matches if both pairs used the same step. Labels come from `formatBpLabel`, which picks k/M/G per value and trims trailing zeros. Ticks are never decimated, so a small manual interval on a narrow bar will overlap; `MAX_TICKS_PER_BAR` only guards against a runaway loop.
 
 Per-pair bars are placed with a running cursor in `buildBaseRow` / `buildQueryRow` (utils.ts), so the same chr's `bar.px` can differ between rows if preceding chrs differ in width, which is what makes ticks slant instead of running straight down.
 

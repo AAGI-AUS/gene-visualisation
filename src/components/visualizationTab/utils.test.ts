@@ -8,14 +8,17 @@ import {
   collectNoisyIds,
   computeRibbons,
   findLargestGapCenter,
+  formatBpLabel,
   getPredictingLines,
   getPredictingRange,
+  niceTickStep,
   pct,
+  resolveTickStepBp,
   ribbonPath,
   rowCategory,
   zeroCounts,
 } from "@/src/components/visualizationTab/utils";
-import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, DEFAULT_TICK_STEP_BP, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { ChrBar, Chunk, OthersBar, ResultRow } from "@/types";
 import {
   counts,
@@ -361,6 +364,65 @@ describe("buildQueryRow", () => {
     expect(chr.dataBpLen).toBe(100);
     expect(right.px).toBe(53 + 123);
     expect(right.targetX).toBe(65 + 123);
+  });
+});
+
+describe("niceTickStep", () => {
+  it("snaps up to the next 1 / 2 / 2.5 / 5 / 10 multiple", () => {
+    expect(niceTickStep(1e6)).toBe(1e6);
+    expect(niceTickStep(1.4e6)).toBe(2e6);
+    expect(niceTickStep(2.1e6)).toBe(2.5e6);
+    expect(niceTickStep(3e6)).toBe(5e6);
+    expect(niceTickStep(6e6)).toBe(1e7);
+  });
+});
+
+describe("resolveTickStepBp", () => {
+  const bar = (pw: number, bpLen: number): ChrBar => ({ kind: "chr", chr: "1A", px: 0, pw, bpLen, p1: 0 });
+
+  it("returns the manual interval in bp when one is set", () => {
+    expect(resolveTickStepBp([bar(100, 1e9)], 10, 25)).toBe(2.5e7);
+  });
+
+  it("picks a step around the target spacing from the tightest bar", () => {
+    // 800px / 200Mbp = 4e-6 px/bp; an 80px target wants 20Mbp, which snaps to 20Mbp.
+    expect(resolveTickStepBp([bar(800, 2e8), bar(800, 1e8)], 10, 0)).toBe(2e7);
+  });
+
+  it("caps ticks per chromosome once a bar is wide enough for the spacing rule alone", () => {
+    // 8000px / 200Mbp leaves the 80px target wanting 2Mbp (100 ticks); the cap lifts it to 20Mbp.
+    expect(resolveTickStepBp([bar(8000, 2e8)], 10, 0)).toBe(2e7);
+  });
+
+  it("counts against a stretched bar's pre-stretch extent", () => {
+    const stretched: ChrBar = { ...bar(8000, 4e8), dataBpLen: 2e8 };
+    expect(resolveTickStepBp([stretched], 10, 0)).toBe(2e7);
+  });
+
+  it("scales the target spacing with font size", () => {
+    // 7em at font 30 beats the 80px floor: a 210px target wants 52.5Mbp, snapped to 100Mbp.
+    expect(resolveTickStepBp([bar(800, 2e8)], 30, 0)).toBe(1e8);
+  });
+
+  it("falls back to the default step when no bar has a usable extent", () => {
+    expect(resolveTickStepBp([], 10, 0)).toBe(DEFAULT_TICK_STEP_BP);
+    expect(resolveTickStepBp([bar(0, 1e8), bar(100, 0)], 10, 0)).toBe(DEFAULT_TICK_STEP_BP);
+  });
+});
+
+describe("formatBpLabel", () => {
+  it("picks the unit from the value and trims trailing zeros", () => {
+    expect(formatBpLabel(5e5)).toBe("500k");
+    expect(formatBpLabel(1e6)).toBe("1M");
+    expect(formatBpLabel(1.5e6)).toBe("1.5M");
+    expect(formatBpLabel(2.5e6)).toBe("2.5M");
+    expect(formatBpLabel(1e8)).toBe("100M");
+    expect(formatBpLabel(1.1e9)).toBe("1.1G");
+  });
+
+  it("renders sub-kbp values as plain bp", () => {
+    expect(formatBpLabel(0)).toBe("0");
+    expect(formatBpLabel(250)).toBe("250");
   });
 });
 

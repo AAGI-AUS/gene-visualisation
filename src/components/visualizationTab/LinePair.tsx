@@ -20,6 +20,7 @@ interface LinePairProps {
   queryCentromere: Map<string, number[]>;
   basePredicted: Map<string, number[]>;
   queryPredicted: Map<string, number[]>;
+  tickStepBp: number;
 }
 
 const PREDICTED_COLOR = "blue";
@@ -33,6 +34,7 @@ export const LinePair = ({
   queryCentromere,
   basePredicted,
   queryPredicted,
+  tickStepBp,
 }: LinePairProps) => {
   const hoverChunk = useVisualizationStore((s) => s.hoverChunk);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
@@ -98,6 +100,7 @@ export const LinePair = ({
             isLast || !boundaryTicks ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
           }
           fontSize={fontSize - 1}
+          stepBp={tickStepBp}
         />
       )}
     </Group>
