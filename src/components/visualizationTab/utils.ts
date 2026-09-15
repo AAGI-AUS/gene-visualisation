@@ -235,18 +235,6 @@ export const buildBaseRow = (
     return bar;
   });
 
-  if (perChrPxPerBp) {
-    const last = bars[bars.length - 1];
-    const targetRight = availW - startCursor;
-    const deficit = targetRight - (last.px + last.pw);
-    if (deficit > 0) {
-      const pxPerBp = perChrPxPerBp.get(last.chr) ?? rowPxPerBp;
-      last.dataBpLen = last.bpLen;
-      last.pw += deficit;
-      last.bpLen += deficit / pxPerBp;
-    }
-  }
-
   return { label, bars, y: PAD.top };
 };
 
@@ -302,36 +290,6 @@ export const buildQueryRow = (
     return slot;
   });
 
-  if (perChrPxPerBp) {
-    let lastChrIdx = -1;
-    for (let i = slots.length - 1; i >= 0; i--) {
-      if (slots[i].kind === "chr") {
-        lastChrIdx = i;
-        break;
-      }
-    }
-    if (lastChrIdx >= 0) {
-      const trailing = slots.slice(lastChrIdx + 1);
-      const trailingGap = trailing.length * CHR_GAP_PX;
-      const trailingW = trailing.reduce((sum, s) => sum + s.pw, 0);
-      const last = slots[lastChrIdx] as ChrBar;
-      const targetRight = availW - trailingGap - trailingW;
-      const deficit = targetRight - (last.px + last.pw);
-      if (deficit > 0) {
-        const pxPerBp = perChrPxPerBp.get(last.chr) ?? rowPxPerBp;
-        last.dataBpLen = last.bpLen;
-        last.pw += deficit;
-        last.bpLen += deficit / pxPerBp;
-        for (let j = lastChrIdx + 1; j < slots.length; j++) {
-          slots[j].px += deficit;
-          if (slots[j].kind === "others") {
-            (slots[j] as { targetX: number }).targetX += deficit;
-          }
-        }
-      }
-    }
-  }
-
   return { label, slots, y };
 };
 
@@ -357,8 +315,7 @@ export const resolveTickStepBp = (bars: ChrBar[], fontSize: number, manualMbp: n
     if (bar.pw <= 0 || bar.bpLen <= 0) continue;
     const ratio = bar.pw / bar.bpLen;
     if (ratio < pxPerBp) pxPerBp = ratio;
-    const span = bar.dataBpLen ?? bar.bpLen;
-    if (span > widestBpLen) widestBpLen = span;
+    if (bar.bpLen > widestBpLen) widestBpLen = bar.bpLen;
   }
   if (!isFinite(pxPerBp)) return DEFAULT_TICK_STEP_BP;
 

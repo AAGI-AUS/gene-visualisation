@@ -290,7 +290,7 @@ describe("buildBaseRow", () => {
     expect(row.bars[0].px).toBe(OTHERS_W + CHR_GAP_PX);
   });
 
-  it("perChrPxPerBp overrides rowPxPerBp per chr and stretches the last bar to fill availW", () => {
+  it("perChrPxPerBp overrides rowPxPerBp per chr and leaves the row short of availW", () => {
     const chrMax = new Map([
       ["1A", 100],
       ["2B", 100],
@@ -305,13 +305,11 @@ describe("buildBaseRow", () => {
 
     expect(row.bars[0].pw).toBe(50);
     expect(row.bars[0].bpLen).toBe(100);
-    expect(row.bars[0].dataBpLen).toBeUndefined();
 
-    // last bar absorbs the 50px deficit (50 / pxPerBp=1 → +50bp).
-    expect(row.bars[1].pw).toBe(150);
-    expect(row.bars[1].bpLen).toBe(150);
-    expect(row.bars[1].dataBpLen).toBe(100);
-    expect(row.bars[1].px + row.bars[1].pw).toBe(203);
+    // the last bar keeps its data extent, so the row ends 50px short of availW.
+    expect(row.bars[1].pw).toBe(100);
+    expect(row.bars[1].bpLen).toBe(100);
+    expect(row.bars[1].px + row.bars[1].pw).toBe(153);
   });
 });
 
@@ -346,24 +344,22 @@ describe("buildQueryRow", () => {
     expect(right.pw).toBe(OTHERS_W);
   });
 
-  it("perChrPxPerBp stretches the last chr slot and shifts trailing others by the deficit", () => {
+  it("perChrPxPerBp sizes the chr slot from its own extent, leaving the row short", () => {
     const specs: SlotSpec[] = [
       { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
       { kind: "others", baseChr: "1A", side: "right" },
     ];
-    // chr width = 100*0.5 = 50. targetRight = 200 - 3 gap - 24 others = 173.
-    // deficit = 123 → +123px width, +246bp (123/0.5) of bpLen, others slot shifts +123.
+    // chr width = 100*0.5 = 50, so the row ends at 50 + 3 gap + 24 others = 77 of availW 200.
     const perChrPxPerBp = new Map([["1A", 0.5]]);
     const row = buildQueryRow(specs, "label", 200, perChrPxPerBp);
     const [chr, right] = row.slots;
     if (chr.kind !== "chr" || right.kind !== "others") throw new Error("unexpected slot kinds");
 
     expect(chr.px).toBe(0);
-    expect(chr.pw).toBe(173);
-    expect(chr.bpLen).toBe(346);
-    expect(chr.dataBpLen).toBe(100);
-    expect(right.px).toBe(53 + 123);
-    expect(right.targetX).toBe(65 + 123);
+    expect(chr.pw).toBe(50);
+    expect(chr.bpLen).toBe(100);
+    expect(right.px).toBe(53);
+    expect(right.targetX).toBe(65);
   });
 });
 
@@ -392,11 +388,6 @@ describe("resolveTickStepBp", () => {
   it("caps ticks per chromosome once a bar is wide enough for the spacing rule alone", () => {
     // 8000px / 200Mbp leaves the 80px target wanting 2Mbp (100 ticks); the cap lifts it to 20Mbp.
     expect(resolveTickStepBp([bar(8000, 2e8)], 10, 0)).toBe(2e7);
-  });
-
-  it("counts against a stretched bar's pre-stretch extent", () => {
-    const stretched: ChrBar = { ...bar(8000, 4e8), dataBpLen: 2e8 };
-    expect(resolveTickStepBp([stretched], 10, 0)).toBe(2e7);
   });
 
   it("scales the target spacing with font size", () => {

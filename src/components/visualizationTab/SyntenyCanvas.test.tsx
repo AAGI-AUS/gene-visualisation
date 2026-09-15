@@ -40,6 +40,18 @@ const renderCanvas = (data: Result) => {
   return render(<SyntenyCanvas data={data} svgRef={svgRef} width={900} height={300} />);
 };
 
+// Tick labels split into a top and a bottom run by their y; the smaller y is the base row's.
+const tickLabelsByRow = (container: HTMLElement) => {
+  const labels = Array.from(container.querySelectorAll("text"))
+    .filter((t) => /^\d+(\.\d+)?[kMG]$/.test(t.textContent ?? ""))
+    .map((t) => ({ text: t.textContent ?? "", y: Number(t.getAttribute("y")) }));
+  const topY = Math.min(...labels.map((l) => l.y));
+  return {
+    top: labels.filter((l) => l.y === topY).map((l) => l.text),
+    bottom: labels.filter((l) => l.y !== topY).map((l) => l.text),
+  };
+};
+
 describe("SyntenyCanvas", () => {
   beforeEach(seedStores);
 
@@ -98,6 +110,31 @@ describe("SyntenyCanvas", () => {
     for (const tick of tickLines) {
       expect(Number(tick.getAttribute("x1"))).toBeCloseTo(Number(tick.getAttribute("x2")), 5);
     }
+  });
+
+  it("labels ticks on a query chr the base row doesn't carry, with marks instead of connectors", () => {
+    // 1A runs 0-200M on both sides; the translocated tail adds a query-only 2B at 500-620M.
+    const translocated = [0, 1, 2].map((i) =>
+      makeTranslocationRow({
+        id: 10 + i,
+        chromosomeQuery: "2B",
+        groupedQuery: "2B",
+        p1Base: (200 + i * 40) * MBP,
+        p2Base: (240 + i * 40) * MBP,
+        p1Query: (500 + i * 40) * MBP,
+        p2Query: (540 + i * 40) * MBP,
+      })
+    );
+    const { container } = renderCanvas([{ name: "q1.bed", rows: [...basePair.rows, ...translocated] }]);
+
+    const { top, bottom } = tickLabelsByRow(container);
+    expect(bottom).toEqual(expect.arrayContaining(["500M", "600M"]));
+    expect(top).not.toEqual(expect.arrayContaining(["500M", "600M"]));
+
+    // 1A lines up on both rows, so those ticks keep their connector; 2B's can only be marks.
+    expect(container.querySelectorAll('line[stroke-dasharray="5 3"]').length).toBeGreaterThan(0);
+    const marks = container.querySelectorAll('line[stroke-width="0.5"]:not([stroke-dasharray])');
+    expect(marks.length).toBe(3);
   });
 
   it("stacks one Group per pair with the expected y offset and shares the middle row", () => {

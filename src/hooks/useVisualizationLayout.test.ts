@@ -377,6 +377,42 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(twoB.base).toBeCloseTo(twoB.query);
       expect(twoC.base).toBeCloseTo(twoC.query);
     });
+
+    it("gives a row its own px/bp when its chr set differs, so both still fill trackW", () => {
+      // base carries 1A only; the query side also carries 2B, so the two rows can't share a ratio
+      // and still both reach trackW.
+      const uneven: PairInput[] = [
+        {
+          queryLabel: "q1",
+          data: [
+            makeRow({ p2Base: 100, p2Query: 100 }),
+            makeRow({
+              id: 1,
+              p1Base: 100,
+              p2Base: 200,
+              chromosomeQuery: "2B",
+              groupedQuery: "2B",
+              p1Query: 0,
+              p2Query: 300,
+              isTranslocation: true,
+              mainEvent: "translocation",
+            }),
+          ],
+        },
+      ];
+      const out = layout(uneven, { sharedAxis: true, trackW: 1000 })[0];
+
+      expect(out.baseRow.bars.map((b) => b.chr)).toEqual(["1A"]);
+      expect(queryChrs(out)).toEqual(["1A", "2B"]);
+
+      const rowRight = (bars: { px: number; pw: number }[]) => Math.max(...bars.map((b) => b.px + b.pw));
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(1000);
+      expect(rowRight(out.queryRow.slots)).toBeCloseTo(1000);
+
+      // 1A is 200bp of base but only 100bp of query, so the shared scale is genuinely broken.
+      const oneA = widthsOf(out, ["1A"])[0];
+      expect(oneA.base).not.toBeCloseTo(oneA.query);
+    });
   });
 
   describe("intraRelabel", () => {

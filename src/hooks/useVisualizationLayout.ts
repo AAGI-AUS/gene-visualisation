@@ -227,51 +227,38 @@ export const computeVisualizationLayout = (
   // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
   // unify bounds within each group, then extend chrMin out to the global unified min unless
   // stripBlankBp would cut a leading blank. chrMax stays at group-max.
-  const pairAxes = (() => {
-    if (!sharedAxis) {
-      return pairs.map((_, p) => ({ baseAxis: tracks[p], queryAxis: tracks[p + 1] }));
-    }
+  const finalAxes: Track[] = (() => {
+    if (!sharedAxis) return tracks;
 
     const groupOf = partitionTracksByChrSet(tracks);
     const { groupChrMin, groupChrMax } = computeGroupBounds(tracks, groupOf);
     const groupFinalChrMin = applyGlobalExtension(groupChrMin, unifiedAxis.chrMin, stripBlankBp);
 
-    const finalAxes: Track[] = tracks.map((t, i) => ({
+    return tracks.map((t, i) => ({
       chrMin: groupFinalChrMin[groupOf[i]],
       chrMax: groupChrMax[groupOf[i]],
       chrOrder: t.chrOrder,
       needsOthersStub: t.needsOthersStub,
     }));
-
-    return pairs.map((_, p) => ({ baseAxis: finalAxes[p], queryAxis: finalAxes[p + 1] }));
   })();
 
-  // One global px/bp: the smallest per-row ratio across all shared-axis rows, so every row
-  // fits in trackW and bp coordinates align across rows and chromosomes.
-  const perChrPxPerBp = (() => {
+  const pairAxes = pairs.map((_, p) => ({ baseAxis: finalAxes[p], queryAxis: finalAxes[p + 1] }));
+
+  // One px/bp per track, from that track's own axis. Tracks with the same chr set share bounds and
+  // so land on the same ratio, keeping their bars aligned; a track whose chr set differs takes its
+  // own ratio and fills trackW rather than ending short of it.
+  const trackPxPerBp: (Map<string, number> | undefined)[] = finalAxes.map((axis) => {
     if (!sharedAxis) return undefined;
-    const allChrs = new Set<string>();
-    let globalPxPerBp = Infinity;
-    for (const { baseAxis, queryAxis } of pairAxes) {
-      for (const axis of [baseAxis, queryAxis]) {
-        const n = axis.chrOrder.length;
-        if (!n) continue;
-        let totalBp = 0;
-        for (const chr of axis.chrOrder) {
-          totalBp += (axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0);
-          allChrs.add(chr);
-        }
-        if (totalBp <= 0) continue;
-        const gap = (n - 1) * CHR_GAP_PX;
-        const rowPxPerBp = (trackW - gap) / totalBp;
-        if (rowPxPerBp < globalPxPerBp) globalPxPerBp = rowPxPerBp;
-      }
+    const n = axis.chrOrder.length;
+    if (!n) return undefined;
+    let totalBp = 0;
+    for (const chr of axis.chrOrder) {
+      totalBp += (axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0);
     }
-    if (!isFinite(globalPxPerBp) || !allChrs.size) return undefined;
-    const out = new Map<string, number>();
-    for (const chr of allChrs) out.set(chr, globalPxPerBp);
-    return out;
-  })();
+    if (totalBp <= 0) return undefined;
+    const pxPerBp = (trackW - (n - 1) * CHR_GAP_PX) / totalBp;
+    return new Map(axis.chrOrder.map((chr) => [chr, pxPerBp]));
+  });
 
   return pairs.map((pair, p) => {
     const { baseAxis, queryAxis } = pairAxes[p];
@@ -283,7 +270,7 @@ export const computeVisualizationLayout = (
       p === 0 ? baseLabel : "",
       trackW,
       othersMode,
-      perChrPxPerBp
+      trackPxPerBp[p]
     );
 
     const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
@@ -298,7 +285,7 @@ export const computeVisualizationLayout = (
     specs.push(...chrSpecs);
     if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
-    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, perChrPxPerBp);
+    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, trackPxPerBp[p + 1]);
 
     const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
     const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
