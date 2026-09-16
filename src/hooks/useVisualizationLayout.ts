@@ -227,7 +227,8 @@ export const computeVisualizationLayout = (
 
   // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
   // unify bounds within each group, then extend chrMin out to the global unified min unless
-  // stripBlankBp would cut a leading blank. chrMax stays at group-max.
+  // stripBlankBp would cut a leading blank. chrMax is padded further down, once the shared
+  // px/bp is known, so every row reaches trackW.
   const groupOf = partitionTracksByChrSet(tracks);
 
   const finalAxes: Track[] = (() => {
@@ -244,23 +245,54 @@ export const computeVisualizationLayout = (
     }));
   })();
 
-  const pairAxes = pairs.map((_, p) => ({ baseAxis: finalAxes[p], queryAxis: finalAxes[p + 1] }));
+  const axisTotalBp = (axis: Track) =>
+    axis.chrOrder.reduce(
+      (total, chr) => total + ((axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0)),
+      0
+    );
+  const axisTargetW = (axis: Track) => trackW - (axis.chrOrder.length - 1) * CHR_GAP_PX;
 
-  // One px/bp per track, from that track's own axis. Tracks with the same chr set share bounds and
-  // so land on the same ratio, keeping their bars aligned; a track whose chr set differs takes its
-  // own ratio and fills trackW rather than ending short of it.
-  const trackPxPerBp: (Map<string, number> | undefined)[] = finalAxes.map((axis) => {
+  // One px/bp for the whole figure: the smallest per-track ratio, so the track carrying the most bp
+  // fills trackW and no track is ever compressed to fit.
+  const sharedPxPerBp = (() => {
     if (!sharedAxis) return undefined;
-    const n = axis.chrOrder.length;
-    if (!n) return undefined;
-    let totalBp = 0;
-    for (const chr of axis.chrOrder) {
-      totalBp += (axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0);
+    let best = Infinity;
+    for (const axis of finalAxes) {
+      if (!axis.chrOrder.length) continue;
+      const totalBp = axisTotalBp(axis);
+      if (totalBp <= 0) continue;
+      const ratio = axisTargetW(axis) / totalBp;
+      if (ratio < best) best = ratio;
     }
-    if (totalBp <= 0) return undefined;
-    const pxPerBp = (trackW - (n - 1) * CHR_GAP_PX) / totalBp;
-    return new Map(axis.chrOrder.map((chr) => [chr, pxPerBp]));
-  });
+    return isFinite(best) ? best : undefined;
+  })();
+
+  // Pad the last chr of every lighter axis so its row still reaches trackW. The deficit is converted
+  // back to bp at the shared ratio, so px/bp is untouched - the row ends flush without being drawn at
+  // a scale of its own. Tracks in one group share bounds, so they pad identically and stay aligned.
+  const paddedAxes: Track[] =
+    sharedPxPerBp === undefined
+      ? finalAxes
+      : finalAxes.map((axis) => {
+          const n = axis.chrOrder.length;
+          if (!n) return axis;
+          const deficitPx = axisTargetW(axis) - axisTotalBp(axis) * sharedPxPerBp;
+          if (deficitPx <= 0) return axis;
+          const lastChr = axis.chrOrder[n - 1];
+          const chrMax = new Map(axis.chrMax);
+          chrMax.set(lastChr, (chrMax.get(lastChr) ?? 0) + deficitPx / sharedPxPerBp);
+          return { ...axis, chrMax };
+        });
+
+  const pairAxes = pairs.map((_, p) => ({ baseAxis: paddedAxes[p], queryAxis: paddedAxes[p + 1] }));
+
+  const globalPxPerBp = (() => {
+    if (sharedPxPerBp === undefined) return undefined;
+    const allChrs = new Set<string>();
+    for (const axis of paddedAxes) for (const chr of axis.chrOrder) allChrs.add(chr);
+    if (!allChrs.size) return undefined;
+    return new Map(Array.from(allChrs, (chr) => [chr, sharedPxPerBp]));
+  })();
 
   return pairs.map((pair, p) => {
     const { baseAxis, queryAxis } = pairAxes[p];
@@ -272,7 +304,7 @@ export const computeVisualizationLayout = (
       p === 0 ? baseLabel : "",
       trackW,
       othersMode,
-      trackPxPerBp[p]
+      globalPxPerBp
     );
 
     const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
@@ -287,7 +319,7 @@ export const computeVisualizationLayout = (
     specs.push(...chrSpecs);
     if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
-    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, trackPxPerBp[p + 1]);
+    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, globalPxPerBp);
 
     const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
     const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;

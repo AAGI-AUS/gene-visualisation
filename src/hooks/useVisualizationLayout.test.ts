@@ -378,9 +378,9 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(twoC.base).toBeCloseTo(twoC.query);
     });
 
-    it("gives a row its own px/bp when its chr set differs, so both still fill trackW", () => {
-      // base carries 1A only; the query side also carries 2B, so the two rows can't share a ratio
-      // and still both reach trackW.
+    it("pads the lighter row's last chr so both reach trackW at one px/bp", () => {
+      // base carries 1A only; the query side also carries 2B. The query row holds the most bp, so it
+      // sets the ratio; the base row is drawn at that same ratio and pads 1A out to the edge.
       const uneven: PairInput[] = [
         {
           queryLabel: "q1",
@@ -406,12 +406,20 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(queryChrs(out)).toEqual(["1A", "2B"]);
 
       const rowRight = (bars: { px: number; pw: number }[]) => Math.max(...bars.map((b) => b.px + b.pw));
-      expect(rowRight(out.baseRow.bars)).toBeCloseTo(1000);
       expect(rowRight(out.queryRow.slots)).toBeCloseTo(1000);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(1000);
 
-      // 1A is 200bp of base but only 100bp of query, so the shared scale is genuinely broken.
-      const oneA = widthsOf(out, ["1A"])[0];
-      expect(oneA.base).not.toBeCloseTo(oneA.query);
+      // query holds the most bp (400 over two bars) so it sets the ratio and takes no padding:
+      // its two bars keep the true 100:300 bp ratio between them.
+      const [q1a, q2b] = out.queryRow.slots.filter((s): s is ChrBar => s.kind === "chr");
+      expect(q2b.pw / q1a.pw).toBeCloseTo(3);
+      expect(q1a.pw).toBeCloseTo(100 * (997 / 400));
+
+      // base 1A really spans 200bp; it is padded past that to reach the edge, at the same px/bp.
+      const oneA = out.baseRow.bars[0];
+      expect(oneA.bpLen).toBeCloseTo(1000 / (997 / 400));
+      expect(oneA.bpLen).toBeGreaterThan(200);
+      expect(oneA.pw / oneA.bpLen).toBeCloseTo(q1a.pw / q1a.bpLen);
     });
   });
 
