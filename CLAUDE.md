@@ -109,10 +109,11 @@ The step is one figure-wide value, resolved in `SyntenyCanvas` by `resolveTickSt
 
 `sharedPxPerBp` (useVisualizationLayout) is one ratio for the whole figure: the smallest `(trackW - gaps) / totalBp` across all tracks, so the track carrying the most bp fills `trackW` and nothing is ever compressed to fit.
 
-`paddedAxes` then pads every lighter track out to that same right edge: it converts the leftover px back to bp at the shared ratio and adds it to the last chr's `chrMax`. Scale is untouched; the axis runs past where the data stops and the bar covers the whole extent. Two consequences:
+`paddedAxes` then pads every lighter track out towards that same right edge: it converts the leftover px back to bp at the shared ratio and adds it to the last chr's `chrMax`. Scale is untouched; the axis runs past where the data stops and the bar covers the whole extent. Three consequences:
 
 - The padding all lands on the last chr in `chrOrder`. If a multi-chr track is the lighter one, that chromosome ends up wider than the same chromosome on the track that set the ratio. Spreading the deficit across every chr makes it worse: then no chr on the row matches its counterpart.
-- The padded tail is indistinguishable from sequence. Ticks in it sit at correct bp, so a reader who reads the axis is fine; one comparing bar lengths is not. That is the trade for a flush right edge. The alternative (bar stops at the data, axis pads on) leaves the canvas ragged.
+- The padded tail is indistinguishable from sequence. Ticks in it sit at correct bp, so a reader who reads the axis is fine; one comparing bar lengths is not. That is the trade for a flush right edge.
+- `extensionCap` bounds that trade. A tail may only run where the rows above and below still carry the same chr: a neighbour ending on the same chr pads alongside it and caps nothing, a neighbour that has the chr earlier in its order caps the tail at its own `chrMax` for that chr, and a neighbour without the chr allows no tail at all. So a row whose neighbour shows a different chromosome under the tail stops at its data and leaves the canvas ragged, while a figure whose rows all end on the same chr (many rows of one chr, a few splitting part of it onto another) still comes out flush. The test is chr identity, not bp overlap - the tail may face the same chr at a quite different bp.
 
 Groups decide bounds, not scale. `partitionTracksByChrSet` + `computeGroupBounds` + `applyGlobalExtension` give each group its own per-chr `chrMin`/`chrMax` (`chrMin` snaps out to the global min unless the leading blank exceeds `stripBlankMbp`). So the same chr can still be a different width in two groups - because it covers a different bp span there, not because it is at a different scale.
 

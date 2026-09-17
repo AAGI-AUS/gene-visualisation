@@ -267,20 +267,35 @@ export const computeVisualizationLayout = (
     return isFinite(best) ? best : undefined;
   })();
 
+  // How far track i may extend its last chr: the rows next to it must still carry that chr under the
+  // tail. A neighbour ending on the same chr pads alongside it, so it caps nothing.
+  const extensionCap = (i: number, lastChr: string) => {
+    let cap = Infinity;
+    for (const neighbour of [finalAxes[i - 1], finalAxes[i + 1]]) {
+      if (!neighbour) continue;
+      if (neighbour.chrOrder[neighbour.chrOrder.length - 1] === lastChr) continue;
+      cap = Math.min(cap, neighbour.chrMax.get(lastChr) ?? 0);
+    }
+    return cap;
+  };
+
   // Pad the last chr of every lighter axis so its row still reaches trackW. The deficit is converted
   // back to bp at the shared ratio, so px/bp is untouched - the row ends flush without being drawn at
   // a scale of its own. Tracks in one group share bounds, so they pad identically and stay aligned.
   const paddedAxes: Track[] =
     sharedPxPerBp === undefined
       ? finalAxes
-      : finalAxes.map((axis) => {
+      : finalAxes.map((axis, i) => {
           const n = axis.chrOrder.length;
           if (!n) return axis;
           const deficitPx = axisTargetW(axis) - axisTotalBp(axis) * sharedPxPerBp;
           if (deficitPx <= 0) return axis;
           const lastChr = axis.chrOrder[n - 1];
+          const dataMax = axis.chrMax.get(lastChr) ?? 0;
+          const extended = Math.min(dataMax + deficitPx / sharedPxPerBp, extensionCap(i, lastChr));
+          if (extended <= dataMax) return axis;
           const chrMax = new Map(axis.chrMax);
-          chrMax.set(lastChr, (chrMax.get(lastChr) ?? 0) + deficitPx / sharedPxPerBp);
+          chrMax.set(lastChr, extended);
           return { ...axis, chrMax };
         });
 

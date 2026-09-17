@@ -378,9 +378,12 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(twoC.base).toBeCloseTo(twoC.query);
     });
 
-    it("pads the lighter row's last chr so both reach trackW at one px/bp", () => {
+    const rowRight = (bars: { px: number; pw: number }[]) => Math.max(...bars.map((b) => b.px + b.pw));
+
+    it("truncates the lighter row where the next row stops carrying its last chr", () => {
       // base carries 1A only; the query side also carries 2B. The query row holds the most bp, so it
-      // sets the ratio; the base row is drawn at that same ratio and pads 1A out to the edge.
+      // sets the ratio. The base row would pad 1A out to the edge, but past 100bp the query row shows
+      // 2B under that tail, so 1A stops at its data and the row ends short.
       const uneven: PairInput[] = [
         {
           queryLabel: "q1",
@@ -404,10 +407,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
 
       expect(out.baseRow.bars.map((b) => b.chr)).toEqual(["1A"]);
       expect(queryChrs(out)).toEqual(["1A", "2B"]);
-
-      const rowRight = (bars: { px: number; pw: number }[]) => Math.max(...bars.map((b) => b.px + b.pw));
       expect(rowRight(out.queryRow.slots)).toBeCloseTo(1000);
-      expect(rowRight(out.baseRow.bars)).toBeCloseTo(1000);
 
       // query holds the most bp (400 over two bars) so it sets the ratio and takes no padding:
       // its two bars keep the true 100:300 bp ratio between them.
@@ -415,11 +415,47 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(q2b.pw / q1a.pw).toBeCloseTo(3);
       expect(q1a.pw).toBeCloseTo(100 * (997 / 400));
 
-      // base 1A really spans 200bp; it is padded past that to reach the edge, at the same px/bp.
+      // base 1A keeps its true 200bp span at the shared ratio, so the row ends well short of trackW.
       const oneA = out.baseRow.bars[0];
-      expect(oneA.bpLen).toBeCloseTo(1000 / (997 / 400));
-      expect(oneA.bpLen).toBeGreaterThan(200);
+      expect(oneA.bpLen).toBe(200);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(200 * (997 / 400));
       expect(oneA.pw / oneA.bpLen).toBeCloseTo(q1a.pw / q1a.bpLen);
+    });
+
+    it("still pads out to trackW when the next row ends on the same chr", () => {
+      // base carries 7B only; the query side splits into 5B + 7B and so holds more bp. Both rows
+      // still end on 7B, so the base row's tail sits over 7B and is allowed to reach the edge.
+      const split: PairInput[] = [
+        {
+          queryLabel: "q1",
+          data: [
+            makeRow({ chromosomeBase: "7B", chromosomeQuery: "7B", p2Base: 430, p2Query: 430 }),
+            makeRow({
+              id: 1,
+              chromosomeBase: "7B",
+              p1Base: 430,
+              p2Base: 750,
+              chromosomeQuery: "5B",
+              groupedQuery: "5B",
+              p1Query: 0,
+              p2Query: 330,
+              isTranslocation: true,
+              mainEvent: "translocation",
+            }),
+          ],
+        },
+      ];
+      const out = layout(split, { sharedAxis: true, trackW: 1000 })[0];
+
+      expect(out.baseRow.bars.map((b) => b.chr)).toEqual(["7B"]);
+      expect(queryChrs(out)).toEqual(["5B", "7B"]);
+      expect(rowRight(out.queryRow.slots)).toBeCloseTo(1000);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(1000);
+
+      const sevenB = out.baseRow.bars[0];
+      const q7b = out.queryRow.slots.find((s): s is ChrBar => s.kind === "chr" && s.chr === "7B")!;
+      expect(sevenB.bpLen).toBeGreaterThan(750);
+      expect(sevenB.pw / sevenB.bpLen).toBeCloseTo(q7b.pw / q7b.bpLen);
     });
   });
 
