@@ -26,6 +26,9 @@ export interface VisualizationLayout {
 export interface PairInput {
   data: ResultRow[];
   queryLabel: string;
+  // How far each chr runs in this query's whole BED. Bounds how far a lighter row pads its last
+  // bar; leave it out and the pair's own rows stand in.
+  chrExtent?: Map<string, number>;
 }
 
 export interface Track {
@@ -147,7 +150,8 @@ export const computeVisualizationLayout = (
   sharedAxis: boolean,
   stripBlankMbp: number,
   intraRelabel: boolean,
-  intraScoreConfig: IntraScoreConfig
+  intraScoreConfig: IntraScoreConfig,
+  baseChrExtent?: Map<string, number>
 ): VisualizationLayout[] => {
   const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1e6 : 0;
 
@@ -267,16 +271,49 @@ export const computeVisualizationLayout = (
     return isFinite(best) ? best : undefined;
   })();
 
-  // How far track i may extend its last chr: the rows next to it must still carry that chr under the
-  // tail. A neighbour ending on the same chr pads alongside it, so it caps nothing.
-  const extensionCap = (i: number, lastChr: string) => {
-    let cap = Infinity;
-    for (const neighbour of [finalAxes[i - 1], finalAxes[i + 1]]) {
-      if (!neighbour) continue;
-      if (neighbour.chrOrder[neighbour.chrOrder.length - 1] === lastChr) continue;
-      cap = Math.min(cap, neighbour.chrMax.get(lastChr) ?? 0);
+  // How far each track's chrs run. The caller passes its whole BED's extent; without it the
+  // track's own rows stand in, which recovers what chunk filtering dropped but nothing past the
+  // join.
+  const trackChrExtent: Map<string, number>[] = (() => {
+    const fromRows = (rows: ResultRow[], query: boolean) => {
+      const out = new Map<string, number>();
+      for (const r of rows) {
+        const chr = query ? r.chromosomeQuery : r.chromosomeBase;
+        const end = query ? r.p2Query : r.p2Base;
+        const cur = out.get(chr);
+        if (cur === undefined || end > cur) out.set(chr, end);
+      }
+      return out;
+    };
+    const head = baseChrExtent ?? fromRows(pairs[0]?.data ?? [], false);
+    return [head, ...pairs.map((p) => p.chrExtent ?? fromRows(p.data, true))];
+  })();
+
+  // Furthest any row carries each chr. The rows are different genomes of one chromosome at one
+  // scale, and a group already unions its members' bounds, so the bound is figure-wide. Measured
+  // per row or per group it lands behind the bars a row lines up with, and the row ends short.
+  const figureChrExtent = (() => {
+    const out = new Map<string, number>();
+    for (const extent of trackChrExtent) {
+      extent?.forEach((bp, chr) => {
+        const cur = out.get(chr);
+        if (cur === undefined || bp > cur) out.set(chr, bp);
+      });
     }
-    return cap;
+    return out;
+  })();
+
+  // A tail runs no further than the chr does, and only where the rows above and below end on that
+  // same chr - otherwise it hangs over a different one. The neighbour test covers the whole group,
+  // so one group stays one axis and its members pad alike.
+  const extensionCap = (i: number, lastChr: string) => {
+    for (let t = 0; t < finalAxes.length; t++) {
+      if (groupOf[t] !== groupOf[i]) continue;
+      for (const neighbour of [finalAxes[t - 1], finalAxes[t + 1]]) {
+        if (neighbour && neighbour.chrOrder[neighbour.chrOrder.length - 1] !== lastChr) return 0;
+      }
+    }
+    return figureChrExtent.get(lastChr) ?? 0;
   };
 
   // Pad the last chr of every lighter axis so its row still reaches trackW. The deficit is converted
@@ -357,7 +394,8 @@ export const useVisualizationLayout = (
   sharedAxis: boolean,
   stripBlankMbp: number,
   intraRelabel: boolean,
-  intraScoreConfig: IntraScoreConfig
+  intraScoreConfig: IntraScoreConfig,
+  baseChrExtent?: Map<string, number>
 ): VisualizationLayout[] => {
   const { minLocalEvents, gapStopMbp, driftK, complexMin } = intraScoreConfig;
   return useMemo(
@@ -375,10 +413,12 @@ export const useVisualizationLayout = (
         sharedAxis,
         stripBlankMbp,
         intraRelabel,
-        intraScoreConfig
+        intraScoreConfig,
+        baseChrExtent
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
+      baseChrExtent,
       pairs,
       baseLabel,
       trackW,

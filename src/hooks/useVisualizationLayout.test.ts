@@ -188,6 +188,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
     stripBlankMbp?: number;
     intraRelabel?: boolean;
     intraScoreConfig?: IntraScoreConfig;
+    baseChrExtent?: Map<string, number>;
   }
 
   // Drive the hook once and return its layout array.
@@ -206,7 +207,8 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
         o.sharedAxis ?? false,
         o.stripBlankMbp ?? 0,
         o.intraRelabel ?? false,
-        o.intraScoreConfig ?? defaultIntra
+        o.intraScoreConfig ?? defaultIntra,
+        o.baseChrExtent
       )
     ).result.current;
 
@@ -380,10 +382,10 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
 
     const rowRight = (bars: { px: number; pw: number }[]) => Math.max(...bars.map((b) => b.px + b.pw));
 
-    it("truncates the lighter row where the next row stops carrying its last chr", () => {
+    it("stops the lighter row at its data when nothing says the chr runs further", () => {
       // base carries 1A only; the query side also carries 2B. The query row holds the most bp, so it
-      // sets the ratio. The base row would pad 1A out to the edge, but past 100bp the query row shows
-      // 2B under that tail, so 1A stops at its data and the row ends short.
+      // sets the ratio. No chrExtent is supplied, so the rows stand in for it and 1A is only known
+      // as far as 200bp. Any tail would be invented, so the row ends short.
       const uneven: PairInput[] = [
         {
           queryLabel: "q1",
@@ -422,30 +424,36 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(oneA.pw / oneA.bpLen).toBeCloseTo(q1a.pw / q1a.bpLen);
     });
 
-    it("still pads out to trackW when the next row ends on the same chr", () => {
-      // base carries 7B only; the query side splits into 5B + 7B and so holds more bp. Both rows
-      // still end on 7B, so the base row's tail sits over 7B and is allowed to reach the edge.
-      const split: PairInput[] = [
-        {
-          queryLabel: "q1",
-          data: [
-            makeRow({ chromosomeBase: "7B", chromosomeQuery: "7B", p2Base: 430, p2Query: 430 }),
-            makeRow({
-              id: 1,
-              chromosomeBase: "7B",
-              p1Base: 430,
-              p2Base: 750,
-              chromosomeQuery: "5B",
-              groupedQuery: "5B",
-              p1Query: 0,
-              p2Query: 330,
-              isTranslocation: true,
-              mainEvent: "translocation",
-            }),
-          ],
-        },
-      ];
-      const out = layout(split, { sharedAxis: true, trackW: 1000 })[0];
+    // base carries 7B only (data to 750bp); the query side splits into 5B + 7B and so holds more
+    // bp, setting the ratio. The base row needs 12.3bp of tail to reach trackW, and gets it only
+    // as far as 7B is known to run.
+    const split: PairInput[] = [
+      {
+        queryLabel: "q1",
+        data: [
+          makeRow({ chromosomeBase: "7B", chromosomeQuery: "7B", p2Base: 430, p2Query: 430 }),
+          makeRow({
+            id: 1,
+            chromosomeBase: "7B",
+            p1Base: 430,
+            p2Base: 750,
+            chromosomeQuery: "5B",
+            groupedQuery: "5B",
+            p1Query: 0,
+            p2Query: 330,
+            isTranslocation: true,
+            mainEvent: "translocation",
+          }),
+        ],
+      },
+    ];
+
+    it("pads out to trackW when the chromosome really runs past the data", () => {
+      const out = layout(split, {
+        sharedAxis: true,
+        trackW: 1000,
+        baseChrExtent: new Map([["7B", 900]]),
+      })[0];
 
       expect(out.baseRow.bars.map((b) => b.chr)).toEqual(["7B"]);
       expect(queryChrs(out)).toEqual(["5B", "7B"]);
@@ -455,7 +463,83 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       const sevenB = out.baseRow.bars[0];
       const q7b = out.queryRow.slots.find((s): s is ChrBar => s.kind === "chr" && s.chr === "7B")!;
       expect(sevenB.bpLen).toBeGreaterThan(750);
+      expect(sevenB.bpLen).toBeLessThan(900);
       expect(sevenB.pw / sevenB.bpLen).toBeCloseTo(q7b.pw / q7b.bpLen);
+    });
+
+    it("stops the tail where the chromosome ends, leaving the row short", () => {
+      const out = layout(split, {
+        sharedAxis: true,
+        trackW: 1000,
+        baseChrExtent: new Map([["7B", 755]]),
+      })[0];
+
+      const sevenB = out.baseRow.bars[0];
+      expect(sevenB.bpLen).toBe(755);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(755 * (997 / 760));
+      expect(rowRight(out.baseRow.bars)).toBeLessThan(1000);
+    });
+
+    it("pads every row alike, at the furthest the chromosome runs in the figure", () => {
+      // track0 carries {1A, 2B} and the most bp, so it sets the ratio. Tracks 1-3 are 2B alone and
+      // share an axis; every row ends on 2B, so tails are allowed. The files disagree on where 2B
+      // ends (100 / 300 / 300 / 900) and the furthest wins.
+      const heavy: PairInput = {
+        queryLabel: "q1",
+        chrExtent: new Map([["2B", 300]]),
+        data: [
+          makeRow({
+            p2Base: 1000,
+            chromosomeQuery: "2B",
+            groupedQuery: "2B",
+            p2Query: 50,
+            isTranslocation: true,
+            mainEvent: "translocation",
+          }),
+          makeRow({
+            id: 1,
+            chromosomeBase: "2B",
+            p2Base: 100,
+            chromosomeQuery: "2B",
+            groupedQuery: "2B",
+            p1Query: 50,
+            p2Query: 100,
+          }),
+        ],
+      };
+      const light = (queryLabel: string, end: number): PairInput => ({
+        queryLabel,
+        chrExtent: new Map([["2B", end]]),
+        data: [
+          makeRow({
+            chromosomeBase: "2B",
+            p2Base: 100,
+            chromosomeQuery: "2B",
+            groupedQuery: "2B",
+            p2Query: 100,
+          }),
+        ],
+      });
+
+      const out = layout([heavy, light("q2", 300), light("q3", 900)], {
+        sharedAxis: true,
+        trackW: 1000,
+        baseChrExtent: new Map([
+          ["1A", 1000],
+          ["2B", 100],
+        ]),
+      });
+      const twoB = (bars: { chr: string; pw: number }[]) => bars.find((b) => b.chr === "2B")!.pw;
+      const queryBars = (i: number) => out[i].queryRow.slots.filter((s): s is ChrBar => s.kind === "chr");
+
+      expect(out[0].baseRow.bars.map((b) => b.chr)).toEqual(["1A", "2B"]);
+      expect(queryChrs(out[0])).toEqual(["2B"]);
+      expect(twoB(queryBars(0))).toBeCloseTo(twoB(queryBars(1)));
+      expect(twoB(queryBars(1))).toBeCloseTo(twoB(queryBars(2)));
+      // Only q3 reaches 900 and every row pads to it, from 100bp of data and no further, so the
+      // three rows stop short of trackW together rather than each at its own last gene.
+      expect(queryBars(0).find((b) => b.chr === "2B")!.bpLen).toBe(900);
+      expect(rowRight(out[2].queryRow.slots)).toBeLessThan(1000);
     });
   });
 

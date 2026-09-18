@@ -43,7 +43,7 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const tickIntervalMbp = useVisualizationStore((s) => s.tickIntervalMbp);
 
   const pairs = useMemo<PairInput[]>(
-    () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0] })),
+    () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0], chrExtent: d.chrExtent })),
     [data]
   );
 
@@ -62,7 +62,8 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     sharedAxis,
     stripBlankMbp,
     relabel,
-    intra
+    intra,
+    base?.chrExtent
   );
 
   const predictedPerPair = useMemo(
