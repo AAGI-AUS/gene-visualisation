@@ -1,8 +1,5 @@
-import { COLOR } from "@/src/constants";
+import { COLOR, MAX_TICK_OFFSET_FRAC, TICK_MARK_PX } from "@/src/constants";
 import type { Tick } from "@/types";
-import { MAX_TICK_OFFSET_FRAC } from "@/src/components/visualizationTab/utils";
-
-const TICK_MARK_PX = 8;
 
 const bottomLabelTicks = (ticks: Tick[], nextTicks: Tick[] | null): Tick[] => {
   if (!nextTicks) return ticks;

@@ -26,8 +26,7 @@ export interface VisualizationLayout {
 export interface PairInput {
   data: ResultRow[];
   queryLabel: string;
-  // How far each chr runs in this query's whole BED. Bounds how far a lighter row pads its last
-  // bar; leave it out and the pair's own rows stand in.
+  // how far chromosome can run to fill canvas as the last bar
   chrExtent?: Map<string, number>;
 }
 
@@ -249,31 +248,27 @@ export const computeVisualizationLayout = (
     }));
   })();
 
-  const axisTotalBp = (axis: Track) =>
-    axis.chrOrder.reduce(
-      (total, chr) => total + ((axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0)),
-      0
-    );
   const axisTargetW = (axis: Track) => trackW - (axis.chrOrder.length - 1) * CHR_GAP_PX;
+  const axisTotalBp = ({ chrOrder, chrMin, chrMax }: Track) =>
+    chrOrder.reduce((total, chr) => total + (chrMax.get(chr) ?? 0) - (chrMin.get(chr) ?? 0), 0);
 
-  // One px/bp for the whole figure: the smallest per-track ratio, so the track carrying the most bp
-  // fills trackW and no track is ever compressed to fit.
   const sharedPxPerBp = (() => {
     if (!sharedAxis) return undefined;
+
     let best = Infinity;
     for (const axis of finalAxes) {
       if (!axis.chrOrder.length) continue;
+
       const totalBp = axisTotalBp(axis);
       if (totalBp <= 0) continue;
+
       const ratio = axisTargetW(axis) / totalBp;
       if (ratio < best) best = ratio;
     }
-    return isFinite(best) ? best : undefined;
+    return best;
   })();
 
-  // How far each track's chrs run. The caller passes its whole BED's extent; without it the
-  // track's own rows stand in, which recovers what chunk filtering dropped but nothing past the
-  // join.
+  // how far chromosome can run to fill canvas as the last bar
   const trackChrExtent: Map<string, number>[] = (() => {
     const fromRows = (rows: ResultRow[], query: boolean) => {
       const out = new Map<string, number>();
@@ -289,9 +284,7 @@ export const computeVisualizationLayout = (
     return [head, ...pairs.map((p) => p.chrExtent ?? fromRows(p.data, true))];
   })();
 
-  // Furthest any row carries each chr. The rows are different genomes of one chromosome at one
-  // scale, and a group already unions its members' bounds, so the bound is figure-wide. Measured
-  // per row or per group it lands behind the bars a row lines up with, and the row ends short.
+  // longest extent of each chromosome bar
   const figureChrExtent = (() => {
     const out = new Map<string, number>();
     for (const extent of trackChrExtent) {
@@ -303,9 +296,7 @@ export const computeVisualizationLayout = (
     return out;
   })();
 
-  // A tail runs no further than the chr does, and only where the rows above and below end on that
-  // same chr - otherwise it hangs over a different one. The neighbour test covers the whole group,
-  // so one group stays one axis and its members pad alike.
+  // cap the extension if own and neighbours' tail is the same chromosome with the longest extent, otherwise 0
   const extensionCap = (i: number, lastChr: string) => {
     for (let t = 0; t < finalAxes.length; t++) {
       if (groupOf[t] !== groupOf[i]) continue;
@@ -316,9 +307,6 @@ export const computeVisualizationLayout = (
     return figureChrExtent.get(lastChr) ?? 0;
   };
 
-  // Pad the last chr of every lighter axis so its row still reaches trackW. The deficit is converted
-  // back to bp at the shared ratio, so px/bp is untouched - the row ends flush without being drawn at
-  // a scale of its own. Tracks in one group share bounds, so they pad identically and stay aligned.
   const paddedAxes: Track[] =
     sharedPxPerBp === undefined
       ? finalAxes
@@ -338,14 +326,6 @@ export const computeVisualizationLayout = (
 
   const pairAxes = pairs.map((_, p) => ({ baseAxis: paddedAxes[p], queryAxis: paddedAxes[p + 1] }));
 
-  const globalPxPerBp = (() => {
-    if (sharedPxPerBp === undefined) return undefined;
-    const allChrs = new Set<string>();
-    for (const axis of paddedAxes) for (const chr of axis.chrOrder) allChrs.add(chr);
-    if (!allChrs.size) return undefined;
-    return new Map(Array.from(allChrs, (chr) => [chr, sharedPxPerBp]));
-  })();
-
   return pairs.map((pair, p) => {
     const { baseAxis, queryAxis } = pairAxes[p];
 
@@ -356,7 +336,7 @@ export const computeVisualizationLayout = (
       p === 0 ? baseLabel : "",
       trackW,
       othersMode,
-      globalPxPerBp
+      sharedPxPerBp
     );
 
     const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
@@ -371,8 +351,7 @@ export const computeVisualizationLayout = (
     specs.push(...chrSpecs);
     if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
-    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, globalPxPerBp);
-
+    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, sharedPxPerBp);
     const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
     const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
     const y2top = queryRow.y - RIBBON_GAP;

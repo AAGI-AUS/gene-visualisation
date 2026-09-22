@@ -47,6 +47,10 @@ export const DEFAULT_TICK_STEP_BP = 100_000_000;
 export const TICK_TARGET_PX = 80;
 export const TICK_TARGET_EM = 7;
 export const MAX_TICKS_PER_CHR = 10;
+export const MAX_TICKS_PER_BAR = 1000;
+export const MAX_TICK_OFFSET_FRAC = 0.1;
+export const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
+export const TICK_MARK_PX = 8;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];

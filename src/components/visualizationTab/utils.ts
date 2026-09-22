@@ -4,7 +4,10 @@ import {
   CHR_GAP_PX,
   CHROM_THICKNESS,
   DEFAULT_TICK_STEP_BP,
+  MAX_TICK_OFFSET_FRAC,
+  MAX_TICKS_PER_BAR,
   MAX_TICKS_PER_CHR,
+  TICK_MULTIPLES,
   OTHERS_W,
   PAD,
   ROW_GAP,
@@ -209,7 +212,7 @@ export const buildBaseRow = (
   label: string,
   availW: number,
   othersMode: OthersMode,
-  perChrPxPerBp?: Map<string, number>
+  sharedPxPerBp?: number
 ): BaseRow => {
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
@@ -227,7 +230,7 @@ export const buildBaseRow = (
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const p1 = chrMinBp.get(chr) ?? 0;
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
-    const pxPerBp = perChrPxPerBp?.get(chr) ?? rowPxPerBp;
+    const pxPerBp = sharedPxPerBp ?? rowPxPerBp;
     const pw = bpLen * pxPerBp;
 
     const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1 };
@@ -246,7 +249,7 @@ export const buildQueryRow = (
   slotSpecs: SlotSpec[],
   label: string,
   availW: number,
-  perChrPxPerBp?: Map<string, number>
+  sharedPxPerBp?: number
 ): QueryRow => {
   const y = PAD.top + CHROM_THICKNESS + ROW_GAP;
   const n = slotSpecs.length;
@@ -271,7 +274,7 @@ export const buildQueryRow = (
   const slots: QuerySlot[] = slotSpecs.map((spec, i) => {
     let slot: QuerySlot;
     if (spec.kind === "chr") {
-      const pxPerBp = perChrPxPerBp?.get(spec.chr) ?? rowPxPerBp;
+      const pxPerBp = sharedPxPerBp ?? rowPxPerBp;
       const pw = spec.bpLen * pxPerBp;
       slot = { ...spec, px: cursor, pw };
       cursor += pw;
@@ -296,8 +299,6 @@ export const buildQueryRow = (
 // ─────────────────────────────────────────────────────────────────────────────
 // Axis ticks
 // ─────────────────────────────────────────────────────────────────────────────
-
-const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
 
 export const niceTickStep = (rawBp: number): number => {
   const magnitude = 10 ** Math.floor(Math.log10(rawBp));
@@ -337,31 +338,25 @@ export const formatBpLabel = (bp: number): string => {
   return `${scaled.replace(/\.?0+$/, "")}${unit.suffix}`;
 };
 
-export const MAX_TICK_OFFSET_FRAC = 0.1;
-const MAX_TICKS_PER_BAR = 1000;
-
 const inRange = (bar: ChrBar, bp: number) => bp >= bar.p1 && bp <= bar.p1 + bar.bpLen;
 
 const barTicks = (bar: ChrBar, stepBp: number): { bp: number; x: number }[] => {
   const startBp = Math.ceil(bar.p1 / stepBp) * stepBp;
   const count = Math.min(Math.floor((bar.p1 + bar.bpLen - startBp) / stepBp) + 1, MAX_TICKS_PER_BAR);
-  const out: { bp: number; x: number }[] = [];
-  for (let i = 0; i < count; i++) {
+  return Array.from({ length: Math.max(count, 0) }, (_, i) => {
     const bp = startBp + i * stepBp;
-    out.push({ bp, x: bpToPx(bar, bp) });
-  }
-  return out;
+    return { bp, x: bpToPx(bar, bp) };
+  });
 };
 
-// Ticks come from each bar's own extent, then pair up by chr + bp: a bp on both sides can carry a
-// connector, one on a single side still carries a mark and a label on that side.
+// Ticks come from each bar's own extent, then pair up by chr + bp
+// a bp on both sides can carry a connector, one on a single side carries a mark and a label
 export const collectTicks = (
   baseBars: ChrBar[],
   queryBars: ChrBar[],
   stepBp: number,
   connect: boolean
 ): Tick[] => {
-  const baseByChr = new Map(baseBars.map((b) => [b.chr, b]));
   const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
   const out: Tick[] = [];
 
@@ -377,17 +372,13 @@ export const collectTicks = (
     }
   }
 
+  const emitted = new Set(out.map((t) => t.key));
+
   for (const queryBar of queryBars) {
-    const baseBar = baseByChr.get(queryBar.chr);
     for (const { bp, x } of barTicks(queryBar, stepBp)) {
-      if (baseBar && inRange(baseBar, bp)) continue;
-      out.push({
-        xBottom: x,
-        label: formatBpLabel(bp),
-        key: `${queryBar.chr}-${bp}`,
-        drawLine: false,
-        pw: queryBar.pw,
-      });
+      const key = `${queryBar.chr}-${bp}`;
+      if (emitted.has(key)) continue;
+      out.push({ xBottom: x, label: formatBpLabel(bp), key, drawLine: false, pw: queryBar.pw });
     }
   }
 

@@ -81,8 +81,6 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     return resolveTickStepBp(bars, fontSize - 1, tickIntervalMbp);
   }, [layouts, queryChrBars, fontSize, tickIntervalMbp]);
 
-  // Built once per pair here rather than in LinePair: pair P's ticks are also pair P-1's nextTicks,
-  // and LinePair re-renders on every hover.
   const ticksPerPair = useMemo(
     () =>
       sharedAxis

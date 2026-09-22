@@ -291,7 +291,7 @@ describe("buildBaseRow", () => {
     expect(row.bars[0].px).toBe(OTHERS_W + CHR_GAP_PX);
   });
 
-  it("perChrPxPerBp overrides rowPxPerBp per chr and leaves the row short of availW", () => {
+  it("sharedPxPerBp overrides rowPxPerBp and leaves the row short of availW", () => {
     const chrMax = new Map([
       ["1A", 100],
       ["2B", 100],
@@ -300,17 +300,16 @@ describe("buildBaseRow", () => {
       ["1A", 0],
       ["2B", 0],
     ]);
-    // rowPxPerBp = (203 - 3 gap) / 200 = 1. 1A overridden to 0.5; 2B falls back to rowPxPerBp.
-    const perChrPxPerBp = new Map([["1A", 0.5]]);
-    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", perChrPxPerBp);
+    // rowPxPerBp = (203 - 3 gap) / 200 = 1, overridden to 0.5 for every bar.
+    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", 0.5);
 
     expect(row.bars[0].pw).toBe(50);
     expect(row.bars[0].bpLen).toBe(100);
 
-    // the last bar keeps its data extent, so the row ends 50px short of availW.
-    expect(row.bars[1].pw).toBe(100);
+    // every bar keeps its data extent, so the row ends 100px short of availW.
+    expect(row.bars[1].pw).toBe(50);
     expect(row.bars[1].bpLen).toBe(100);
-    expect(row.bars[1].px + row.bars[1].pw).toBe(153);
+    expect(row.bars[1].px + row.bars[1].pw).toBe(103);
   });
 });
 
@@ -345,14 +344,13 @@ describe("buildQueryRow", () => {
     expect(right.pw).toBe(OTHERS_W);
   });
 
-  it("perChrPxPerBp sizes the chr slot from its own extent, leaving the row short", () => {
+  it("sharedPxPerBp sizes the chr slot from its own extent, leaving the row short", () => {
     const specs: SlotSpec[] = [
       { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
       { kind: "others", baseChr: "1A", side: "right" },
     ];
     // chr width = 100*0.5 = 50, so the row ends at 50 + 3 gap + 24 others = 77 of availW 200.
-    const perChrPxPerBp = new Map([["1A", 0.5]]);
-    const row = buildQueryRow(specs, "label", 200, perChrPxPerBp);
+    const row = buildQueryRow(specs, "label", 200, 0.5);
     const [chr, right] = row.slots;
     if (chr.kind !== "chr" || right.kind !== "others") throw new Error("unexpected slot kinds");
 
