@@ -19,22 +19,20 @@ const bottomLabelTicks = (ticks: Tick[], nextTicks: Tick[] | null): Tick[] => {
 interface TickAxisProps {
   ticks: Tick[];
   labelY: number;
-  markFrom: number;
-  markTo: number;
-  keyPrefix: string;
+  markY: number;
   side: "top" | "bottom";
 }
 
-// A tick whose connector was suppressed still gets a short mark through the bar, so no label floats
-// free of the axis it belongs to.
-const TickAxis = ({ ticks, labelY, markFrom, markTo, keyPrefix, side }: TickAxisProps) => (
+const TickAxis = ({ ticks, labelY, markY, side }: TickAxisProps) => (
   <>
     {ticks.map((t) => {
       const x = side === "top" ? t.xTop : t.xBottom;
       if (x === undefined) return null;
+
+      const y1 = side === "top" ? markY : markY - TICK_MARK_PX;
       return (
-        <g key={`${keyPrefix}-${t.key}`}>
-          {!t.drawLine && <line x1={x} x2={x} y1={markFrom} y2={markTo} stroke="grey" strokeWidth={0.5} />}
+        <g key={`${side}-${t.key}`}>
+          {!t.drawLine && <line x1={x} x2={x} y1={y1} y2={y1 + TICK_MARK_PX} stroke="grey" strokeWidth={0.5} />}
           <text x={x} y={labelY} fill={COLOR.muted} textAnchor="middle">
             {t.label}
           </text>
@@ -71,25 +69,9 @@ export const CoordinateGrid = ({
           />
         ) : null
       )}
-      {labelTopY !== null && (
-        <TickAxis
-          ticks={ticks}
-          labelY={labelTopY}
-          markFrom={lineTop}
-          markTo={lineTop + TICK_MARK_PX}
-          keyPrefix="tt"
-          side="top"
-        />
-      )}
+      {labelTopY !== null && <TickAxis ticks={ticks} labelY={labelTopY} markY={lineTop} side="top" />}
       {labelBottomY !== null && bottomTicks.length > 0 && (
-        <TickAxis
-          ticks={bottomTicks}
-          labelY={labelBottomY + fontSize / 8}
-          markFrom={lineBottom - TICK_MARK_PX}
-          markTo={lineBottom}
-          keyPrefix="tb"
-          side="bottom"
-        />
+        <TickAxis ticks={bottomTicks} labelY={labelBottomY + fontSize / 8} markY={lineBottom} side="bottom" />
       )}
     </g>
   );
@@ -97,7 +79,6 @@ export const CoordinateGrid = ({
 
 interface CoordinateGridProps {
   ticks: Tick[];
-  // The pair below, so a bottom label is dropped where its connector already carries the bp down.
   nextTicks: Tick[] | null;
   lineTop: number;
   lineBottom: number;

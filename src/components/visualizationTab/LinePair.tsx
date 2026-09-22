@@ -65,12 +65,10 @@ export const LinePair = ({
 
   const isFirst = i === 0;
   const isLast = i === total - 1;
-  // Every scale run is labelled at its last row, below the bar; boundaryTicks adds the rows between.
-  // A run that is one row wide takes the bottom placement only, so no row carries both label sets.
+  // Every scale run is labelled at the last row
   const startsScale = isFirst || !prevSameScale;
-  const endsScale = !sameScale;
   const nextEndsScale = isLast || !nextSameScale;
-  const labelsTop = isFirst || (boundaryTicks && startsScale && !endsScale);
+  const labelsTop = isFirst || (boundaryTicks && startsScale && sameScale);
   const labelsBottom = nextEndsScale || (boundaryTicks && sameScale);
 
   return (

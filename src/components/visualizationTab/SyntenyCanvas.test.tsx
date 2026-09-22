@@ -40,7 +40,7 @@ const renderCanvas = (data: Result) => {
   return render(<SyntenyCanvas data={data} svgRef={svgRef} width={900} height={300} />);
 };
 
-// A translocated tail that puts a query-only 2B at 500-620M, breaking the shared scale.
+// inter-translocated tail putting a query-only 2B at 500-620M
 const twoBTail = [0, 1, 2].map((i) =>
   makeTranslocationRow({
     id: 10 + i,
@@ -60,7 +60,7 @@ const pairGroups = (container: HTMLElement) =>
     g.getAttribute("transform")?.startsWith(`translate(${PAD.left},`)
   );
 
-// Within a pair group, top labels sit above the base bar and bottom labels below the query bar.
+// Within a pair group, top labels sit above the base bar and bottom labels below the query bar
 const labelSides = (g: Element) => {
   const ys = Array.from(g.querySelectorAll("text"))
     .filter(isTickLabel)
@@ -68,10 +68,10 @@ const labelSides = (g: Element) => {
   return { top: ys.includes(PAD.top - 6), bottom: ys.some((y) => y > PAD.top) };
 };
 
-// Tick labels split into a top and a bottom run by their y; the smaller y is the base row's.
+// Tick labels split into a top and a bottom run by their y, the smaller y is the base row's
 const tickLabelsByRow = (container: HTMLElement) => {
   const labels = Array.from(container.querySelectorAll("text"))
-    .filter((t) => /^\d+(\.\d+)?[kMG]$/.test(t.textContent ?? ""))
+    .filter(isTickLabel)
     .map((t) => ({ text: t.textContent ?? "", y: Number(t.getAttribute("y")) }));
   const topY = Math.min(...labels.map((l) => l.y));
   return {
@@ -147,7 +147,7 @@ describe("SyntenyCanvas", () => {
     expect(bottom).toEqual(expect.arrayContaining(["500M", "600M"]));
     expect(top).not.toEqual(expect.arrayContaining(["500M", "600M"]));
 
-    // 2B puts the rows on different scales, so nothing connects and every tick gets a mark.
+    // 2B puts the rows on different scales, nothing connects
     expect(container.querySelectorAll('line[stroke-dasharray="5 3"]')).toHaveLength(0);
     const marks = container.querySelectorAll('line[stroke-width="0.5"]:not([stroke-dasharray])');
     expect(marks.length).toBe(9);
@@ -164,37 +164,36 @@ describe("SyntenyCanvas", () => {
   });
 
   describe("scale-run labels", () => {
-    // Four tracks: base{1A} | q1{1A,2B} | q2{1A} | q3{1A}, so the runs are [0], [1], [2,3].
+    // Four tracks, so the runs are [0], [1], [2,3].
+    // base 1A----
+    //   q1 1A---- 2B----
+    //   q2 1A----
+    //   q3 1A----
     const brokenThenPaired = (): Result => [
       { name: "q1.bed", rows: [...basePair.rows, ...twoBTail] },
       { ...basePair, name: "q2.bed" },
       { ...basePair, name: "q3.bed" },
     ];
 
-    it("heads a multi-row run above its bar and closes it below the last row", () => {
-      useVisualizationStore.setState({ boundaryTicks: true, denoise: false });
-      const sides = renderCanvas(brokenThenPaired()).container;
-
-      // run [2,3] heads above pair 2's base bar and closes below pair 2's query bar.
-      expect(labelSides(pairGroups(sides)[2])).toEqual({ top: true, bottom: true });
-    });
-
-    it("gives a one-row run the bottom placement only, never both", () => {
+    it("provides correct labels", () => {
       useVisualizationStore.setState({ boundaryTicks: true, denoise: false });
       const groups = pairGroups(renderCanvas(brokenThenPaired()).container);
 
-      // run [1] is one row: pair 0 labels below it, and pair 1 adds nothing above it.
+      // labels drawn at top and bottom of track
       expect(labelSides(groups[0])).toEqual({ top: true, bottom: true });
+      // no label drawn
       expect(labelSides(groups[1])).toEqual({ top: false, bottom: false });
+      // labels drawn at top and bottom of track
+      expect(labelSides(groups[2])).toEqual({ top: true, bottom: true });
     });
 
     it("still closes every run with intra ticks off", () => {
       useVisualizationStore.setState({ boundaryTicks: false, denoise: false });
       const groups = pairGroups(renderCanvas(brokenThenPaired()).container);
 
-      // no run is left unlabelled: [0] heads the figure, [1] closes under pair 0, [2,3] under pair 2.
       expect(labelSides(groups[0])).toEqual({ top: true, bottom: true });
       expect(labelSides(groups[1])).toEqual({ top: false, bottom: false });
+      // labels drawn only at bottom of track
       expect(labelSides(groups[2])).toEqual({ top: false, bottom: true });
     });
   });
