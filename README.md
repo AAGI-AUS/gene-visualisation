@@ -20,7 +20,7 @@ To make your first synteny graph with the sample data:
 2.  In the app, select `base.bed` as a baseline and the rest as query.
 3.  Click `RUN` with default parameters.
 
-<img src="docs/steps.png" alt="Steps" width="377">
+<img src="docs/steps.png" alt="Steps" width="233">
 
 The result should be similar to the figure below.
 
