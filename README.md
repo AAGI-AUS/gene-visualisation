@@ -6,6 +6,8 @@ React app for visualizing genomic synteny graph from BED files. It loads a base 
 joins rows by id, classifies each row as synteny / inversion / translocation, groups contiguous rows into
 chunks, and draws ribbons between chromosome bars.
 
+Download the standalone HTML from the [latest release](https://github.com/biometryhub/gene-visualisation/releases/latest).
+
 ## Scripts
 
 - `yarn dev`: start the dev server (craco)
