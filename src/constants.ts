@@ -47,6 +47,10 @@ export const DEFAULT_TICK_STEP_BP = 100_000_000;
 export const TICK_TARGET_PX = 80;
 export const TICK_TARGET_EM = 7;
 export const MAX_TICKS_PER_CHR = 10;
+export const MAX_TICKS_PER_BAR = 1000;
+export const MAX_TICK_OFFSET_FRAC = 0.1;
+export const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
+export const TICK_MARK_PX = 8;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];
@@ -84,7 +88,8 @@ export const HELP = {
   sharedAxis: "Give each chromosome one bp scale across all rows.",
   tickIntervalMbp:
     "Spacing between shared-axis tick lines. 0 = pick a round spacing that fits the current width and font.",
-  boundaryTicks: "Label the axis at every row boundary instead of only the bottom row.",
+  boundaryTicks:
+    "Label the axis at every row boundary. Off, only the last row of each shared scale is labelled.",
   showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
   fontSize: "",
   svgW: "",

@@ -4,14 +4,17 @@ import {
   CHR_GAP_PX,
   CHROM_THICKNESS,
   DEFAULT_TICK_STEP_BP,
+  MAX_TICK_OFFSET_FRAC,
+  MAX_TICKS_PER_BAR,
   MAX_TICKS_PER_CHR,
+  TICK_MULTIPLES,
   OTHERS_W,
   PAD,
   ROW_GAP,
   TICK_TARGET_EM,
   TICK_TARGET_PX,
 } from "@/src/constants";
-import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot } from "@/types";
+import type { BaseRow, Chunk, ChunkRibbon, ChrBar, EventCounts, QueryRow, QuerySlot, Tick } from "@/types";
 import { clamp, closeTo } from "@/src/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -209,7 +212,7 @@ export const buildBaseRow = (
   label: string,
   availW: number,
   othersMode: OthersMode,
-  perChrPxPerBp?: Map<string, number>
+  sharedPxPerBp?: number
 ): BaseRow => {
   const n = chrOrder.length;
   if (n === 0) return { label, bars: [], y: PAD.top };
@@ -227,25 +230,13 @@ export const buildBaseRow = (
   const bars: ChrBar[] = chrOrder.map((chr, i) => {
     const p1 = chrMinBp.get(chr) ?? 0;
     const bpLen = Math.max(chrMaxBp.get(chr) ?? 1, 1) - p1;
-    const pxPerBp = perChrPxPerBp?.get(chr) ?? rowPxPerBp;
+    const pxPerBp = sharedPxPerBp ?? rowPxPerBp;
     const pw = bpLen * pxPerBp;
 
     const bar: ChrBar = { kind: "chr", chr, px: cursor, pw, bpLen, p1 };
     cursor += pw + (i < n - 1 ? CHR_GAP_PX : 0);
     return bar;
   });
-
-  if (perChrPxPerBp) {
-    const last = bars[bars.length - 1];
-    const targetRight = availW - startCursor;
-    const deficit = targetRight - (last.px + last.pw);
-    if (deficit > 0) {
-      const pxPerBp = perChrPxPerBp.get(last.chr) ?? rowPxPerBp;
-      last.dataBpLen = last.bpLen;
-      last.pw += deficit;
-      last.bpLen += deficit / pxPerBp;
-    }
-  }
 
   return { label, bars, y: PAD.top };
 };
@@ -258,7 +249,7 @@ export const buildQueryRow = (
   slotSpecs: SlotSpec[],
   label: string,
   availW: number,
-  perChrPxPerBp?: Map<string, number>
+  sharedPxPerBp?: number
 ): QueryRow => {
   const y = PAD.top + CHROM_THICKNESS + ROW_GAP;
   const n = slotSpecs.length;
@@ -283,7 +274,7 @@ export const buildQueryRow = (
   const slots: QuerySlot[] = slotSpecs.map((spec, i) => {
     let slot: QuerySlot;
     if (spec.kind === "chr") {
-      const pxPerBp = perChrPxPerBp?.get(spec.chr) ?? rowPxPerBp;
+      const pxPerBp = sharedPxPerBp ?? rowPxPerBp;
       const pw = spec.bpLen * pxPerBp;
       slot = { ...spec, px: cursor, pw };
       cursor += pw;
@@ -302,44 +293,12 @@ export const buildQueryRow = (
     return slot;
   });
 
-  if (perChrPxPerBp) {
-    let lastChrIdx = -1;
-    for (let i = slots.length - 1; i >= 0; i--) {
-      if (slots[i].kind === "chr") {
-        lastChrIdx = i;
-        break;
-      }
-    }
-    if (lastChrIdx >= 0) {
-      const trailing = slots.slice(lastChrIdx + 1);
-      const trailingGap = trailing.length * CHR_GAP_PX;
-      const trailingW = trailing.reduce((sum, s) => sum + s.pw, 0);
-      const last = slots[lastChrIdx] as ChrBar;
-      const targetRight = availW - trailingGap - trailingW;
-      const deficit = targetRight - (last.px + last.pw);
-      if (deficit > 0) {
-        const pxPerBp = perChrPxPerBp.get(last.chr) ?? rowPxPerBp;
-        last.dataBpLen = last.bpLen;
-        last.pw += deficit;
-        last.bpLen += deficit / pxPerBp;
-        for (let j = lastChrIdx + 1; j < slots.length; j++) {
-          slots[j].px += deficit;
-          if (slots[j].kind === "others") {
-            (slots[j] as { targetX: number }).targetX += deficit;
-          }
-        }
-      }
-    }
-  }
-
   return { label, slots, y };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Axis ticks
 // ─────────────────────────────────────────────────────────────────────────────
-
-const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
 
 export const niceTickStep = (rawBp: number): number => {
   const magnitude = 10 ** Math.floor(Math.log10(rawBp));
@@ -357,8 +316,7 @@ export const resolveTickStepBp = (bars: ChrBar[], fontSize: number, manualMbp: n
     if (bar.pw <= 0 || bar.bpLen <= 0) continue;
     const ratio = bar.pw / bar.bpLen;
     if (ratio < pxPerBp) pxPerBp = ratio;
-    const span = bar.dataBpLen ?? bar.bpLen;
-    if (span > widestBpLen) widestBpLen = span;
+    if (bar.bpLen > widestBpLen) widestBpLen = bar.bpLen;
   }
   if (!isFinite(pxPerBp)) return DEFAULT_TICK_STEP_BP;
 
@@ -378,6 +336,53 @@ export const formatBpLabel = (bp: number): string => {
   if (!unit) return `${Math.round(bp)}`;
   const scaled = (bp / unit.div).toFixed(3);
   return `${scaled.replace(/\.?0+$/, "")}${unit.suffix}`;
+};
+
+const inRange = (bar: ChrBar, bp: number) => bp >= bar.p1 && bp <= bar.p1 + bar.bpLen;
+
+const barTicks = (bar: ChrBar, stepBp: number): { bp: number; x: number }[] => {
+  const startBp = Math.ceil(bar.p1 / stepBp) * stepBp;
+  const count = Math.min(Math.floor((bar.p1 + bar.bpLen - startBp) / stepBp) + 1, MAX_TICKS_PER_BAR);
+  return Array.from({ length: Math.max(count, 0) }, (_, i) => {
+    const bp = startBp + i * stepBp;
+    return { bp, x: bpToPx(bar, bp) };
+  });
+};
+
+// Ticks come from each bar's own extent, then pair up by chr + bp
+// a bp on both sides can carry a connector, one on a single side carries a mark and a label
+export const collectTicks = (
+  baseBars: ChrBar[],
+  queryBars: ChrBar[],
+  stepBp: number,
+  connect: boolean
+): Tick[] => {
+  const queryByChr = new Map(queryBars.map((b) => [b.chr, b]));
+  const out: Tick[] = [];
+
+  for (const baseBar of baseBars) {
+    const queryBar = queryByChr.get(baseBar.chr);
+    for (const { bp, x } of barTicks(baseBar, stepBp)) {
+      const pairedBar = queryBar && inRange(queryBar, bp) ? queryBar : undefined;
+      const xBottom = pairedBar ? bpToPx(pairedBar, bp) : undefined;
+      const pw = pairedBar ? Math.min(baseBar.pw, pairedBar.pw) : baseBar.pw;
+      const drawLine =
+        connect && xBottom !== undefined && (pw <= 0 || Math.abs(x - xBottom) / pw <= MAX_TICK_OFFSET_FRAC);
+      out.push({ xTop: x, xBottom, label: formatBpLabel(bp), key: `${baseBar.chr}-${bp}`, drawLine, pw });
+    }
+  }
+
+  const emitted = new Set(out.map((t) => t.key));
+
+  for (const queryBar of queryBars) {
+    for (const { bp, x } of barTicks(queryBar, stepBp)) {
+      const key = `${queryBar.chr}-${bp}`;
+      if (emitted.has(key)) continue;
+      out.push({ xBottom: x, label: formatBpLabel(bp), key, drawLine: false, pw: queryBar.pw });
+    }
+  }
+
+  return out;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

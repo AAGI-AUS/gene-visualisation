@@ -71,7 +71,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
     driftK: 0.7,
     complexMin: 2,
   },
-  boundaryTicks: false,
+  boundaryTicks: true,
   showMarks: false,
   stripBlankMbp: 300,
   tickIntervalMbp: 0,

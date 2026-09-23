@@ -6,6 +6,7 @@ import {
   buildQueryRow,
   chunkRows,
   collectNoisyIds,
+  collectTicks,
   computeRibbons,
   findLargestGapCenter,
   formatBpLabel,
@@ -290,7 +291,7 @@ describe("buildBaseRow", () => {
     expect(row.bars[0].px).toBe(OTHERS_W + CHR_GAP_PX);
   });
 
-  it("perChrPxPerBp overrides rowPxPerBp per chr and stretches the last bar to fill availW", () => {
+  it("sharedPxPerBp overrides rowPxPerBp and leaves the row short of availW", () => {
     const chrMax = new Map([
       ["1A", 100],
       ["2B", 100],
@@ -299,19 +300,16 @@ describe("buildBaseRow", () => {
       ["1A", 0],
       ["2B", 0],
     ]);
-    // rowPxPerBp = (203 - 3 gap) / 200 = 1. 1A overridden to 0.5; 2B falls back to rowPxPerBp.
-    const perChrPxPerBp = new Map([["1A", 0.5]]);
-    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", perChrPxPerBp);
+    // rowPxPerBp = (203 - 3 gap) / 200 = 1, overridden to 0.5 for every bar.
+    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", 0.5);
 
     expect(row.bars[0].pw).toBe(50);
     expect(row.bars[0].bpLen).toBe(100);
-    expect(row.bars[0].dataBpLen).toBeUndefined();
 
-    // last bar absorbs the 50px deficit (50 / pxPerBp=1 → +50bp).
-    expect(row.bars[1].pw).toBe(150);
-    expect(row.bars[1].bpLen).toBe(150);
-    expect(row.bars[1].dataBpLen).toBe(100);
-    expect(row.bars[1].px + row.bars[1].pw).toBe(203);
+    // every bar keeps its data extent, so the row ends 100px short of availW.
+    expect(row.bars[1].pw).toBe(50);
+    expect(row.bars[1].bpLen).toBe(100);
+    expect(row.bars[1].px + row.bars[1].pw).toBe(103);
   });
 });
 
@@ -346,24 +344,21 @@ describe("buildQueryRow", () => {
     expect(right.pw).toBe(OTHERS_W);
   });
 
-  it("perChrPxPerBp stretches the last chr slot and shifts trailing others by the deficit", () => {
+  it("sharedPxPerBp sizes the chr slot from its own extent, leaving the row short", () => {
     const specs: SlotSpec[] = [
       { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
       { kind: "others", baseChr: "1A", side: "right" },
     ];
-    // chr width = 100*0.5 = 50. targetRight = 200 - 3 gap - 24 others = 173.
-    // deficit = 123 → +123px width, +246bp (123/0.5) of bpLen, others slot shifts +123.
-    const perChrPxPerBp = new Map([["1A", 0.5]]);
-    const row = buildQueryRow(specs, "label", 200, perChrPxPerBp);
+    // chr width = 100*0.5 = 50, so the row ends at 50 + 3 gap + 24 others = 77 of availW 200.
+    const row = buildQueryRow(specs, "label", 200, 0.5);
     const [chr, right] = row.slots;
     if (chr.kind !== "chr" || right.kind !== "others") throw new Error("unexpected slot kinds");
 
     expect(chr.px).toBe(0);
-    expect(chr.pw).toBe(173);
-    expect(chr.bpLen).toBe(346);
-    expect(chr.dataBpLen).toBe(100);
-    expect(right.px).toBe(53 + 123);
-    expect(right.targetX).toBe(65 + 123);
+    expect(chr.pw).toBe(50);
+    expect(chr.bpLen).toBe(100);
+    expect(right.px).toBe(53);
+    expect(right.targetX).toBe(65);
   });
 });
 
@@ -394,11 +389,6 @@ describe("resolveTickStepBp", () => {
     expect(resolveTickStepBp([bar(8000, 2e8)], 10, 0)).toBe(2e7);
   });
 
-  it("counts against a stretched bar's pre-stretch extent", () => {
-    const stretched: ChrBar = { ...bar(8000, 4e8), dataBpLen: 2e8 };
-    expect(resolveTickStepBp([stretched], 10, 0)).toBe(2e7);
-  });
-
   it("scales the target spacing with font size", () => {
     // 7em at font 30 beats the 80px floor: a 210px target wants 52.5Mbp, snapped to 100Mbp.
     expect(resolveTickStepBp([bar(800, 2e8)], 30, 0)).toBe(1e8);
@@ -423,6 +413,63 @@ describe("formatBpLabel", () => {
   it("renders sub-kbp values as plain bp", () => {
     expect(formatBpLabel(0)).toBe("0");
     expect(formatBpLabel(250)).toBe("250");
+  });
+});
+
+describe("collectTicks", () => {
+  const bar = (chr: string, px: number, pw: number, p1: number, bpLen: number): ChrBar => ({
+    kind: "chr",
+    chr,
+    px,
+    pw,
+    bpLen,
+    p1,
+  });
+  const byKey = (ticks: ReturnType<typeof collectTicks>) => new Map(ticks.map((t) => [t.key, t]));
+
+  it("pairs a bp present on both rows and connects it", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, true);
+
+    expect(ticks.map((t) => t.key)).toEqual(["1A-0", "1A-100000000", "1A-200000000"]);
+    expect(ticks.every((t) => t.drawLine)).toBe(true);
+    expect(byKey(ticks).get("1A-100000000")).toMatchObject({ xTop: 100, xBottom: 100 });
+  });
+
+  it("emits a one-sided tick for a bp past the other row's bar, and for a chr it lacks", () => {
+    const ticks = collectTicks(
+      [bar("1A", 0, 200, 0, 2e8)],
+      [bar("1A", 0, 100, 0, 1e8), bar("2B", 103, 100, 0, 1e8)],
+      1e8,
+      true
+    );
+    const found = byKey(ticks);
+
+    // 200M is past the query bar's end, so it keeps a top x only.
+    expect(found.get("1A-200000000")).toMatchObject({ xTop: 200, xBottom: undefined, drawLine: false });
+    // 2B is missing from the base row, so its ticks carry a bottom x only.
+    expect(found.get("2B-0")).toMatchObject({ xBottom: 103, drawLine: false });
+    expect(found.get("2B-100000000")).toMatchObject({ xBottom: 203 });
+    expect(found.get("2B-0")?.xTop).toBeUndefined();
+  });
+
+  it("suppresses every connector when the rows are not on one scale", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, false);
+
+    expect(ticks.every((t) => t.drawLine)).toBe(false);
+    expect(ticks.every((t) => t.xTop !== undefined && t.xBottom !== undefined)).toBe(true);
+  });
+
+  it("suppresses a connector whose two ends drift too far apart", () => {
+    // the query bar starts 60px right of the base bar: 60 / 200 is well past MAX_TICK_OFFSET_FRAC.
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 60, 200, 0, 2e8)], 1e8, true);
+
+    expect(ticks.every((t) => t.drawLine)).toBe(false);
+  });
+
+  it("starts at the first step multiple inside the bar, not at its p1", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 1.2e8, 2e8)], [], 1e8, true);
+
+    expect(ticks.map((t) => t.label)).toEqual(["200M", "300M"]);
   });
 });
 

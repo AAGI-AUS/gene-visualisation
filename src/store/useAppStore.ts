@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import type { BedFile, BedRow, CentromereData, FilesHandler, ResultRow } from "@/types";
-import { clamp, getChromosomes, parseBED, parseCentromere, queryGene, fileToText } from "@/src/utils";
+import {
+  chrExtentOf,
+  clamp,
+  getChromosomes,
+  parseBED,
+  parseCentromere,
+  queryGene,
+  fileToText,
+} from "@/src/utils";
 import { buildPalette, computeCommonIds } from "@/src/store/utils";
 import type { SortSnapshot } from "@/src/store/autoSortCache";
 import {
@@ -12,7 +20,8 @@ import {
   setCommonIds,
 } from "@/src/store/autoSortCache";
 import { chunkRows } from "@/src/components/visualizationTab/utils";
-import { filterPacked } from "@/src/store/analysisJob";
+import type { PackedCache } from "@/src/store/analysisJob";
+import { filterPacked, packedChrExtent } from "@/src/store/analysisJob";
 import {
   clearWorkerCaches,
   defaultWorkerCount,
@@ -24,6 +33,8 @@ import {
 export type Result = {
   name: string;
   rows: ResultRow[];
+  // Per-chromosome extent of this query's whole BED, not just the rows that joined.
+  chrExtent?: Map<string, number>;
 }[];
 
 /** One grayscale segment of a baseline chromosome bar in the summary figure. */
@@ -79,7 +90,7 @@ const parseFilesInParallel = async <T>(
   files: File[],
   ids: Set<number>,
   workerCount: number,
-  transform: (index: number, rows: BedRow[]) => T
+  transform: (index: number, rows: BedRow[], packed: PackedCache) => T
 ): Promise<T[]> => {
   const out: T[] = new Array(files.length);
   let cursor = 0;
@@ -90,7 +101,7 @@ const parseFilesInParallel = async <T>(
         const file = files[i];
         const key = makeKey(file);
         const packed = getCachedPacked(key) ?? (await packFile(key, await fileToText(file), file.name));
-        out[i] = transform(i, filterPacked(packed, ids));
+        out[i] = transform(i, filterPacked(packed, ids), packed);
       }
     })
   );
@@ -121,10 +132,11 @@ const computeSortSnapshot = async (
   const filteredBase = base.rows.filter((r) => r.chromosome === chr);
   const ids = new Set(filteredBase.map((r) => r.id));
 
-  const remaining = await parseFilesInParallel(queryFiles, ids, workerCount, (i, rows) => ({
+  const remaining = await parseFilesInParallel(queryFiles, ids, workerCount, (i, rows, packed) => ({
     file: queryFiles[i],
     rows,
     map: new Map(rows.map((r) => [r.id, r])),
+    chrExtent: packedChrExtent(packed),
   }));
 
   const sortedResult: Result = [];
@@ -154,7 +166,7 @@ const computeSortSnapshot = async (
 
     const winner = remaining[bestIdx];
     const { rows, chromosomes } = queryGene(prev, winner.map, groupThreshold);
-    sortedResult.push({ name: winner.file.name, rows });
+    sortedResult.push({ name: winner.file.name, rows, chrExtent: winner.chrExtent });
     sortedFiles.push(winner.file);
     allChroms.push(...chromosomes);
     prev = winner.rows;
@@ -253,7 +265,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const rows = parseBED(text, file.name);
     const chromosomes = getChromosomes(rows).sort();
     clearSortCache();
-    set({ base: { name: file.name, rows }, baseFile: file, chromosomes, selectedChr: chromosomes[0] });
+    set({
+      base: { name: file.name, rows, chrExtent: chrExtentOf(rows) },
+      baseFile: file,
+      chromosomes,
+      selectedChr: chromosomes[0],
+    });
   },
   setQueryFiles: (file) => {
     if (!file) return;
@@ -306,7 +323,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     clearWorkerCaches();
     clearSortCache();
     set({
-      base: { name: incoming.name, rows },
+      base: { name: incoming.name, rows, chrExtent: chrExtentOf(rows) },
       baseFile: incoming,
       queryFiles: nextQueries,
       chromosomes,
@@ -329,11 +346,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (!queryFiles.length) return;
 
       try {
+        const chrExtents: Map<string, number>[] = new Array(queryFiles.length);
         const parsed: (BedRow[] | undefined)[] = await parseFilesInParallel(
           queryFiles,
           ids,
           workerCount,
-          (_, rows) => rows
+          (i, rows, packed) => {
+            chrExtents[i] = packedChrExtent(packed);
+            return rows;
+          }
         );
 
         const allChroms: string[] = [];
@@ -344,7 +365,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           const queryMap = new Map(queryRows.map((r) => [r.id, r]));
           const { rows, chromosomes } = queryGene(baseRows, queryMap, groupThreshold);
           allChroms.push(...chromosomes);
-          result[i] = { name: queryFiles[i].name, rows };
+          result[i] = { name: queryFiles[i].name, rows, chrExtent: chrExtents[i] };
           if (i > 0) parsed[i - 1] = undefined;
         }
         parsed[parsed.length - 1] = undefined;

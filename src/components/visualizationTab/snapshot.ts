@@ -49,6 +49,7 @@ export const snapshotFromStores = (): ExportSnapshot => {
   const pairs: PairInput[] = app.result.map((d) => ({
     data: d.rows,
     queryLabel: d.name.split(".")[0],
+    chrExtent: d.chrExtent,
   }));
 
   const baseLabel = app.base?.name.split(".")[0].toLowerCase() ?? "";
