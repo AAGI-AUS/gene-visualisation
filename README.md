@@ -6,7 +6,15 @@ React app for visualizing genomic synteny graph from BED files. It loads a base 
 joins rows by id, classifies each row as synteny / inversion / translocation, groups contiguous rows into
 chunks, and draws ribbons between chromosome bars.
 
-Download the standalone HTML from the [latest release](https://github.com/biometryhub/gene-visualisation/releases/latest).
+Download the standalone HTML from the [latest release][release].
+
+## Quick start
+
+[`examples/`][examples] (or `exmpales.zip` in [release][release]) holds a synthetic BED files, one base and four
+queries. Running the app with all bed files selected and default parameters should result in a figure similar
+to the screenshot below.
+
+![Visualization tab with the example bed files loaded](docs/example.png)
 
 ## Scripts
 
@@ -14,15 +22,6 @@ Download the standalone HTML from the [latest release](https://github.com/biomet
 - `yarn build`: production build to `build/`
 - `yarn build-one`: a standalone HTML in `dist/` (Python helper required)
 - `yarn test`: run the Jest suite (append `--coverage` for a coverage report)
-
-## Example data
-
-`examples/` holds a synthetic BED files: `base.bed` and four query files. Running the app with all bed files
-selected with defaults parameters should result in a figure similar to screenshot below.
-
-![Visualization tab with the example bed files loaded](docs/example.png)
-
-`examples.zip` containing these files is also provided with each release.
 
 ## `yarn build-one` prerequisites
 
@@ -40,3 +39,11 @@ After that, `yarn build-one` should work.
 
 React 18, TypeScript, CRA via craco, @visx for SVG primitives, zustand for
 state, fflate for zipped exports, web workers for BED parsing.
+
+<!-- internal -->
+
+[examples]: ./examples/
+
+<!-- external -->
+
+[release]: https://github.com/biometryhub/gene-visualisation/releases/latest
