@@ -379,18 +379,18 @@ describe("resolveTickStepBp", () => {
     expect(resolveTickStepBp([bar(100, 1e9)], 10, 25)).toBe(2.5e7);
   });
 
-  it("picks a step around the target spacing from the tightest bar", () => {
-    // 800px / 200Mbp = 4e-6 px/bp; an 80px target wants 20Mbp, which snaps to 20Mbp.
+  it("picks a step from the tightest bar", () => {
+    // 800px / 200Mbp -> constant 80px target = 20Mbp
     expect(resolveTickStepBp([bar(800, 2e8), bar(800, 1e8)], 10, 0)).toBe(2e7);
   });
 
-  it("caps ticks per chromosome once a bar is wide enough for the spacing rule alone", () => {
-    // 8000px / 200Mbp leaves the 80px target wanting 2Mbp (100 ticks); the cap lifts it to 20Mbp.
-    expect(resolveTickStepBp([bar(8000, 2e8)], 10, 0)).toBe(2e7);
+  it("caps number of ticks per chromosome", () => {
+    // 8000px / 100Mbp -> constant 80px target = 1Mbp = 100 ticks, but capped at a constant 10 -> 10Mbp
+    expect(resolveTickStepBp([bar(8000, 1e8)], 10, 0)).toBe(1e7);
   });
 
-  it("scales the target spacing with font size", () => {
-    // 7em at font 30 beats the 80px floor: a 210px target wants 52.5Mbp, snapped to 100Mbp.
+  it("scales the spacing with font size", () => {
+    // 7em at font 30 = 210px (>the consant 80px) target = 52.5Mbp, snapped to 100Mbp.
     expect(resolveTickStepBp([bar(800, 2e8)], 30, 0)).toBe(1e8);
   });
 
@@ -401,33 +401,24 @@ describe("resolveTickStepBp", () => {
 });
 
 describe("formatBpLabel", () => {
-  it("picks the unit from the value and trims trailing zeros", () => {
-    expect(formatBpLabel(5e5)).toBe("500k");
-    expect(formatBpLabel(1e6)).toBe("1M");
-    expect(formatBpLabel(1.5e6)).toBe("1.5M");
-    expect(formatBpLabel(2.5e6)).toBe("2.5M");
-    expect(formatBpLabel(1e8)).toBe("100M");
-    expect(formatBpLabel(1.1e9)).toBe("1.1G");
-  });
-
-  it("renders sub-kbp values as plain bp", () => {
+  it("works", () => {
     expect(formatBpLabel(0)).toBe("0");
     expect(formatBpLabel(250)).toBe("250");
+    expect(formatBpLabel(5e5)).toBe("500k");
+    expect(formatBpLabel(1e6)).toBe("1M");
+    expect(formatBpLabel(2.5e6)).toBe("2.5M");
+    expect(formatBpLabel(3e8)).toBe("300M");
+    expect(formatBpLabel(7.12e9)).toBe("7.12G");
   });
 });
 
 describe("collectTicks", () => {
-  const bar = (chr: string, px: number, pw: number, p1: number, bpLen: number): ChrBar => ({
-    kind: "chr",
-    chr,
-    px,
-    pw,
-    bpLen,
-    p1,
-  });
+  const bar = (chr: string, px: number, pw: number, p1: number, bpLen: number): ChrBar => {
+    return { kind: "chr", chr, px, pw, bpLen, p1 };
+  };
   const byKey = (ticks: ReturnType<typeof collectTicks>) => new Map(ticks.map((t) => [t.key, t]));
 
-  it("pairs a bp present on both rows and connects it", () => {
+  it("pairs a bp present on both rows with connectors", () => {
     const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, true);
 
     expect(ticks.map((t) => t.key)).toEqual(["1A-0", "1A-100000000", "1A-200000000"]);
@@ -436,23 +427,31 @@ describe("collectTicks", () => {
   });
 
   it("emits a one-sided tick for a bp past the other row's bar, and for a chr it lacks", () => {
+    //   0 1M   2M
+    // 1A---------
+    // 1A--- 1B---
+    //   0 1M  0 1M
     const ticks = collectTicks(
-      [bar("1A", 0, 200, 0, 2e8)],
-      [bar("1A", 0, 100, 0, 1e8), bar("2B", 103, 100, 0, 1e8)],
-      1e8,
+      [bar("1A", 0, 200, 0, 2e6)],
+      [bar("1A", 0, 100, 0, 1e6), bar("2B", 103, 100, 0, 1e6)],
+      1e6,
       true
     );
     const found = byKey(ticks);
 
-    // 200M is past the query bar's end, so it keeps a top x only.
-    expect(found.get("1A-200000000")).toMatchObject({ xTop: 200, xBottom: undefined, drawLine: false });
-    // 2B is missing from the base row, so its ticks carry a bottom x only.
+    expect(ticks.map((t) => t.key)).toEqual(["1A-0", "1A-1000000", "1A-2000000", "2B-0", "2B-1000000"]);
+    // 1A partially on both with connector
+    expect(found.get("1A-0")).toMatchObject({ xTop: 0, xBottom: 0, drawLine: true });
+    expect(found.get("1A-1000000")).toMatchObject({ xTop: 100, xBottom: 100, drawLine: true });
+    // 200M only on top
+    expect(found.get("1A-2000000")).toMatchObject({ xTop: 200, xBottom: undefined, drawLine: false });
+    // 2B only on bottom
     expect(found.get("2B-0")).toMatchObject({ xBottom: 103, drawLine: false });
-    expect(found.get("2B-100000000")).toMatchObject({ xBottom: 203 });
     expect(found.get("2B-0")?.xTop).toBeUndefined();
+    expect(found.get("2B-1000000")).toMatchObject({ xBottom: 203, drawLine: false });
   });
 
-  it("suppresses every connector when the rows are not on one scale", () => {
+  it("suppresses every connector when rows are not on the same scale", () => {
     const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, false);
 
     expect(ticks.every((t) => t.drawLine)).toBe(false);
@@ -460,15 +459,13 @@ describe("collectTicks", () => {
   });
 
   it("suppresses a connector whose two ends drift too far apart", () => {
-    // the query bar starts 60px right of the base bar: 60 / 200 is well past MAX_TICK_OFFSET_FRAC.
+    // the query bar drifts 60px
     const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 60, 200, 0, 2e8)], 1e8, true);
-
     expect(ticks.every((t) => t.drawLine)).toBe(false);
   });
 
-  it("starts at the first step multiple inside the bar, not at its p1", () => {
+  it("starts at the first step multiple inside the bar", () => {
     const ticks = collectTicks([bar("1A", 0, 200, 1.2e8, 2e8)], [], 1e8, true);
-
     expect(ticks.map((t) => t.label)).toEqual(["200M", "300M"]);
   });
 });

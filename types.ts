@@ -13,7 +13,7 @@ export interface BedRow {
 export interface BedFile {
   name: string;
   rows: BedRow[];
-  // Highest p2 per chromosome, over every row - bounds how far a bar may be padded.
+  // how far chromosome can run to fill canvas as the last bar
   chrExtent?: Map<string, number>;
 }
 

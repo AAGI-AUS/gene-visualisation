@@ -165,7 +165,7 @@ export const fileToText = (file: File): Promise<string> => {
   });
 };
 
-/** Highest p2 per chromosome - how far these rows show each chr running. */
+/** Highest p2 per chromosome */
 export const chrExtentOf = (rows: BedRow[]): Map<string, number> => {
   const out = new Map<string, number>();
   for (const r of rows) {

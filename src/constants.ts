@@ -86,16 +86,14 @@ export const HELP = {
   commonOnly: "Keep only genes present in every query file.",
   denoise: "Drop genes that survive blocking in some queries but not all.",
   sharedAxis: "Give each chromosome one bp scale across all rows.",
-  tickIntervalMbp:
-    "Spacing between shared-axis tick lines. 0 = pick a round spacing that fits the current width and font.",
-  boundaryTicks:
-    "Label the axis at every row boundary. Off, only the last row of each shared scale is labelled.",
+  tickIntervalMbp: "Spacing between tick marks. 0 = Auto.",
+  boundaryTicks: "Draw more tick marks. When off, only draw at the bottom of each scale and at the topmost.",
   showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
   fontSize: "",
   svgW: "",
 
   intraRelabel:
-    "Relabel same-chromosome blocks to translocation where query position offset disagrees with the surrounding backbone.",
+    "Relabel same-chromosome blocks to translocation when the offset of query position drift from the nearby backbone.",
   minLocalEvents: "Minimum genes around a region to be taken as its local backbone. Higher = wider backbone.",
   gapStopMbp:
     "The backbone stops at the first gap this wide. Higher = crossing bigger gaps for a distant reference.",

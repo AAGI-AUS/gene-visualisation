@@ -40,7 +40,7 @@ const renderCanvas = (data: Result) => {
   return render(<SyntenyCanvas data={data} svgRef={svgRef} width={900} height={300} />);
 };
 
-// inter-translocated tail putting a query-only 2B at 500-620M
+// inter-translocated tail with a query-only 2B at 500-620M
 const twoBTail = [0, 1, 2].map((i) =>
   makeTranslocationRow({
     id: 10 + i,

@@ -33,7 +33,7 @@ import {
 export type Result = {
   name: string;
   rows: ResultRow[];
-  // Per-chromosome extent of this query's whole BED, not just the rows that joined.
+  // how far chromosome can run to fill canvas as the last bar
   chrExtent?: Map<string, number>;
 }[];
 

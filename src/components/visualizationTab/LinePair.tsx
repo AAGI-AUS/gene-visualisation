@@ -65,7 +65,7 @@ export const LinePair = ({
 
   const isFirst = i === 0;
   const isLast = i === total - 1;
-  // Every scale run is labelled at the last row
+  // Every scale has bottom labels
   const startsScale = isFirst || !prevSameScale;
   const nextEndsScale = isLast || !nextSameScale;
   const labelsTop = isFirst || (boundaryTicks && startsScale && sameScale);

@@ -334,6 +334,7 @@ const BP_UNITS = [
 export const formatBpLabel = (bp: number): string => {
   const unit = BP_UNITS.find((u) => Math.abs(bp) >= u.div);
   if (!unit) return `${Math.round(bp)}`;
+
   const scaled = (bp / unit.div).toFixed(3);
   return `${scaled.replace(/\.?0+$/, "")}${unit.suffix}`;
 };
