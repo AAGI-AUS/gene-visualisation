@@ -11,9 +11,16 @@ Download the standalone HTML from the [latest release][release].
 ## Quick start
 
 To use the app, download `gene-visualizer-v*.html` from the [latest release][release] and open it in a browser.
-Make your first synteny graph with the sample data in [`examples/`][examples] (or `example.zip` in
-[release][release]) which holds synthetic BED files, one base and four queries. In the app, select all BED
-files, `base.bed` as bed and the rest as query, then `RUN` with default parameters. The result should be similar to the figure below.
+
+### Example
+
+To make your first synteny graph with the sample data 
+
+- Download 5 BED files from [`examples/`][examples] (or `example.zip` in [release][release]).
+- In the app, select `base.bed` as a baseline and the rest as query.
+- Click `RUN` with default parameters.
+
+The result should be similar to the figure below.
 
 ![Visualization tab with the example bed files loaded](docs/example.png)
 
