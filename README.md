@@ -8,12 +8,13 @@ and draws ribbons between chromosome bars.
 
 ## Quick start
 
-To use the app, download `gene-visualizer-v*.html` from the [latest release][release] and open it in a browser.
+To use the app, download [gene-visualizer-v1.0.0.html][app] or other releases from the [release][release] and
+open it in a browser.
 
 ### Example
 
-To make your first synteny graph with the sample data downloaded from [`examples/`][examples] (or `example.zip`
-in [release][release]),
+To make your first synteny graph with the sample data downloaded from [`examples/`][examples] (or
+[example.zip][example-zip] from [release][release]),
 
 1.  Select `base.bed` as a baseline. 
 2.  Select the remaining 4 BED files as query.
@@ -56,4 +57,6 @@ state, fflate for zipped exports, web workers for BED parsing.
 
 <!-- external -->
 
-[release]: https://github.com/biometryhub/gene-visualisation/releases/latest
+[release]: https://github.com/AAGI-AUS/gene-visualisation/releases/latest
+[app]: https://github.com/AAGI-AUS/gene-visualisation/releases/download/v1.0.0/gene-visualizer-v1.0.0.html
+[example-zip]: https://github.com/AAGI-AUS/gene-visualisation/releases/download/v1.0.0/examples.zip
