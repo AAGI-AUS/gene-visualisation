@@ -3,8 +3,8 @@
 [![codecov](https://codecov.io/gh/biometryhub/gene-visualisation/graph/badge.svg?token=dVaPov0Yxu)](https://codecov.io/gh/biometryhub/gene-visualisation)
 
 React app for visualizing genomic synteny graph from BED files. It loads a base BED and one or more query BEDs,
-joins rows by id, classifies each row as synteny / inversion / translocation, groups contiguous rows into
-chunks, and draws ribbons between chromosome bars.
+joins rows by id, classifies each row as synteny/inversion/translocation, groups contiguous rows into chunks,
+and draws ribbons between chromosome bars.
 
 ## Quick start
 
