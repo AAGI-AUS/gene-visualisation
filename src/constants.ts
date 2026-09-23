@@ -43,7 +43,14 @@ export const CHR_GAP_PX = 3;
 export const OTHERS_W = 24;
 export const TOOLTIP_SPACING = 233;
 export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD.bottom;
-export const TICK_INTERVAL_BP = 100_000_000;
+export const DEFAULT_TICK_STEP_BP = 100_000_000;
+export const TICK_TARGET_PX = 80;
+export const TICK_TARGET_EM = 7;
+export const MAX_TICKS_PER_CHR = 10;
+export const MAX_TICKS_PER_BAR = 1000;
+export const MAX_TICK_OFFSET_FRAC = 0.1;
+export const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
+export const TICK_MARK_PX = 8;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];
@@ -79,13 +86,14 @@ export const HELP = {
   commonOnly: "Keep only genes present in every query file.",
   denoise: "Drop genes that survive blocking in some queries but not all.",
   sharedAxis: "Give each chromosome one bp scale across all rows.",
-  boundaryTicks: "Label the axis at every row boundary instead of only the bottom row.",
+  tickIntervalMbp: "Spacing between tick marks. 0 = Auto.",
+  boundaryTicks: "Draw more tick marks. When off, only draw at the bottom of each scale and at the topmost.",
   showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
   fontSize: "",
   svgW: "",
 
   intraRelabel:
-    "Relabel same-chromosome blocks to translocation where query position offset disagrees with the surrounding backbone.",
+    "Relabel same-chromosome blocks to translocation when the offset of query position drift from the nearby backbone.",
   minLocalEvents: "Minimum genes around a region to be taken as its local backbone. Higher = wider backbone.",
   gapStopMbp:
     "The backbone stops at the first gap this wide. Higher = crossing bigger gaps for a distant reference.",
