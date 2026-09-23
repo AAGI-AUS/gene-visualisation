@@ -2,44 +2,39 @@
 
 [![codecov](https://codecov.io/gh/biometryhub/gene-visualisation/graph/badge.svg?token=dVaPov0Yxu)](https://codecov.io/gh/biometryhub/gene-visualisation)
 
-React + TypeScript app for visualizing genomic structural rearrangements and
-synteny from BED files. It loads a base BED plus one or more query BEDs, joins
-rows by id, classifies each row as synteny / inversion / translocation, groups
-contiguous rows into chunks, and draws ribbons between chromosome bars.
+React app for visualizing genomic synteny graph from BED files. It loads a base BED and one or more query BEDs,
+joins rows by id, classifies each row as synteny / inversion / translocation, groups contiguous rows into
+chunks, and draws ribbons between chromosome bars.
 
 ## Scripts
 
 - `yarn dev`: start the dev server (craco)
 - `yarn build`: production build to `build/`
-- `yarn build-one`: single self-contained HTML in `dist/` with CSS/JS inlined (requires the Python helper, see below)
+- `yarn build-one`: a standalone HTML in `dist/` (Python helper required)
 - `yarn test`: run the Jest suite (append `--coverage` for a coverage report)
 
 ## Example data
 
-`examples/` holds a synthetic set: `base.bed` plus four query files, one per
-event type (synteny, inversion, intra-chromosomal translocation,
-inter-chromosomal translocation). Load `base.bed` as the base and all four
-queries, keep chromosome `1A`, and leave the parameters at their defaults.
-`examples/README.md` describes how each file was built and what it should draw.
+`examples/` holds a synthetic BED files: `base.bed` and four query files. Running the app with all bed files
+selected with defaults parameters should result in a figure similar to screenshot below.
 
-Every release also ships `examples.zip` alongside the single-file HTML, so a
-download of the app comes with data to open in it.
+![Visualization tab with the example bed files loaded](docs/example.png)
+
+`examples.zip` containing these files is also provided with each release.
 
 ## `yarn build-one` prerequisites
 
-`build-one` runs `./touch-up.py` between the CRA build and the webpack inlining
-step. The script's shebang is `#!./env/bin/python`, so a virtualenv must exist
-at `./env` with `beautifulsoup4` installed. One-time setup:
+`build-one` runs `./touch-up.py` between the CRA build and the webpack inlining step. The script's shebang is
+`#!./env/bin/python`, so a virtualenv must exist at `./env`. One-time setup:
 
 ```sh
 python3 -m venv env
 env/bin/pip install -r requirements.txt
 ```
 
-After that, `yarn build-one` works as-is. `yarn dev` and `yarn build` don't
-need the venv.
+After that, `yarn build-one` should work.
 
 ## Tech
 
 React 18, TypeScript, CRA via craco, @visx for SVG primitives, zustand for
-state, fuse.js for chromosome search.
+state, fflate for zipped exports, web workers for BED parsing.
