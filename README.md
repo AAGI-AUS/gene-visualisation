@@ -6,18 +6,17 @@ React app for visualizing genomic synteny graph from BED files. It loads a base 
 joins rows by id, classifies each row as synteny / inversion / translocation, groups contiguous rows into
 chunks, and draws ribbons between chromosome bars.
 
-Download the standalone HTML from the [latest release][release].
-
 ## Quick start
 
 To use the app, download `gene-visualizer-v*.html` from the [latest release][release] and open it in a browser.
 
 ### Example
 
-To make your first synteny graph with the sample data:
+To make your first synteny graph with the sample data downloaded from [`examples/`][examples] (or `example.zip`
+in [release][release]),
 
-1.  Download 5 BED files from [`examples/`][examples] (or `example.zip` in [release][release]).
-2.  In the app, select `base.bed` as a baseline and the rest as query.
+1.  Select `base.bed` as a baseline. 
+2.  Select the remaining 4 BED files as query.
 3.  Click `RUN` with default parameters.
 
 <img src="docs/steps.png" alt="Steps" width="233">
