@@ -14,15 +14,17 @@ To use the app, download `gene-visualizer-v*.html` from the [latest release][rel
 
 ### Example
 
-To make your first synteny graph with the sample data 
+To make your first synteny graph with the sample data:
 
-- Download 5 BED files from [`examples/`][examples] (or `example.zip` in [release][release]).
-- In the app, select `base.bed` as a baseline and the rest as query.
-- Click `RUN` with default parameters.
+1.  Download 5 BED files from [`examples/`][examples] (or `example.zip` in [release][release]).
+2.  In the app, select `base.bed` as a baseline and the rest as query.
+3.  Click `RUN` with default parameters.
+
+![Steps][steps]
 
 The result should be similar to the figure below.
 
-![Visualization tab with the example bed files loaded](docs/example.png)
+![Visualization tab with the example bed files loaded][ss]
 
 ## Scripts
 
@@ -51,6 +53,8 @@ state, fflate for zipped exports, web workers for BED parsing.
 <!-- internal -->
 
 [examples]: ./examples/
+[ss]: ./docs/example.png
+[steps]: ./docs/steps.png
 
 <!-- external -->
 
