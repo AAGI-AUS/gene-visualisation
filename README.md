@@ -10,7 +10,7 @@ Download the standalone HTML from the [latest release][release].
 
 ## Quick start
 
-[`examples/`][examples] (or `exmpales.zip` in [release][release]) holds a synthetic BED files, one base and four
+[`examples/`][examples] (or `exmpales.zip` in [release][release]) holds synthetic BED files, one base and four
 queries. Running the app with all bed files selected and default parameters should result in a figure similar
 to the screenshot below.
 
