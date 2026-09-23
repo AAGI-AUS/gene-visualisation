@@ -13,6 +13,8 @@ export interface BedRow {
 export interface BedFile {
   name: string;
   rows: BedRow[];
+  // how far chromosome can run to fill canvas as the last bar
+  chrExtent?: Map<string, number>;
 }
 
 /**
@@ -51,8 +53,6 @@ export interface ChrBar {
   pw: number;
   bpLen: number;
   p1: number;
-  /** Original bp extent before any stretch applied to fill the row. Defaults to bpLen. */
-  dataBpLen?: number;
 }
 
 export interface OthersBar {
@@ -76,6 +76,16 @@ export interface QueryRow {
   label: string;
   slots: QuerySlot[];
   y: number;
+}
+
+/** One shared-axis tick of a pair. `xTop`/`xBottom` are absent where that row has no such bp. */
+export interface Tick {
+  xTop?: number;
+  xBottom?: number;
+  label: string;
+  key: string;
+  drawLine: boolean;
+  pw: number;
 }
 
 export type QuerySlotLookup = {

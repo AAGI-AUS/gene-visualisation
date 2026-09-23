@@ -21,9 +21,10 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const commonOnly = useVisualizationStore((s) => s.commonOnly);
   const denoise = useVisualizationStore((s) => s.denoise);
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
-  // const boundaryTicks = useVisualizationStore((s) => s.boundaryTicks);
+  const boundaryTicks = useVisualizationStore((s) => s.boundaryTicks);
   const showMarks = useVisualizationStore((s) => s.showMarks);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
+  const tickIntervalMbp = useVisualizationStore((s) => s.tickIntervalMbp);
   const svgW = useVisualizationStore((s) => s.svgW);
   const fontSize = useVisualizationStore((s) => s.fontSize);
   const setGapBp = useVisualizationStore((s) => s.setGapBp);
@@ -32,9 +33,10 @@ export const Controls = ({ svgRef }: ControlsProps) => {
   const setCommonOnly = useVisualizationStore((s) => s.setCommonOnly);
   const setDenoise = useVisualizationStore((s) => s.setDenoise);
   const setSharedAxis = useVisualizationStore((s) => s.setSharedAxis);
-  // const setBoundaryTicks = useVisualizationStore((s) => s.setBoundaryTicks);
+  const setBoundaryTicks = useVisualizationStore((s) => s.setBoundaryTicks);
   const setShowMarks = useVisualizationStore((s) => s.setShowMarks);
   const setStripBlankMbp = useVisualizationStore((s) => s.setStripBlankMbp);
+  const setTickIntervalMbp = useVisualizationStore((s) => s.setTickIntervalMbp);
   const setSvgW = useVisualizationStore((s) => s.setSvgW);
   const setFontSize = useVisualizationStore((s) => s.setFontSize);
 
@@ -72,6 +74,16 @@ export const Controls = ({ svgRef }: ControlsProps) => {
         help={HELP.stripBlankMbp}
       />
       <div className={styles.sep} />
+      <NumberControl
+        label="Ticks"
+        unit="Mbp"
+        value={tickIntervalMbp}
+        onChange={setTickIntervalMbp}
+        step={10}
+        width={55}
+        help={HELP.tickIntervalMbp}
+      />
+      <div className={styles.sep} />
 
       {/* toggles */}
       {/* <ToggleButton */}
@@ -93,12 +105,12 @@ export const Controls = ({ svgRef }: ControlsProps) => {
         text="Shared axis"
         help={HELP.sharedAxis}
       />
-      {/* <ToggleButton */}
-      {/*   active={boundaryTicks} */}
-      {/*   onClick={() => setBoundaryTicks((v) => !v)} */}
-      {/*   text="Intra ticks" */}
-      {/*   help={HELP.boundaryTicks} */}
-      {/* /> */}
+      <ToggleButton
+        active={boundaryTicks}
+        onClick={() => setBoundaryTicks((v) => !v)}
+        text="Intra ticks"
+        help={HELP.boundaryTicks}
+      />
       <ToggleButton
         active={showMarks}
         onClick={() => setShowMarks((v) => !v)}

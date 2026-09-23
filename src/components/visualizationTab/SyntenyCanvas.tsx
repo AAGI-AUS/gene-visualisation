@@ -10,9 +10,11 @@ import { FONT, PAD } from "@/src/constants";
 import type { PairInput } from "@/src/hooks/useVisualizationLayout";
 import { useVisualizationLayout } from "@/src/hooks/useVisualizationLayout";
 import { buildPredictedPerPair } from "@/src/components/visualizationTab/predicted";
-import type { CentromereData } from "@/types";
+import { collectTicks, resolveTickStepBp } from "@/src/components/visualizationTab/utils";
+import type { CentromereData, ChrBar, Tick } from "@/types";
 
 const EMPTY_POSITIONS: Map<string, number[]> = new Map();
+const EMPTY_TICKS: Tick[] = [];
 
 const getCentromere = (centromere: CentromereData, label: string): Map<string, number[]> =>
   centromere.get(label.toLowerCase()) ?? EMPTY_POSITIONS;
@@ -38,9 +40,10 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
   const sharedAxis = useVisualizationStore((s) => s.sharedAxis);
   const { relabel, ...intra } = useVisualizationStore((s) => s.intra);
   const stripBlankMbp = useVisualizationStore((s) => s.stripBlankMbp);
+  const tickIntervalMbp = useVisualizationStore((s) => s.tickIntervalMbp);
 
   const pairs = useMemo<PairInput[]>(
-    () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0] })),
+    () => data.map((d) => ({ data: d.rows, queryLabel: d.name.split(".")[0], chrExtent: d.chrExtent })),
     [data]
   );
 
@@ -59,12 +62,31 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
     sharedAxis,
     stripBlankMbp,
     relabel,
-    intra
+    intra,
+    base?.chrExtent
   );
 
   const predictedPerPair = useMemo(
     () => buildPredictedPerPair(layouts, pairs, baseLabel),
     [layouts, pairs, baseLabel]
+  );
+
+  const queryChrBars = useMemo(
+    () => layouts.map((l) => l.queryRow.slots.filter((s): s is ChrBar => s.kind === "chr")),
+    [layouts]
+  );
+
+  const tickStepBp = useMemo(() => {
+    const bars = layouts.flatMap((l, i) => [...l.baseRow.bars, ...queryChrBars[i]]);
+    return resolveTickStepBp(bars, fontSize - 1, tickIntervalMbp);
+  }, [layouts, queryChrBars, fontSize, tickIntervalMbp]);
+
+  const ticksPerPair = useMemo(
+    () =>
+      sharedAxis
+        ? layouts.map((l, i) => collectTicks(l.baseRow.bars, queryChrBars[i], tickStepBp, l.sameScale))
+        : [],
+    [layouts, queryChrBars, tickStepBp, sharedAxis]
   );
 
   return (
@@ -77,11 +99,14 @@ export const SyntenyCanvas = ({ data, svgRef, width, height }: SyntenyCanvasProp
           layout={layout}
           i={i}
           total={layouts.length}
-          nextLayout={layouts[i + 1]}
+          prevSameScale={layouts[i - 1]?.sameScale}
+          nextSameScale={layouts[i + 1]?.sameScale}
           baseCentromere={i === 0 ? getCentromere(centromere, baseLabel) : EMPTY_POSITIONS}
           queryCentromere={getCentromere(centromere, pairs[i].queryLabel)}
           basePredicted={predictedPerPair[i].basePredicted}
           queryPredicted={predictedPerPair[i].queryPredicted}
+          ticks={ticksPerPair[i] ?? EMPTY_TICKS}
+          nextTicks={ticksPerPair[i + 1] ?? null}
         />
       ))}
     </svg>

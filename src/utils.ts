@@ -165,6 +165,16 @@ export const fileToText = (file: File): Promise<string> => {
   });
 };
 
+/** Highest p2 per chromosome */
+export const chrExtentOf = (rows: BedRow[]): Map<string, number> => {
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    const cur = out.get(r.chromosome);
+    if (cur === undefined || r.p2 > cur) out.set(r.chromosome, r.p2);
+  }
+  return out;
+};
+
 export const getChromosomes = (rows: BedRow[]): string[] => {
   return Array.from(
     rows.reduce<Set<string>>((set, r) => {

@@ -31,6 +31,7 @@ interface VisualizationState {
   boundaryTicks: boolean;
   showMarks: boolean;
   stripBlankMbp: number;
+  tickIntervalMbp: number;
   svgW: number;
   fontSize: number;
   hoverChunk: string | null;
@@ -48,6 +49,7 @@ interface VisualizationActions {
   setBoundaryTicks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setShowMarks: (v: boolean | ((prev: boolean) => boolean)) => void;
   setStripBlankMbp: (v: number) => void;
+  setTickIntervalMbp: (v: number) => void;
   setSvgW: (w: number) => void;
   setFontSize: (v: number) => void;
   setHoverChunk: (id: string | null) => void;
@@ -69,9 +71,10 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
     driftK: 0.7,
     complexMin: 2,
   },
-  boundaryTicks: false,
+  boundaryTicks: true,
   showMarks: false,
   stripBlankMbp: 300,
+  tickIntervalMbp: 0,
   svgW: 900,
   fontSize: 11,
   hoverChunk: null,
@@ -91,6 +94,7 @@ export const useVisualizationStore = create<VisualizationState & VisualizationAc
   setBoundaryTicks: (v) => set((s) => ({ boundaryTicks: typeof v === "function" ? v(s.boundaryTicks) : v })),
   setShowMarks: (v) => set((s) => ({ showMarks: typeof v === "function" ? v(s.showMarks) : v })),
   setStripBlankMbp: (v) => set({ stripBlankMbp: Math.max(0, v) }),
+  setTickIntervalMbp: (v) => set({ tickIntervalMbp: Math.max(0, v) }),
   setSvgW: (w) => set({ svgW: Math.max(w, 400) }),
   setFontSize: (v) => set({ fontSize: Math.max(6, v) }),
   setHoverChunk: (id) => set({ hoverChunk: id }),

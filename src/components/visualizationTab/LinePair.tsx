@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { useCallback } from "react";
 import { CHROM_THICKNESS, PAD, ROW_GAP, SVG_H } from "@/src/constants";
-import type { Chunk, ChunkRibbon } from "@/types";
+import type { Chunk, ChunkRibbon, Tick } from "@/types";
 import { useVisualizationStore } from "@/src/store/useVisualizationStore";
 import { RibbonLayer } from "@/src/components/visualizationTab/RibbonLayer";
 import { BaseRowLayer, QueryRowLayer } from "@/src/components/visualizationTab/GenomeRowLayer";
@@ -15,11 +15,14 @@ interface LinePairProps {
   layout: VisualizationLayout;
   i: number;
   total: number;
-  nextLayout?: VisualizationLayout;
+  prevSameScale?: boolean;
+  nextSameScale?: boolean;
   baseCentromere: Map<string, number[]>;
   queryCentromere: Map<string, number[]>;
   basePredicted: Map<string, number[]>;
   queryPredicted: Map<string, number[]>;
+  ticks: Tick[];
+  nextTicks: Tick[] | null;
 }
 
 const PREDICTED_COLOR = "blue";
@@ -28,11 +31,14 @@ export const LinePair = ({
   layout,
   i,
   total,
-  nextLayout,
+  prevSameScale,
+  nextSameScale,
   baseCentromere,
   queryCentromere,
   basePredicted,
   queryPredicted,
+  ticks,
+  nextTicks,
 }: LinePairProps) => {
   const hoverChunk = useVisualizationStore((s) => s.hoverChunk);
   const setTooltip = useVisualizationStore((s) => s.setTooltip);
@@ -44,7 +50,7 @@ export const LinePair = ({
   const palette = useAppStore((s) => s.palette);
   const batching = useAppStore((s) => s.batching);
 
-  const { baseRow, queryRow, ribbons, y1bot, y2top } = layout;
+  const { baseRow, queryRow, ribbons, y1bot, y2top, sameScale } = layout;
 
   const onMove = useCallback(
     (_e: MouseEvent<SVGPathElement>, chunk: Chunk, rib: ChunkRibbon) => {
@@ -59,6 +65,11 @@ export const LinePair = ({
 
   const isFirst = i === 0;
   const isLast = i === total - 1;
+  // Every scale has bottom labels
+  const startsScale = isFirst || !prevSameScale;
+  const nextEndsScale = isLast || !nextSameScale;
+  const labelsTop = isFirst || (boundaryTicks && startsScale && sameScale);
+  const labelsBottom = nextEndsScale || (boundaryTicks && sameScale);
 
   return (
     <Group left={PAD.left} top={i * (CHROM_THICKNESS + ROW_GAP)}>
@@ -87,16 +98,12 @@ export const LinePair = ({
       )}
       {sharedAxis && (
         <CoordinateGrid
-          baseBars={baseRow.bars}
-          queryBars={queryRow.slots.filter((s) => s.kind === "chr")}
+          ticks={ticks}
+          nextTicks={nextTicks}
           lineTop={baseRow.y - 4}
           lineBottom={queryRow.y + CHROM_THICKNESS + 4}
-          labelTopY={isFirst ? baseRow.y - 6 : null}
-          labelBottomY={isLast || boundaryTicks ? queryRow.y + CHROM_THICKNESS + 13 : null}
-          nextBaseBars={isLast || !boundaryTicks ? undefined : nextLayout?.baseRow.bars}
-          nextQueryBars={
-            isLast || !boundaryTicks ? undefined : nextLayout?.queryRow.slots.filter((s) => s.kind === "chr")
-          }
+          labelTopY={labelsTop ? baseRow.y - 6 : null}
+          labelBottomY={labelsBottom ? queryRow.y + CHROM_THICKNESS + 13 : null}
           fontSize={fontSize - 1}
         />
       )}
