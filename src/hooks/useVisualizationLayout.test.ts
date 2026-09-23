@@ -5,7 +5,7 @@ import {
   applyGlobalExtension,
   buildTracks,
   computeGroupBounds,
-  partitionTracksByChrSet,
+  groupTracksByChrSet,
   useVisualizationLayout,
 } from "@/src/hooks/useVisualizationLayout";
 import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
@@ -123,15 +123,15 @@ describe("buildTracks", () => {
 describe("partitionTracksByChrSet", () => {
   it("groups maximal runs of tracks with identical chr sets", () => {
     const tracks = [["1A"], ["1A"], ["1A", "2B"], ["1A", "2B"], ["1A"]].map(orderTrack);
-    expect(partitionTracksByChrSet(tracks)).toEqual([0, 0, 1, 1, 2]);
+    expect(groupTracksByChrSet(tracks)).toEqual([0, 0, 1, 1, 2]);
   });
 
   it("compares chr sets order-independently", () => {
-    expect(partitionTracksByChrSet([orderTrack(["1A", "2B"]), orderTrack(["2B", "1A"])])).toEqual([0, 0]);
+    expect(groupTracksByChrSet([orderTrack(["1A", "2B"]), orderTrack(["2B", "1A"])])).toEqual([0, 0]);
   });
 
   it("returns a single group for one track", () => {
-    expect(partitionTracksByChrSet([orderTrack(["1A"])])).toEqual([0]);
+    expect(groupTracksByChrSet([orderTrack(["1A"])])).toEqual([0]);
   });
 });
 

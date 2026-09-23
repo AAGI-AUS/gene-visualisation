@@ -77,21 +77,20 @@ export const buildTracks = (cleanChunksPerPair: Chunk[][], pairCount: number, ot
   return out;
 };
 
-// Partition tracks into maximal runs of consecutive tracks whose chr sets are identical.
-// Returns groupOf[i] = group index for track i.
-export const partitionTracksByChrSet = (tracks: Track[]): number[] => {
+// Group adjacent tracks whose chr sets are identical, return group indices [0, 0, 1, 2, 2, ...]
+export const groupTracksByChrSet = (tracks: Track[]): number[] => {
   const sameSet = (a: string[], b: string[]) => {
     if (a.length !== b.length) return false;
     const sb = new Set(b);
     return a.every((c) => sb.has(c));
   };
 
-  const groupOf: number[] = [0];
-  for (let i = 1; i < tracks.length; i++) {
-    if (sameSet(tracks[i - 1].chrOrder, tracks[i].chrOrder)) {
-      groupOf.push(groupOf[i - 1]);
+  const groupOf = [0];
+  for (let i = 0; i < tracks.length - 1; i++) {
+    if (sameSet(tracks[i].chrOrder, tracks[i + 1].chrOrder)) {
+      groupOf.push(groupOf[i]);
     } else {
-      groupOf.push(groupOf[i - 1] + 1);
+      groupOf.push(groupOf[i] + 1);
     }
   }
   return groupOf;
@@ -228,11 +227,7 @@ export const computeVisualizationLayout = (
     return { chrMin, chrMax, chrOrder, needsOthersStub };
   })();
 
-  // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
-  // unify bounds within each group, then extend chrMin out to the global unified min unless
-  // stripBlankBp would cut a leading blank. chrMax is padded further down, once the shared
-  // px/bp is known, so every row reaches trackW.
-  const groupOf = partitionTracksByChrSet(tracks);
+  const groupOf = groupTracksByChrSet(tracks);
 
   const finalAxes: Track[] = (() => {
     if (!sharedAxis) return tracks;
