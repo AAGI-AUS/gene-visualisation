@@ -18,7 +18,7 @@ To make your first synteny graph with the sample data downloaded from [`examples
 
 1.  Select `base.bed` as a baseline. 
 2.  Select the remaining 4 BED files as query.
-3.  Click `RUN` with default parameters.
+3.  Click `RUN` with default parameters. (May need 2 clicks in FireFox)
 
 <img src="docs/steps.png" alt="Steps" width="233">
 
