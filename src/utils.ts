@@ -48,8 +48,6 @@ const invalidChromosomes = new Set(["un"]);
 const validChromosomes = (chr: string) => chr.length === 2 && !invalidChromosomes.has(chr.toLowerCase());
 
 /**
- * Mirrors Python's queryGene().
- *
  * 1. Left-join queryRows onto baseRows by id.
  * 2. Compute isInvert, isTranslocation, mainEvent per row.
  * 3. Build per-chromosome-query percentage table; collapse chromosomes whose

@@ -11,6 +11,21 @@ and draws ribbons between chromosome bars.
 To use the app, download [gene-visualizer-v1.0.0.html][app] or other releases from the [release][release] and
 open it in a browser.
 
+### Input BED files
+
+Each file is tab-separated with no header, one gene per line. Lines starting with `#` are skipped.
+
+| # | Column     | Example | Description                                                               |
+|---|------------|---------|---------------------------------------------------------------------------|
+| 1 | chromosome | `1A`    | 2-character chromosome name; `<file>_chr` or `<file>_` prefix is stripped |
+| 2 | start      | `399327`| Start position, 1-based inclusive                                         |
+| 3 | end        | `401443`| End position, inclusive; must be greater than start                       |
+| 4 | strand     | `+`     | `+` (forward) `-` (reverse/inverse)
+| 5 | id         | `1`     | Gene id shared across files; rows are joined on it                        |
+
+The same gene must carry the same id in the base and every query file. If `id` is missing, the row's line number
+is used (assuming sorted). Rows on chromosome `Un` are dropped. See example below.
+
 ### Example
 
 To make your first synteny graph with the sample data downloaded from [`examples/`][examples] (or
