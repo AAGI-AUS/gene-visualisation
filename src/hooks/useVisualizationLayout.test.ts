@@ -5,7 +5,7 @@ import {
   applyGlobalExtension,
   buildTracks,
   computeGroupBounds,
-  partitionTracksByChrSet,
+  groupTracksByChrSet,
   useVisualizationLayout,
 } from "@/src/hooks/useVisualizationLayout";
 import type { IntraScoreConfig } from "@/src/components/visualizationTab/relabel";
@@ -123,15 +123,15 @@ describe("buildTracks", () => {
 describe("partitionTracksByChrSet", () => {
   it("groups maximal runs of tracks with identical chr sets", () => {
     const tracks = [["1A"], ["1A"], ["1A", "2B"], ["1A", "2B"], ["1A"]].map(orderTrack);
-    expect(partitionTracksByChrSet(tracks)).toEqual([0, 0, 1, 1, 2]);
+    expect(groupTracksByChrSet(tracks)).toEqual([0, 0, 1, 1, 2]);
   });
 
   it("compares chr sets order-independently", () => {
-    expect(partitionTracksByChrSet([orderTrack(["1A", "2B"]), orderTrack(["2B", "1A"])])).toEqual([0, 0]);
+    expect(groupTracksByChrSet([orderTrack(["1A", "2B"]), orderTrack(["2B", "1A"])])).toEqual([0, 0]);
   });
 
   it("returns a single group for one track", () => {
-    expect(partitionTracksByChrSet([orderTrack(["1A"])])).toEqual([0]);
+    expect(groupTracksByChrSet([orderTrack(["1A"])])).toEqual([0]);
   });
 });
 
@@ -188,6 +188,7 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
     stripBlankMbp?: number;
     intraRelabel?: boolean;
     intraScoreConfig?: IntraScoreConfig;
+    baseChrExtent?: Map<string, number>;
   }
 
   // Drive the hook once and return its layout array.
@@ -206,7 +207,8 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
         o.sharedAxis ?? false,
         o.stripBlankMbp ?? 0,
         o.intraRelabel ?? false,
-        o.intraScoreConfig ?? defaultIntra
+        o.intraScoreConfig ?? defaultIntra,
+        o.baseChrExtent
       )
     ).result.current;
 
@@ -371,11 +373,169 @@ describe("useVisualizationLayout (end-to-end wiring)", () => {
       expect(twoC.base).not.toBeCloseTo(twoC.query);
     });
 
-    it("applies one global px/bp so shared chrs are equally wide across rows", () => {
+    it("applies one global px/bp", () => {
       const [oneA, twoB, twoC] = widthsOf(layout(pairs, { sharedAxis: true })[0], chrs);
       expect(oneA.base).toBeCloseTo(oneA.query);
       expect(twoB.base).toBeCloseTo(twoB.query);
       expect(twoC.base).toBeCloseTo(twoC.query);
+    });
+
+    const rowRight = (bars: { px: number; pw: number }[]) => Math.max(...bars.map((b) => b.px + b.pw));
+
+    it("stops the lighter row at its data", () => {
+      // 1A------
+      // 1A--- 2B---------
+      const uneven: PairInput[] = [
+        {
+          queryLabel: "q1",
+          data: [
+            makeRow({ p2Base: 100, p2Query: 100 }),
+            makeRow({
+              id: 1,
+              p1Base: 100,
+              p2Base: 200,
+              chromosomeQuery: "2B",
+              groupedQuery: "2B",
+              p1Query: 0,
+              p2Query: 300,
+              isTranslocation: true,
+              mainEvent: "translocation",
+            }),
+          ],
+        },
+      ];
+      const out = layout(uneven, { sharedAxis: true, trackW: 1000 })[0];
+
+      expect(out.baseRow.bars.map((b) => b.chr)).toEqual(["1A"]);
+      expect(queryChrs(out)).toEqual(["1A", "2B"]);
+      expect(rowRight(out.queryRow.slots)).toBeCloseTo(1000);
+
+      const [q1a, q2b] = out.queryRow.slots.filter((s): s is ChrBar => s.kind === "chr");
+      // 1A:2B ~ 100:300
+      expect(q2b.pw / q1a.pw).toBeCloseTo(3);
+      expect(q1a.pw).toBeCloseTo(100 * (997 / 400));
+
+      // base 1A keeps its true 200bp span at the shared ratio, so the row ends well short of trackW.
+      const oneA = out.baseRow.bars[0];
+      expect(oneA.bpLen).toBe(200);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(200 * (997 / 400));
+      expect(oneA.pw / oneA.bpLen).toBeCloseTo(q1a.pw / q1a.bpLen);
+    });
+
+    // 7B---------------
+    // 5B------ 7B--------
+    const split: PairInput[] = [
+      {
+        queryLabel: "q1",
+        data: [
+          makeRow({ chromosomeBase: "7B", chromosomeQuery: "7B", p2Base: 430, p2Query: 430 }),
+          makeRow({
+            id: 1,
+            chromosomeBase: "7B",
+            p1Base: 430,
+            p2Base: 750,
+            chromosomeQuery: "5B",
+            groupedQuery: "5B",
+            p1Query: 0,
+            p2Query: 330,
+            isTranslocation: true,
+            mainEvent: "translocation",
+          }),
+        ],
+      },
+    ];
+
+    it("pads out to trackW when the chromosome runs past the data", () => {
+      const out = layout(split, {
+        sharedAxis: true,
+        trackW: 1000,
+        baseChrExtent: new Map([["7B", 900]]),
+      })[0];
+
+      expect(out.baseRow.bars.map((b) => b.chr)).toEqual(["7B"]);
+      expect(queryChrs(out)).toEqual(["5B", "7B"]);
+      expect(rowRight(out.queryRow.slots)).toBeCloseTo(1000);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(1000);
+
+      const sevenB = out.baseRow.bars[0];
+      const q7b = out.queryRow.slots.find((s): s is ChrBar => s.kind === "chr" && s.chr === "7B")!;
+      expect(sevenB.bpLen).toBeGreaterThan(750);
+      expect(sevenB.bpLen).toBeLessThan(900);
+      expect(sevenB.pw / sevenB.bpLen).toBeCloseTo(q7b.pw / q7b.bpLen);
+    });
+
+    it("stops the tail where the chromosome ends, leaving the row short", () => {
+      const out = layout(split, {
+        sharedAxis: true,
+        trackW: 1000,
+        baseChrExtent: new Map([["7B", 755]]),
+      })[0];
+
+      const sevenB = out.baseRow.bars[0];
+      expect(sevenB.bpLen).toBe(755);
+      expect(rowRight(out.baseRow.bars)).toBeCloseTo(755 * (997 / 760));
+      expect(rowRight(out.baseRow.bars)).toBeLessThan(1000);
+    });
+
+    it("the largest bp for each chromosome is used to pad", () => {
+      // 1A---------- 2B-
+      // 2B---------
+      // 2B---------
+      // 2B---------
+      const heavy: PairInput = {
+        queryLabel: "q1",
+        chrExtent: new Map([["2B", 300]]),
+        data: [
+          makeRow({
+            p2Base: 1000,
+            chromosomeQuery: "2B",
+            groupedQuery: "2B",
+            p2Query: 50,
+            isTranslocation: true,
+            mainEvent: "translocation",
+          }),
+          makeRow({
+            id: 1,
+            chromosomeBase: "2B",
+            p2Base: 100,
+            chromosomeQuery: "2B",
+            groupedQuery: "2B",
+            p1Query: 50,
+            p2Query: 100,
+          }),
+        ],
+      };
+      const light = (queryLabel: string, end: number): PairInput => ({
+        queryLabel,
+        chrExtent: new Map([["2B", end]]),
+        data: [
+          makeRow({
+            chromosomeBase: "2B",
+            p2Base: 100,
+            chromosomeQuery: "2B",
+            groupedQuery: "2B",
+            p2Query: 100,
+          }),
+        ],
+      });
+
+      const out = layout([heavy, light("q2", 300), light("q3", 900)], {
+        sharedAxis: true,
+        trackW: 1000,
+        baseChrExtent: new Map([
+          ["1A", 1000],
+          ["2B", 100],
+        ]),
+      });
+      const twoB = (bars: { chr: string; pw: number }[]) => bars.find((b) => b.chr === "2B")!.pw;
+      const queryBars = (i: number) => out[i].queryRow.slots.filter((s): s is ChrBar => s.kind === "chr");
+
+      expect(out[0].baseRow.bars.map((b) => b.chr)).toEqual(["1A", "2B"]);
+      expect(queryChrs(out[0])).toEqual(["2B"]);
+      expect(twoB(queryBars(0))).toBeCloseTo(twoB(queryBars(1)));
+      expect(twoB(queryBars(1))).toBeCloseTo(twoB(queryBars(2)));
+      expect(queryBars(0).find((b) => b.chr === "2B")!.bpLen).toBe(900);
+      expect(rowRight(out[2].queryRow.slots)).toBeLessThan(1000);
     });
   });
 

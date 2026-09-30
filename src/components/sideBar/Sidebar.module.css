@@ -29,6 +29,8 @@
   align-items: center;
   gap: 10px;
   margin-top: 4px;
+  /* Sidebar clips horizontally, so bubbles must fit inside the panel body */
+  --help-max-w: 185px;
 }
 
 .thresholdLabel {

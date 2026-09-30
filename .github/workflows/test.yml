@@ -18,9 +18,11 @@ jobs:
       - run: yarn test --coverage --watchAll=false
         env:
           CI: true
-      - uses: codecov/codecov-action@v5
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: AAGI-AUS/gene-visualisation
           files: ./coverage/lcov.info
           fail_ci_if_error: false
 

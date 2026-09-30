@@ -6,16 +6,20 @@ import {
   buildQueryRow,
   chunkRows,
   collectNoisyIds,
+  collectTicks,
   computeRibbons,
   findLargestGapCenter,
+  formatBpLabel,
   getPredictingLines,
   getPredictingRange,
+  niceTickStep,
   pct,
+  resolveTickStepBp,
   ribbonPath,
   rowCategory,
   zeroCounts,
 } from "@/src/components/visualizationTab/utils";
-import { CHR_GAP_PX, CHROM_THICKNESS, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
+import { CHR_GAP_PX, CHROM_THICKNESS, DEFAULT_TICK_STEP_BP, OTHERS_W, PAD, ROW_GAP } from "@/src/constants";
 import type { ChrBar, Chunk, OthersBar, ResultRow } from "@/types";
 import {
   counts,
@@ -287,7 +291,7 @@ describe("buildBaseRow", () => {
     expect(row.bars[0].px).toBe(OTHERS_W + CHR_GAP_PX);
   });
 
-  it("perChrPxPerBp overrides rowPxPerBp per chr and stretches the last bar to fill availW", () => {
+  it("sharedPxPerBp overrides rowPxPerBp and leaves the row short of availW", () => {
     const chrMax = new Map([
       ["1A", 100],
       ["2B", 100],
@@ -296,19 +300,16 @@ describe("buildBaseRow", () => {
       ["1A", 0],
       ["2B", 0],
     ]);
-    // rowPxPerBp = (203 - 3 gap) / 200 = 1. 1A overridden to 0.5; 2B falls back to rowPxPerBp.
-    const perChrPxPerBp = new Map([["1A", 0.5]]);
-    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", perChrPxPerBp);
+    // rowPxPerBp = (203 - 3 gap) / 200 = 1, overridden to 0.5 for every bar.
+    const row = buildBaseRow(chrMax, chrMin, ["1A", "2B"], "label", 203, "hide", 0.5);
 
     expect(row.bars[0].pw).toBe(50);
     expect(row.bars[0].bpLen).toBe(100);
-    expect(row.bars[0].dataBpLen).toBeUndefined();
 
-    // last bar absorbs the 50px deficit (50 / pxPerBp=1 → +50bp).
-    expect(row.bars[1].pw).toBe(150);
-    expect(row.bars[1].bpLen).toBe(150);
-    expect(row.bars[1].dataBpLen).toBe(100);
-    expect(row.bars[1].px + row.bars[1].pw).toBe(203);
+    // every bar keeps its data extent, so the row ends 100px short of availW.
+    expect(row.bars[1].pw).toBe(50);
+    expect(row.bars[1].bpLen).toBe(100);
+    expect(row.bars[1].px + row.bars[1].pw).toBe(103);
   });
 });
 
@@ -343,24 +344,129 @@ describe("buildQueryRow", () => {
     expect(right.pw).toBe(OTHERS_W);
   });
 
-  it("perChrPxPerBp stretches the last chr slot and shifts trailing others by the deficit", () => {
+  it("sharedPxPerBp sizes the chr slot from its own extent, leaving the row short", () => {
     const specs: SlotSpec[] = [
       { kind: "chr", chr: "1A", bpLen: 100, p1: 0 },
       { kind: "others", baseChr: "1A", side: "right" },
     ];
-    // chr width = 100*0.5 = 50. targetRight = 200 - 3 gap - 24 others = 173.
-    // deficit = 123 → +123px width, +246bp (123/0.5) of bpLen, others slot shifts +123.
-    const perChrPxPerBp = new Map([["1A", 0.5]]);
-    const row = buildQueryRow(specs, "label", 200, perChrPxPerBp);
+    // chr width = 100*0.5 = 50, so the row ends at 50 + 3 gap + 24 others = 77 of availW 200.
+    const row = buildQueryRow(specs, "label", 200, 0.5);
     const [chr, right] = row.slots;
     if (chr.kind !== "chr" || right.kind !== "others") throw new Error("unexpected slot kinds");
 
     expect(chr.px).toBe(0);
-    expect(chr.pw).toBe(173);
-    expect(chr.bpLen).toBe(346);
-    expect(chr.dataBpLen).toBe(100);
-    expect(right.px).toBe(53 + 123);
-    expect(right.targetX).toBe(65 + 123);
+    expect(chr.pw).toBe(50);
+    expect(chr.bpLen).toBe(100);
+    expect(right.px).toBe(53);
+    expect(right.targetX).toBe(65);
+  });
+});
+
+describe("niceTickStep", () => {
+  it("snaps up to the next 1 / 2 / 2.5 / 5 / 10 multiple", () => {
+    expect(niceTickStep(1e6)).toBe(1e6);
+    expect(niceTickStep(1.4e6)).toBe(2e6);
+    expect(niceTickStep(2.1e6)).toBe(2.5e6);
+    expect(niceTickStep(3e6)).toBe(5e6);
+    expect(niceTickStep(6e6)).toBe(1e7);
+  });
+});
+
+describe("resolveTickStepBp", () => {
+  const bar = (pw: number, bpLen: number): ChrBar => ({ kind: "chr", chr: "1A", px: 0, pw, bpLen, p1: 0 });
+
+  it("returns the manual interval in bp when one is set", () => {
+    expect(resolveTickStepBp([bar(100, 1e9)], 10, 25)).toBe(2.5e7);
+  });
+
+  it("picks a step from the tightest bar", () => {
+    // 800px / 200Mbp -> constant 80px target = 20Mbp
+    expect(resolveTickStepBp([bar(800, 2e8), bar(800, 1e8)], 10, 0)).toBe(2e7);
+  });
+
+  it("caps number of ticks per chromosome", () => {
+    // 8000px / 100Mbp -> constant 80px target = 1Mbp = 100 ticks, but capped at a constant 10 -> 10Mbp
+    expect(resolveTickStepBp([bar(8000, 1e8)], 10, 0)).toBe(1e7);
+  });
+
+  it("scales the spacing with font size", () => {
+    // 7em at font 30 = 210px (>the consant 80px) target = 52.5Mbp, snapped to 100Mbp.
+    expect(resolveTickStepBp([bar(800, 2e8)], 30, 0)).toBe(1e8);
+  });
+
+  it("falls back to the default step when no bar has a usable extent", () => {
+    expect(resolveTickStepBp([], 10, 0)).toBe(DEFAULT_TICK_STEP_BP);
+    expect(resolveTickStepBp([bar(0, 1e8), bar(100, 0)], 10, 0)).toBe(DEFAULT_TICK_STEP_BP);
+  });
+});
+
+describe("formatBpLabel", () => {
+  it("works", () => {
+    expect(formatBpLabel(0)).toBe("0");
+    expect(formatBpLabel(250)).toBe("250");
+    expect(formatBpLabel(5e5)).toBe("500k");
+    expect(formatBpLabel(1e6)).toBe("1M");
+    expect(formatBpLabel(2.5e6)).toBe("2.5M");
+    expect(formatBpLabel(3e8)).toBe("300M");
+    expect(formatBpLabel(7.12e9)).toBe("7.12G");
+  });
+});
+
+describe("collectTicks", () => {
+  const bar = (chr: string, px: number, pw: number, p1: number, bpLen: number): ChrBar => {
+    return { kind: "chr", chr, px, pw, bpLen, p1 };
+  };
+  const byKey = (ticks: ReturnType<typeof collectTicks>) => new Map(ticks.map((t) => [t.key, t]));
+
+  it("pairs a bp present on both rows with connectors", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, true);
+
+    expect(ticks.map((t) => t.key)).toEqual(["1A-0", "1A-100000000", "1A-200000000"]);
+    expect(ticks.every((t) => t.drawLine)).toBe(true);
+    expect(byKey(ticks).get("1A-100000000")).toMatchObject({ xTop: 100, xBottom: 100 });
+  });
+
+  it("emits a one-sided tick for a bp past the other row's bar, and for a chr it lacks", () => {
+    //   0 1M   2M
+    // 1A---------
+    // 1A--- 1B---
+    //   0 1M  0 1M
+    const ticks = collectTicks(
+      [bar("1A", 0, 200, 0, 2e6)],
+      [bar("1A", 0, 100, 0, 1e6), bar("2B", 103, 100, 0, 1e6)],
+      1e6,
+      true
+    );
+    const found = byKey(ticks);
+
+    expect(ticks.map((t) => t.key)).toEqual(["1A-0", "1A-1000000", "1A-2000000", "2B-0", "2B-1000000"]);
+    // 1A partially on both with connector
+    expect(found.get("1A-0")).toMatchObject({ xTop: 0, xBottom: 0, drawLine: true });
+    expect(found.get("1A-1000000")).toMatchObject({ xTop: 100, xBottom: 100, drawLine: true });
+    // 200M only on top
+    expect(found.get("1A-2000000")).toMatchObject({ xTop: 200, xBottom: undefined, drawLine: false });
+    // 2B only on bottom
+    expect(found.get("2B-0")).toMatchObject({ xBottom: 103, drawLine: false });
+    expect(found.get("2B-0")?.xTop).toBeUndefined();
+    expect(found.get("2B-1000000")).toMatchObject({ xBottom: 203, drawLine: false });
+  });
+
+  it("suppresses every connector when rows are not on the same scale", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 0, 200, 0, 2e8)], 1e8, false);
+
+    expect(ticks.every((t) => t.drawLine)).toBe(false);
+    expect(ticks.every((t) => t.xTop !== undefined && t.xBottom !== undefined)).toBe(true);
+  });
+
+  it("suppresses a connector whose two ends drift too far apart", () => {
+    // the query bar drifts 60px
+    const ticks = collectTicks([bar("1A", 0, 200, 0, 2e8)], [bar("1A", 60, 200, 0, 2e8)], 1e8, true);
+    expect(ticks.every((t) => t.drawLine)).toBe(false);
+  });
+
+  it("starts at the first step multiple inside the bar", () => {
+    const ticks = collectTicks([bar("1A", 0, 200, 1.2e8, 2e8)], [], 1e8, true);
+    expect(ticks.map((t) => t.label)).toEqual(["200M", "300M"]);
   });
 });
 

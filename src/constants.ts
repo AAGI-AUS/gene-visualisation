@@ -43,7 +43,14 @@ export const CHR_GAP_PX = 3;
 export const OTHERS_W = 24;
 export const TOOLTIP_SPACING = 233;
 export const SVG_H = PAD.top + CHROM_THICKNESS + ROW_GAP + CHROM_THICKNESS + PAD.bottom;
-export const TICK_INTERVAL_BP = 100_000_000;
+export const DEFAULT_TICK_STEP_BP = 100_000_000;
+export const TICK_TARGET_PX = 80;
+export const TICK_TARGET_EM = 7;
+export const MAX_TICKS_PER_CHR = 10;
+export const MAX_TICKS_PER_BAR = 1000;
+export const MAX_TICK_OFFSET_FRAC = 0.1;
+export const TICK_MULTIPLES = [1, 2, 2.5, 5, 10];
+export const TICK_MARK_PX = 8;
 
 export const chunkEvents = ["synteny", "inversion", "translocation", "translocation+inversion"] as const;
 export type ChunkEvent = (typeof chunkEvents)[number];
@@ -56,6 +63,47 @@ export const OTHERS_LABEL: Record<OthersMode, string> = {
   hide: "Hide others",
   group: "Group others",
   show: "Show all",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hover help (see src/help.ts); an empty string renders no bubble
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const HELP = {
+  // Sidebar parameters
+  selectedChr: "",
+  groupThreshold:
+    "Query chromosomes holding this share or less of the genes are hidden. Higher = more chromosomes hidden.",
+  workerCount: "Number of CPU cores used. Higher = more CPU and RAM used.",
+
+  // Visualization toolbar
+  gapBp: "Genes further apart than this on the base start a new block. Higher = fewer, longer blocks.",
+  hiddenThreshold: "blocks with this many genes or fewer are hidden. Higher = fewer blocks drawn.",
+  stripBlankMbp:
+    "Largest leading blank kept when snapping a chromosome to the shared axis; wider blanks are trimmed instead. Higher = fewer trims, 0 = never trim.",
+  othersMode:
+    "Query chromosomes collapsed by the group threshold. Cycles hide → group into one slot → show every chromosome.",
+  commonOnly: "Keep only genes present in every query file.",
+  denoise: "Drop genes that survive blocking in some queries but not all.",
+  sharedAxis: "Give each chromosome one bp scale across all rows.",
+  tickIntervalMbp: "Spacing between tick marks. 0 = Auto.",
+  boundaryTicks: "Draw more tick marks. When off, only draw at the bottom of each scale and at the topmost.",
+  showMarks: "Draw centromere and predicted-centromere (wheat only) marks on each chromosome bar.",
+  fontSize: "",
+  svgW: "",
+
+  intraRelabel:
+    "Relabel same-chromosome blocks to translocation when the offset of query position drift from the nearby backbone.",
+  minLocalEvents: "Minimum genes around a region to be taken as its local backbone. Higher = wider backbone.",
+  gapStopMbp:
+    "The backbone stops at the first gap this wide. Higher = crossing bigger gaps for a distant reference.",
+  driftK:
+    "How far a block must drift from the local backbone to be re-labelled (0-1, after normalising). Higher = fewer re-labels.",
+  complexMin:
+    "Distinct score groups in a region before its chromosome gets another relabel pass. Higher = fewer passes.",
+
+  // Summary tab
+  coreOverride: "Override the computed genome-wide core fraction on the overall bar. Empty = computed.",
 };
 
 export const LINE_MAPPING = {

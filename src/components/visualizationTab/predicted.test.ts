@@ -33,6 +33,7 @@ const layout = (opts: {
   ribbons: opts.ribbons ?? [],
   y1bot: 0,
   y2top: 0,
+  sameScale: true,
 });
 
 describe("buildPredictedPerPair", () => {

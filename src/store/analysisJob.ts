@@ -18,6 +18,9 @@ export type PackedCache = {
   sign: Uint8Array;
   chrIdx: Uint16Array;
   chrDict: string[];
+  // Highest p2 per chrDict entry, over every row of the file - filterPacked runs after this, so
+  // the id filter cannot shorten it.
+  chrEnd: Float64Array;
 };
 
 export const packParsed = (rows: BedRow[]): PackedCache => {
@@ -29,6 +32,7 @@ export const packParsed = (rows: BedRow[]): PackedCache => {
   const chrIdx = new Uint16Array(n);
   const chrDict: string[] = [];
   const chrLookup = new Map<string, number>();
+  const ends: number[] = [];
 
   for (let i = 0; i < n; i++) {
     const r = rows[i];
@@ -41,12 +45,19 @@ export const packParsed = (rows: BedRow[]): PackedCache => {
       ci = chrDict.length;
       chrDict.push(r.chromosome);
       chrLookup.set(r.chromosome, ci);
+      ends.push(r.p2);
+    } else if (r.p2 > ends[ci]) {
+      ends[ci] = r.p2;
     }
     chrIdx[i] = ci;
   }
 
-  return { ids, p1, p2, sign, chrIdx, chrDict };
+  return { ids, p1, p2, sign, chrIdx, chrDict, chrEnd: Float64Array.from(ends) };
 };
+
+// Per-chromosome extent of the whole file, keyed by name.
+export const packedChrExtent = (cache: PackedCache): Map<string, number> =>
+  new Map(cache.chrDict.map((chr, i) => [chr, cache.chrEnd[i]]));
 
 export const filterPacked = (cache: PackedCache, ids: Set<number>): BedRow[] => {
   const out: BedRow[] = [];
@@ -73,4 +84,5 @@ export const transferables = (packed: PackedCache): Transferable[] => [
   packed.p2.buffer,
   packed.sign.buffer,
   packed.chrIdx.buffer,
+  packed.chrEnd.buffer,
 ];

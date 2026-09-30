@@ -48,8 +48,6 @@ const invalidChromosomes = new Set(["un"]);
 const validChromosomes = (chr: string) => chr.length === 2 && !invalidChromosomes.has(chr.toLowerCase());
 
 /**
- * Mirrors Python's queryGene().
- *
  * 1. Left-join queryRows onto baseRows by id.
  * 2. Compute isInvert, isTranslocation, mainEvent per row.
  * 3. Build per-chromosome-query percentage table; collapse chromosomes whose
@@ -163,6 +161,16 @@ export const fileToText = (file: File): Promise<string> => {
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsText(file);
   });
+};
+
+/** Highest p2 per chromosome */
+export const chrExtentOf = (rows: BedRow[]): Map<string, number> => {
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    const cur = out.get(r.chromosome);
+    if (cur === undefined || r.p2 > cur) out.set(r.chromosome, r.p2);
+  }
+  return out;
 };
 
 export const getChromosomes = (rows: BedRow[]): string[] => {

@@ -42,4 +42,27 @@ describe("NumberControl", () => {
     fireEvent.change(input(), { target: { value: "" } });
     expect(onChange).toHaveBeenCalledWith(5);
   });
+
+  it("carries no help attributes when no help text is given", () => {
+    render(<NumberControl label="Gap" onChange={() => {}} />);
+    expect(screen.getByText("Gap")).not.toHaveAttribute("data-help");
+  });
+
+  it("anchors the help bubble on the label", () => {
+    render(<NumberControl label="Gap" onChange={() => {}} help="Block split distance" />);
+    expect(screen.getByText("Gap")).toHaveAttribute("data-help", "Block split distance");
+    expect(screen.getByText("Gap")).toHaveAttribute("data-help-align", "start");
+  });
+
+  it("honours an explicit help alignment", () => {
+    render(<NumberControl label="Width" onChange={() => {}} help="Canvas width" helpAlign="end" />);
+    expect(screen.getByText("Width")).toHaveAttribute("data-help-align", "end");
+  });
+
+  it("keeps the help bubble off the input and the unit", () => {
+    render(<NumberControl label="Gap" unit="kbp" onChange={() => {}} help="Block split distance" />);
+    expect(input()).not.toHaveAttribute("data-help");
+    expect(screen.getByText("kbp")).not.toHaveAttribute("data-help");
+    expect(screen.getByText("Gap")).toHaveAttribute("data-help");
+  });
 });

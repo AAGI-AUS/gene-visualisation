@@ -4,6 +4,8 @@ import { RunButton } from "@/src/components/sideBar/RunButton";
 import { abortBatchExport, batchExportAll } from "@/src/components/visualizationTab/batchExport";
 import { MAX_WORKERS } from "@/src/store/workerPool";
 import { clamp } from "@/src/utils";
+import { HELP } from "@/src/constants";
+import { helpProps } from "@/src/help";
 
 const ChrSelect = () => {
   // Unique chromosomes in order of first appearance
@@ -14,7 +16,9 @@ const ChrSelect = () => {
   const disabled = chromosomes.length === 0;
   return (
     <div className={styles.thresholdRow}>
-      <label className={styles.thresholdLabel}>Base chromosome</label>
+      <label className={styles.thresholdLabel}>
+        <span {...helpProps(HELP.selectedChr)}>Base chromosome</span>
+      </label>
       <select
         className={styles.chrSelect}
         value={selectedChr}
@@ -77,7 +81,9 @@ export const Parameters = () => {
         <ChrSelect />
 
         <div className={styles.thresholdRow}>
-          <label className={styles.thresholdLabel}>Group threshold</label>
+          <label className={styles.thresholdLabel}>
+            <span {...helpProps(HELP.groupThreshold)}>Group threshold</span>
+          </label>
           <input
             className={styles.thresholdInput}
             type="number"
@@ -90,7 +96,9 @@ export const Parameters = () => {
         </div>
 
         <div className={styles.thresholdRow}>
-          <label className={styles.thresholdLabel}>Workers</label>
+          <label className={styles.thresholdLabel}>
+            <span {...helpProps(HELP.workerCount)}>Workers</span>
+          </label>
           <input
             className={styles.thresholdInput}
             type="number"

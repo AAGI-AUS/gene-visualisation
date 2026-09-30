@@ -1,4 +1,4 @@
-import { packParsed, filterPacked, transferables } from "@/src/store/analysisJob";
+import { packParsed, filterPacked, packedChrExtent, transferables } from "@/src/store/analysisJob";
 import { makeBedRow } from "@/src/test/factories";
 
 const rows = [
@@ -44,6 +44,22 @@ describe("packParsed", () => {
     const cache = packParsed([]);
     expect(cache.ids.length).toBe(0);
     expect(cache.chrDict).toEqual([]);
+    expect(packedChrExtent(cache).size).toBe(0);
+  });
+
+  it("keeps the furthest p2 per chromosome, over every row", () => {
+    const cache = packParsed([
+      makeBedRow({ id: 0, p1: 0, p2: 100 }),
+      makeBedRow({ id: 1, chromosome: "2B", p1: 0, p2: 900 }),
+      makeBedRow({ id: 2, p1: 400, p2: 500 }),
+      makeBedRow({ id: 3, p1: 200, p2: 300 }),
+    ]);
+    expect(packedChrExtent(cache)).toEqual(
+      new Map([
+        ["1A", 500],
+        ["2B", 900],
+      ])
+    );
   });
 });
 
@@ -84,6 +100,7 @@ describe("transferables", () => {
       packed.p2.buffer,
       packed.sign.buffer,
       packed.chrIdx.buffer,
+      packed.chrEnd.buffer,
     ]);
   });
 });

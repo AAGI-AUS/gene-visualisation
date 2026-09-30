@@ -20,11 +20,14 @@ export interface VisualizationLayout {
   ribbons: ChunkRibbon[];
   y1bot: number;
   y2top: number;
+  sameScale: boolean;
 }
 
 export interface PairInput {
   data: ResultRow[];
   queryLabel: string;
+  // how far chromosome can run to fill canvas as the last bar
+  chrExtent?: Map<string, number>;
 }
 
 export interface Track {
@@ -74,21 +77,20 @@ export const buildTracks = (cleanChunksPerPair: Chunk[][], pairCount: number, ot
   return out;
 };
 
-// Partition tracks into maximal runs of consecutive tracks whose chr sets are identical.
-// Returns groupOf[i] = group index for track i.
-export const partitionTracksByChrSet = (tracks: Track[]): number[] => {
+// Group adjacent tracks whose chr sets are identical, return group indices [0, 0, 1, 2, 2, ...]
+export const groupTracksByChrSet = (tracks: Track[]): number[] => {
   const sameSet = (a: string[], b: string[]) => {
     if (a.length !== b.length) return false;
     const sb = new Set(b);
     return a.every((c) => sb.has(c));
   };
 
-  const groupOf: number[] = [0];
-  for (let i = 1; i < tracks.length; i++) {
-    if (sameSet(tracks[i - 1].chrOrder, tracks[i].chrOrder)) {
-      groupOf.push(groupOf[i - 1]);
+  const groupOf = [0];
+  for (let i = 0; i < tracks.length - 1; i++) {
+    if (sameSet(tracks[i].chrOrder, tracks[i + 1].chrOrder)) {
+      groupOf.push(groupOf[i]);
     } else {
-      groupOf.push(groupOf[i - 1] + 1);
+      groupOf.push(groupOf[i] + 1);
     }
   }
   return groupOf;
@@ -146,7 +148,8 @@ export const computeVisualizationLayout = (
   sharedAxis: boolean,
   stripBlankMbp: number,
   intraRelabel: boolean,
-  intraScoreConfig: IntraScoreConfig
+  intraScoreConfig: IntraScoreConfig,
+  baseChrExtent?: Map<string, number>
 ): VisualizationLayout[] => {
   const stripBlankBp = stripBlankMbp > 0 ? stripBlankMbp * 1e6 : 0;
 
@@ -224,54 +227,99 @@ export const computeVisualizationLayout = (
     return { chrMin, chrMax, chrOrder, needsOthersStub };
   })();
 
-  // Per-pair axes under shared-axis: partition tracks into groups of identical chr sets,
-  // unify bounds within each group, then extend chrMin out to the global unified min unless
-  // stripBlankBp would cut a leading blank. chrMax stays at group-max.
-  const pairAxes = (() => {
-    if (!sharedAxis) {
-      return pairs.map((_, p) => ({ baseAxis: tracks[p], queryAxis: tracks[p + 1] }));
-    }
+  const groupOf = groupTracksByChrSet(tracks);
 
-    const groupOf = partitionTracksByChrSet(tracks);
+  const finalAxes: Track[] = (() => {
+    if (!sharedAxis) return tracks;
+
     const { groupChrMin, groupChrMax } = computeGroupBounds(tracks, groupOf);
     const groupFinalChrMin = applyGlobalExtension(groupChrMin, unifiedAxis.chrMin, stripBlankBp);
 
-    const finalAxes: Track[] = tracks.map((t, i) => ({
+    return tracks.map((t, i) => ({
       chrMin: groupFinalChrMin[groupOf[i]],
       chrMax: groupChrMax[groupOf[i]],
       chrOrder: t.chrOrder,
       needsOthersStub: t.needsOthersStub,
     }));
-
-    return pairs.map((_, p) => ({ baseAxis: finalAxes[p], queryAxis: finalAxes[p + 1] }));
   })();
 
-  // One global px/bp: the smallest per-row ratio across all shared-axis rows, so every row
-  // fits in trackW and bp coordinates align across rows and chromosomes.
-  const perChrPxPerBp = (() => {
+  const axisTargetW = (axis: Track) => trackW - (axis.chrOrder.length - 1) * CHR_GAP_PX;
+  const axisTotalBp = ({ chrOrder, chrMin, chrMax }: Track) =>
+    chrOrder.reduce((total, chr) => total + (chrMax.get(chr) ?? 0) - (chrMin.get(chr) ?? 0), 0);
+
+  const sharedPxPerBp = (() => {
     if (!sharedAxis) return undefined;
-    const allChrs = new Set<string>();
-    let globalPxPerBp = Infinity;
-    for (const { baseAxis, queryAxis } of pairAxes) {
-      for (const axis of [baseAxis, queryAxis]) {
-        const n = axis.chrOrder.length;
-        if (!n) continue;
-        let totalBp = 0;
-        for (const chr of axis.chrOrder) {
-          totalBp += (axis.chrMax.get(chr) ?? 0) - (axis.chrMin.get(chr) ?? 0);
-          allChrs.add(chr);
-        }
-        if (totalBp <= 0) continue;
-        const gap = (n - 1) * CHR_GAP_PX;
-        const rowPxPerBp = (trackW - gap) / totalBp;
-        if (rowPxPerBp < globalPxPerBp) globalPxPerBp = rowPxPerBp;
-      }
+
+    let best = Infinity;
+    for (const axis of finalAxes) {
+      if (!axis.chrOrder.length) continue;
+
+      const totalBp = axisTotalBp(axis);
+      if (totalBp <= 0) continue;
+
+      const ratio = axisTargetW(axis) / totalBp;
+      if (ratio < best) best = ratio;
     }
-    if (!isFinite(globalPxPerBp) || !allChrs.size) return undefined;
+    return best;
+  })();
+
+  // how far chromosome can run to fill canvas as the last bar
+  const trackChrExtent: Map<string, number>[] = (() => {
+    const fromRows = (rows: ResultRow[], query: boolean) => {
+      const out = new Map<string, number>();
+      for (const r of rows) {
+        const chr = query ? r.chromosomeQuery : r.chromosomeBase;
+        const end = query ? r.p2Query : r.p2Base;
+        const cur = out.get(chr);
+        if (cur === undefined || end > cur) out.set(chr, end);
+      }
+      return out;
+    };
+    const head = baseChrExtent ?? fromRows(pairs[0]?.data ?? [], false);
+    return [head, ...pairs.map((p) => p.chrExtent ?? fromRows(p.data, true))];
+  })();
+
+  // longest extent of each chromosome bar
+  const figureChrExtent = (() => {
     const out = new Map<string, number>();
-    for (const chr of allChrs) out.set(chr, globalPxPerBp);
+    for (const extent of trackChrExtent) {
+      extent?.forEach((bp, chr) => {
+        const cur = out.get(chr);
+        if (cur === undefined || bp > cur) out.set(chr, bp);
+      });
+    }
     return out;
   })();
+
+  // cap the extension if own and neighbours' tail is the same chromosome with the longest extent, otherwise 0
+  const extensionCap = (i: number, lastChr: string) => {
+    for (let t = 0; t < finalAxes.length; t++) {
+      if (groupOf[t] !== groupOf[i]) continue;
+      for (const neighbour of [finalAxes[t - 1], finalAxes[t + 1]]) {
+        if (neighbour && neighbour.chrOrder[neighbour.chrOrder.length - 1] !== lastChr) return 0;
+      }
+    }
+    return figureChrExtent.get(lastChr) ?? 0;
+  };
+
+  const paddedAxes: Track[] =
+    sharedPxPerBp === undefined
+      ? finalAxes
+      : finalAxes.map((axis, i) => {
+          const n = axis.chrOrder.length;
+          if (!n) return axis;
+          const deficitPx = axisTargetW(axis) - axisTotalBp(axis) * sharedPxPerBp;
+          if (deficitPx <= 0) return axis;
+          const lastChr = axis.chrOrder[n - 1];
+          const dataMax = axis.chrMax.get(lastChr) ?? 0;
+          const extended = Math.min(dataMax + deficitPx / sharedPxPerBp, extensionCap(i, lastChr));
+          if (extended <= dataMax) return axis;
+          const chrMax = new Map(axis.chrMax);
+          chrMax.set(lastChr, extended);
+          return { ...axis, chrMax };
+        });
+
+  const pairAxes = pairs.map((_, p) => ({ baseAxis: paddedAxes[p], queryAxis: paddedAxes[p + 1] }));
 
   return pairs.map((pair, p) => {
     const { baseAxis, queryAxis } = pairAxes[p];
@@ -283,7 +331,7 @@ export const computeVisualizationLayout = (
       p === 0 ? baseLabel : "",
       trackW,
       othersMode,
-      perChrPxPerBp
+      sharedPxPerBp
     );
 
     const chrSpecs: SlotSpec[] = queryAxis.chrOrder.map((chr) => {
@@ -298,13 +346,12 @@ export const computeVisualizationLayout = (
     specs.push(...chrSpecs);
     if (showOthersStubs) specs.push({ kind: "others", baseChr: "__others__", side: "right" });
 
-    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, perChrPxPerBp);
-
+    const queryRow = buildQueryRow(specs, pair.queryLabel, trackW, sharedPxPerBp);
     const ribbons = computeRibbons(relabeledChunksPerPair[p], baseRow, queryRow, othersMode);
     const y1bot = baseRow.y + CHROM_THICKNESS + RIBBON_GAP;
     const y2top = queryRow.y - RIBBON_GAP;
 
-    return { baseRow, queryRow, ribbons, y1bot, y2top };
+    return { baseRow, queryRow, ribbons, y1bot, y2top, sameScale: groupOf[p] === groupOf[p + 1] };
   });
 };
 
@@ -321,7 +368,8 @@ export const useVisualizationLayout = (
   sharedAxis: boolean,
   stripBlankMbp: number,
   intraRelabel: boolean,
-  intraScoreConfig: IntraScoreConfig
+  intraScoreConfig: IntraScoreConfig,
+  baseChrExtent?: Map<string, number>
 ): VisualizationLayout[] => {
   const { minLocalEvents, gapStopMbp, driftK, complexMin } = intraScoreConfig;
   return useMemo(
@@ -339,10 +387,12 @@ export const useVisualizationLayout = (
         sharedAxis,
         stripBlankMbp,
         intraRelabel,
-        intraScoreConfig
+        intraScoreConfig,
+        baseChrExtent
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
+      baseChrExtent,
       pairs,
       baseLabel,
       trackW,
