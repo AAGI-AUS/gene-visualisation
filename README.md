@@ -1,10 +1,10 @@
-# gene-visualizer
+# Synteny Graph Builder
 
 [![codecov](https://codecov.io/gh/AAGI-AUS/gene-visualisation/graph/badge.svg?token=MUfr3bW7VA)](https://codecov.io/gh/AAGI-AUS/gene-visualisation)
 
-React app for visualizing genomic synteny graph from BED files. It loads a base BED and one or more query BEDs,
-joins rows by id, classifies each row as synteny/inversion/translocation, groups contiguous rows into chunks,
-and draws ribbons between chromosome bars.
+Synteny Graph Builder is an app to visualize genomic structural variation from BED files. It loads a base BED
+and one or more query BEDs, joins rows by id, classifies each row as synteny/inversion/translocation, groups
+contiguous rows into chunks, and draws ribbons between chromosome bars.
 
 ## Quick start
 
