@@ -44,8 +44,8 @@ export const parseBED = (text: string, fileName = ""): BedRow[] =>
       return rows;
     }, []);
 
-const invalidChromosomes = new Set(["un"]);
-const validChromosomes = (chr: string) => chr.length === 2 && !invalidChromosomes.has(chr.toLowerCase());
+const CHROMOSOME_RE = /^(?:\d{1,2}[A-Z]?|[A-Z]\d{1,2}|[XYZW])$/i;
+const validChromosomes = (chr: string) => CHROMOSOME_RE.test(chr);
 
 /**
  * 1. Left-join queryRows onto baseRows by id.

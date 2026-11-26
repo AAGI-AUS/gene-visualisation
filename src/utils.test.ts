@@ -91,8 +91,15 @@ describe("parseBED", () => {
     expect(parseBED(text).map((r) => r.chromosome)).toEqual(["1A", "1B"]);
   });
 
-  it("drops rows whose chromosome name is not exactly two characters", () => {
-    const text = bedText([["chr1A", 10, 20, "+", 2], ...baseRowCells]);
+  it("keeps chromosome names in common naming schemes", () => {
+    const names = ["1A", "7d", "2H", "1", "12", "A01", "c9", "X", "W"];
+    const text = bedText(names.map((chr, id) => [chr, 10, 20, "+", id]));
+    expect(parseBED(text).map((r) => r.chromosome)).toEqual(names);
+  });
+
+  it("drops unplaced, scaffold, organelle and prefixed chromosome names", () => {
+    const names = ["Un", "chrUn", "scaffold_123", "1A_random", "Pt", "Mt", "chr1A", "123", "A123", "AB1"];
+    const text = bedText([...names.map((chr, id): Cell[] => [chr, 10, 20, "+", id + 10]), ...baseRowCells]);
     expect(parseBED(text)).toEqual(baseExpectedRows);
   });
 
