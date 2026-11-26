@@ -246,15 +246,19 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
 
   const { showMarks } = useVisualizationStore.getState();
 
-  let writable: ZipWritable;
-  try {
-    const handle = await (window as unknown as SaveFilePickerWindow).showSaveFilePicker({
-      suggestedName: zipName,
-      types: [{ description: "ZIP archive", accept: { "application/zip": [".zip"] } }],
-    });
-    writable = await handle.createWritable();
-  } catch {
-    return;
+  const picker = (window as Partial<SaveFilePickerWindow>).showSaveFilePicker;
+  let writable: ZipWritable | null = null;
+  if (picker) {
+    try {
+      const handle = await picker({
+        suggestedName: zipName,
+        types: [{ description: "ZIP archive", accept: { "application/zip": [".zip"] } }],
+      });
+      writable = await handle.createWritable();
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      console.warn("showSaveFilePicker failed, falling back to download", e);
+    }
   }
 
   const controller = new AbortController();
@@ -308,7 +312,8 @@ export const batchExportAll = async (zipName = "synteny-all.zip"): Promise<void>
       ];
     }
     const zipped = await zipAsync(files);
-    await writable.write(zipped);
+    if (writable) await writable.write(zipped);
+    else triggerDownload(new Blob([zipped as Uint8Array<ArrayBuffer>], { type: "application/zip" }), zipName);
   }
-  await writable.close();
+  await writable?.close();
 };
